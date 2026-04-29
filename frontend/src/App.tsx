@@ -13,7 +13,7 @@ import {
   ShoppingCart,
   TrainFront,
 } from 'lucide-react'
-import L, { type Layer, type PathOptions } from 'leaflet'
+import L, { type LatLngExpression, type Layer, type PathOptions } from 'leaflet'
 import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import './App.css'
@@ -231,6 +231,10 @@ type SearchMatch = {
   feature: AreaFeature
   rank: number
 }
+type AreaFocusRequest = {
+  feature: AreaFeature
+  requestId: number
+}
 
 const METRICS: MetricConfig[] = [
   { key: 'combined', label: 'Combined', shortLabel: 'Overall', icon: Layers },
@@ -436,6 +440,8 @@ const LEGEND_STEPS = [
   { label: '25', color: '#f2994a' },
   { label: '0', color: '#d94841' },
 ]
+
+const SELECTED_AREA_ZOOM = 14
 
 function stringFrom(value: unknown) {
   if (typeof value === 'string') return value.trim()
@@ -1322,6 +1328,22 @@ function formatTransitComplexity(value?: string) {
   return value || 'n/a'
 }
 
+function areaFocusCenter(feature: AreaFeature): LatLngExpression | null {
+  const lat = feature.properties.centroid_lat
+  const lon = feature.properties.centroid_lon
+  if (
+    typeof lat === 'number' &&
+    Number.isFinite(lat) &&
+    typeof lon === 'number' &&
+    Number.isFinite(lon)
+  ) {
+    return [lat, lon]
+  }
+
+  const bounds = L.geoJSON(feature).getBounds()
+  return bounds.isValid() ? bounds.getCenter() : null
+}
+
 function FitToData({ data }: { data: AreaFeatureCollection }) {
   const map = useMap()
 
@@ -1335,16 +1357,25 @@ function FitToData({ data }: { data: AreaFeatureCollection }) {
   return null
 }
 
-function ZoomToSelected({ feature }: { feature: AreaFeature | null }) {
+function ZoomToSelected({
+  focusRequest,
+}: {
+  focusRequest: AreaFocusRequest | null
+}) {
   const map = useMap()
 
   useEffect(() => {
-    if (!feature) return
-    const bounds = L.geoJSON(feature).getBounds()
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { maxZoom: 14, padding: [36, 36] })
-    }
-  }, [feature, map])
+    if (!focusRequest) return
+    const center = areaFocusCenter(focusRequest.feature)
+    if (!center) return
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      map.invalidateSize({ pan: false })
+      map.setView(center, SELECTED_AREA_ZOOM)
+    })
+
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [focusRequest, map])
 
   return null
 }
@@ -1369,6 +1400,9 @@ function App() {
   const [weights, setWeights] =
     useState<Record<WeightKey, number>>(DEFAULT_WEIGHTS)
   const [selected, setSelected] = useState<AreaFeature | null>(null)
+  const [selectedFocus, setSelectedFocus] = useState<AreaFocusRequest | null>(
+    null,
+  )
   const [query, setQuery] = useState('')
   const [workCodeDraft, setWorkCodeDraft] = useState('')
   const [workPostalCode, setWorkPostalCode] = useState('')
@@ -1667,7 +1701,7 @@ function App() {
       selectedTransitAccess,
     )
     layer.on({
-      click: () => setSelected(feature),
+      click: () => focusAreaFeature(feature),
       mouseover: () => {
         layer.bindTooltip(
           `${areaFullLabel(feature.properties)} · ${scoreText(score)}`,
@@ -1677,8 +1711,16 @@ function App() {
     })
   }
 
-  function selectAreaFeature(feature: AreaFeature) {
+  function focusAreaFeature(feature: AreaFeature) {
     setSelected(feature)
+    setSelectedFocus((current) => ({
+      feature,
+      requestId: (current?.requestId ?? 0) + 1,
+    }))
+  }
+
+  function selectAreaFeature(feature: AreaFeature) {
+    focusAreaFeature(feature)
     setQuery(
       feature.properties.area_unit === 'postal_code'
         ? (feature.properties.postal_code ?? feature.properties.area_id)
@@ -1709,6 +1751,7 @@ function App() {
     setSelectedAreaUnit(areaUnit)
     setLoadError('')
     setQuery('')
+    setSelectedFocus(null)
     setSelected(datasets[areaUnit]?.features[0] ?? null)
   }
 
@@ -2367,7 +2410,7 @@ function App() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitToData data={data} />
-            <ZoomToSelected feature={selected} />
+            <ZoomToSelected focusRequest={selectedFocus} />
             <GeoJSON
               data={data}
               key={mapKey}
@@ -2420,7 +2463,7 @@ function App() {
               {sortedTopAreas.map((feature, index) => (
                 <button
                   key={`${feature.properties.area_unit}-${feature.properties.area_id}`}
-                  onClick={() => setSelected(feature)}
+                  onClick={() => focusAreaFeature(feature)}
                   type="button"
                 >
                   <span className="rank">{index + 1}</span>
