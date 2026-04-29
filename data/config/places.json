@@ -1,0 +1,30 @@
+{
+  "workplace": {
+    "name": "Default Workplace - CP 11510",
+    "postal_code": "11510",
+    "latitude": 19.435181,
+    "longitude": -99.209662,
+    "source": "places_config",
+    "notes": "Representative point from the CDMX postal-code polygon for 11510."
+  },
+  "travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "notes": "Offline fallback only. Straight-line distance is multiplied by a mode-specific detour factor, then divided by an assumed average speed.",
+    "speeds_kmh": {
+      "driving": 24,
+      "walking": 4.8,
+      "biking": 14
+    },
+    "detour_factors": {
+      "driving": 1.35,
+      "walking": 1.15,
+      "biking": 1.25
+    }
+  },
+  "amenity_travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "mode": "walking",
+    "candidate_count": 5,
+    "notes": "For each area and amenity group, only the nearest candidate_count POIs by straight-line distance are considered before estimating travel time."
+  }
+}

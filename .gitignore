@@ -1,0 +1,27 @@
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+dist-ssr/
+logs/
+*.log
+.env
+.env.*
+!.env.example
+
+# Downloaded/generated data can be recreated by the scripts, except the small
+# seed/config CSVs that make the demo deterministic.
+data/raw/*.json
+data/raw/*.geojson
+data/raw/*.zip
+data/raw/*.csv
+data/raw/gtfs/
+data/archive/**
+data/processed/*.csv
+data/processed/*.geojson
+data/processed/*.json
+!data/raw/workplaces.csv
+!data/seeds/*.csv
+!data/archive/README.md

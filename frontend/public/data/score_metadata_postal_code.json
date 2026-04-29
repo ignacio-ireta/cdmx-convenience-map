@@ -1,0 +1,101 @@
+{
+  "area_unit": "postal_code",
+  "feature_count": 1215,
+  "weights": {
+    "work": 0.3,
+    "transit": 0.25,
+    "supermarkets": 0.18,
+    "gyms": 0.12,
+    "safety": 0.15
+  },
+  "point_counts": {
+    "transit_stops": 10849,
+    "transit_core_points": 1308,
+    "transit_surface_points": 9541,
+    "supermarkets": 130,
+    "gyms": 553,
+    "workplaces": 1,
+    "crime_records": 1340993
+  },
+  "crime": {
+    "records_total": 1340004,
+    "records_recent_12m": 231158,
+    "latest_date": "2024-09-30",
+    "recent_start_date": "2023-09-30"
+  },
+  "workplace": {
+    "name": "Default Workplace - CP 11510",
+    "postal_code": "11510",
+    "source": "places_config"
+  },
+  "travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "modes": [
+      "driving",
+      "walking",
+      "biking"
+    ],
+    "speeds_kmh": {
+      "driving": 24.0,
+      "walking": 4.8,
+      "biking": 14.0
+    },
+    "detour_factors": {
+      "driving": 1.35,
+      "walking": 1.15,
+      "biking": 1.25
+    }
+  },
+  "amenity_travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "mode": "walking",
+    "candidate_count": 5,
+    "candidate_pairs": {
+      "supermarkets": 6075,
+      "costco": 6075,
+      "walmart": 6075,
+      "gyms": 6075
+    },
+    "estimated_pairs": {
+      "supermarkets": 6075,
+      "costco": 6075,
+      "walmart": 6075,
+      "gyms": 6075
+    }
+  },
+  "source_urls": {
+    "postal_codes": "https://datos.cdmx.gob.mx/dataset/codigos-postales",
+    "transit_apimetro": "https://apimetro.dev/docs",
+    "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
+    "crime_victims_fgj": "https://datos.cdmx.gob.mx/dataset/victimas-en-carpetas-de-investigacion-fgj/resource/d543a7b1-f8cb-439f-8a5c-e56c5479eeb5"
+  },
+  "sources": {
+    "areas": "data/raw/correos-postales.json",
+    "postal_code": "data/raw/correos-postales.json",
+    "places_config": "data/config/places.json",
+    "transit_stops": "data/processed/transit_stops.csv",
+    "supermarkets": "data/processed/supermarkets.csv",
+    "gyms": "data/processed/gyms.csv",
+    "workplaces_legacy_csv": "data/raw/workplaces.csv",
+    "crime_points": "data/processed/crime_points.csv"
+  },
+  "outputs": {
+    "processed": "data/processed/scores_postal_code.geojson",
+    "public": "frontend/public/data/scores_postal_code.geojson",
+    "legacy_processed": [
+      "data/processed/cdmx_postal_scores.geojson"
+    ],
+    "legacy_public": [
+      "frontend/public/data/cdmx_postal_scores.geojson"
+    ]
+  },
+  "notes": [
+    "Distances are straight-line representative-point-to-point distances in meters.",
+    "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
+    "Scores are closer-is-better and clipped at the 95th percentile per metric.",
+    "Work travel times are offline fallback estimates unless the travel_time source is replaced with cached routing results.",
+    "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
+    "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
+    "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file."
+  ]
+}
