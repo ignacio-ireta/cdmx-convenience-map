@@ -3,17 +3,26 @@ from __future__ import annotations
 import argparse
 import re
 
-from common import CDMX_BBOX, DATA_PROCESSED, copy_seed, element_center, retry_overpass, write_csv
+from common import (
+    DATA_PROCESSED,
+    city_bbox,
+    copy_seed,
+    element_center,
+    load_city_profile,
+    retry_overpass,
+    write_csv,
+)
 
 
 BRAND_PATTERN = re.compile(r"(costco|walmart)", re.IGNORECASE)
 ALLOWED_SHOPS = {"supermarket", "wholesale", "department_store"}
 
 
-def build_query() -> str:
+def build_query(city: str) -> str:
+    bbox_data = city_bbox(city)
     bbox = (
-        f'{CDMX_BBOX["south"]},{CDMX_BBOX["west"]},'
-        f'{CDMX_BBOX["north"]},{CDMX_BBOX["east"]}'
+        f'{bbox_data["south"]},{bbox_data["west"]},'
+        f'{bbox_data["north"]},{bbox_data["east"]}'
     )
     return f"""
 [out:json][timeout:45];
@@ -49,7 +58,8 @@ def is_store(tags: dict) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch CDMX Costco/Walmart points from OSM.")
+    parser = argparse.ArgumentParser(description="Fetch supermarket points from OSM by city profile.")
+    parser.add_argument("--city", default="cdmx", help="City profile id (default: cdmx).")
     parser.add_argument("--seed-only", action="store_true", help="Skip Overpass and use seed CSV.")
     args = parser.parse_args()
 
@@ -59,7 +69,9 @@ def main() -> None:
         return
 
     try:
-        payload = retry_overpass(build_query(), attempts=2, timeout=75)
+        profile = load_city_profile(args.city)
+        brands = {brand.lower() for brand in profile.get("amenity_brands", {}).get("supermarkets", ["costco", "walmart"])}
+        payload = retry_overpass(build_query(args.city), attempts=2, timeout=75)
         rows: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for element in payload.get("elements", []):
@@ -68,7 +80,7 @@ def main() -> None:
                 continue
             tags = element.get("tags", {})
             brand = infer_brand(tags)
-            if brand == "Unknown" or not is_store(tags):
+            if brand == "Unknown" or brand.lower() not in brands or not is_store(tags):
                 continue
             key = (element.get("type", ""), str(element.get("id", "")))
             if key in seen:

@@ -1,0 +1,15 @@
+{
+  "city_id": "cdmx",
+  "display_name": "Ciudad de México",
+  "country_code": "MX",
+  "timezone": "America/Mexico_City",
+  "crs_metric_epsg": 32614,
+  "bbox": { "south": 19.04, "west": -99.38, "north": 19.60, "east": -98.90 },
+  "amenity_brands": { "supermarkets": ["costco", "walmart"] },
+  "sources": {
+    "areas": "https://datos.cdmx.gob.mx/dataset/codigos-postales",
+    "transit": "https://apimetro.dev/docs",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "crime": "https://datos.cdmx.gob.mx/dataset/victimas-en-carpetas-de-investigacion-fgj/resource/d543a7b1-f8cb-439f-8a5c-e56c5479eeb5"
+  }
+}

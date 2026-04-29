@@ -25,6 +25,24 @@ npm run dev -- --host 127.0.0.1 --port 5174
 
 Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 
+
+### City profile aware fetchers
+
+You can now run the OSM amenity fetchers with a city profile:
+
+```bash
+.venv/bin/python scripts/fetch_supermarkets.py --city cdmx
+.venv/bin/python scripts/fetch_gyms.py --city cdmx
+```
+
+A new orchestration helper is available:
+
+```bash
+.venv/bin/python scripts/run_city.py --city cdmx --area-unit postal_code
+```
+
+City profiles live in `data/cities/<city_id>/city.json` (for example `cdmx` and `stavanger`).
+
 ## What Is Included
 
 - CDMX postal-code polygons colored by selected convenience score.
@@ -51,3 +69,9 @@ Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 - Work travel times are generated offline. The current implementation uses fallback straight-line estimates, documented in `docs/travel-time-roadmap.md`.
 - Amenity travel times are generated offline with nearest-candidate narrowing; the current implementation uses fallback walking-time estimates, not live routing.
 - Safety score is lower-is-better recent crime density. It uses the latest 12 months available in the FGJ CSV, not the current calendar date.
+
+## Multi-City Evolution
+
+If you want this project to become plug-and-play for other cities (for example Stavanger), see `docs/multi-city-roadmap.md`.
+
+Recommended first implementation step: introduce `--city` profile-driven configuration in the data pipeline while preserving the current CDMX outputs as a compatibility baseline.
