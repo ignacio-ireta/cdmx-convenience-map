@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 
-from common import CDMX_BBOX, DATA_PROCESSED, copy_seed, element_center, retry_overpass, write_csv
+from common import DATA_PROCESSED, city_bbox, copy_seed, element_center, retry_overpass, write_csv
 
 
-def build_query() -> str:
+def build_query(city: str) -> str:
+    bbox_data = city_bbox(city)
     bbox = (
-        f'{CDMX_BBOX["south"]},{CDMX_BBOX["west"]},'
-        f'{CDMX_BBOX["north"]},{CDMX_BBOX["east"]}'
+        f'{bbox_data["south"]},{bbox_data["west"]},'
+        f'{bbox_data["north"]},{bbox_data["east"]}'
     )
     return f"""
 [out:json][timeout:45];
@@ -21,7 +22,8 @@ out tags center;
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch CDMX gyms from OSM Overpass.")
+    parser = argparse.ArgumentParser(description="Fetch gyms from OSM Overpass by city profile.")
+    parser.add_argument("--city", default="cdmx", help="City profile id (default: cdmx).")
     parser.add_argument("--seed-only", action="store_true", help="Skip Overpass and use seed CSV.")
     args = parser.parse_args()
 
@@ -31,7 +33,7 @@ def main() -> None:
         return
 
     try:
-        payload = retry_overpass(build_query(), attempts=2, timeout=75)
+        payload = retry_overpass(build_query(args.city), attempts=2, timeout=75)
         rows: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for element in payload.get("elements", []):
@@ -62,4 +64,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

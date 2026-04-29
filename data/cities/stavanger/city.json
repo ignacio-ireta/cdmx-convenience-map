@@ -1,0 +1,16 @@
+{
+  "city_id": "stavanger",
+  "display_name": "Stavanger",
+  "country_code": "NO",
+  "timezone": "Europe/Oslo",
+  "crs_metric_epsg": 32632,
+  "bbox": { "south": 58.82, "west": 5.55, "north": 59.07, "east": 5.95 },
+  "amenity_brands": { "supermarkets": ["rema", "kiwi", "coop", "meny", "extra", "joker", "bunnpris"] },
+  "sources": {
+    "areas_catalog": "https://www.geonorge.no/en/",
+    "areas_example": "https://register.geonorge.no/register/versjoner/gml-applikasjonsskjema/kartverket/administrative-enheter-norge",
+    "transit_timetables": "https://developer.entur.org/stops-and-timetable-data",
+    "transit_realtime": "https://developer.entur.org/pages-real-time-intro/",
+    "amenities": "https://overpass-api.de/api/interpreter"
+  }
+}

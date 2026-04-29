@@ -16,6 +16,7 @@ DATA_RAW = ROOT / "data" / "raw"
 DATA_CONFIG = ROOT / "data" / "config"
 DATA_PROCESSED = ROOT / "data" / "processed"
 DATA_SEEDS = ROOT / "data" / "seeds"
+DATA_CITIES = ROOT / "data" / "cities"
 FRONTEND_PUBLIC_DATA = ROOT / "frontend" / "public" / "data"
 
 CDMX_BBOX = {
@@ -34,9 +35,27 @@ def ensure_dirs() -> None:
         DATA_CONFIG,
         DATA_PROCESSED,
         DATA_SEEDS,
+        DATA_CITIES,
         FRONTEND_PUBLIC_DATA,
     ]:
         path.mkdir(parents=True, exist_ok=True)
+
+
+def load_city_profile(city: str = "cdmx") -> dict:
+    profile_path = DATA_CITIES / city / "city.json"
+    if not profile_path.exists():
+        raise FileNotFoundError(f"Missing city profile: {profile_path}")
+    with profile_path.open(encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def city_bbox(city: str = "cdmx") -> dict[str, float]:
+    profile = load_city_profile(city)
+    bbox = profile.get("bbox") or {}
+    required = ["south", "west", "north", "east"]
+    if not all(key in bbox for key in required):
+        raise ValueError(f"City profile {city} is missing bbox keys: {required}")
+    return {key: float(bbox[key]) for key in required}
 
 
 def download(url: str, target: Path, *, force: bool = False, timeout: int = 90) -> Path:

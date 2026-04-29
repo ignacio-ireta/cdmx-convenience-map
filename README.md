@@ -25,6 +25,24 @@ npm run dev -- --host 127.0.0.1 --port 5174
 
 Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 
+
+### City profile aware fetchers
+
+You can now run the OSM amenity fetchers with a city profile:
+
+```bash
+.venv/bin/python scripts/fetch_supermarkets.py --city cdmx
+.venv/bin/python scripts/fetch_gyms.py --city cdmx
+```
+
+A new orchestration helper is available:
+
+```bash
+.venv/bin/python scripts/run_city.py --city cdmx --area-unit postal_code
+```
+
+City profiles live in `data/cities/<city_id>/city.json` (for example `cdmx` and `stavanger`).
+
 ## What Is Included
 
 - CDMX postal-code polygons colored by selected convenience score.
