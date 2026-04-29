@@ -10,8 +10,8 @@ This is a real schedule-aware routing result, but coverage is below the 90% QA t
 
 | Area unit | Origins | r5py routed | Fallback / failed | Coverage | Runtime |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| postal_code | 1,215 | 823 | 392 | 67.7% | 229.7 sec |
-| colonia | 1,837 | 1,429 | 408 | 77.8% | 410.9 sec |
+| postal_code | 1,215 | 823 | 392 | 67.7% | 245.7 sec |
+| colonia | 1,837 | 1,429 | 408 | 77.8% | 396.5 sec |
 
 Recommendation: keep r5py opt-in for now. Do not make it the default until coverage is closer to 90-95% and stop/itinerary metadata is improved.
 
@@ -34,7 +34,10 @@ Routing environment:
 - Python: `.venv-routing/`
 - r5py: `1.1.3`
 - Java: `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`
+- r5py cache home: `data/processed/r5py/cache_home`
 - No Java heap override was needed.
+
+The script now defaults r5py's `XDG_CACHE_HOME` to the ignored workspace path above. This avoids writes to `~/.cache/r5py`, where the sandboxed run cannot create R5 lock files. The local workspace cache was seeded from the existing user cache because network DNS for downloading `r5-v7.5-r5py-all.jar` from GitHub was unavailable in this environment.
 
 ## GTFS Sanitization
 
@@ -91,7 +94,7 @@ Generated r5py cache files:
 | File | Size |
 | --- | ---: |
 | `data/processed/transit_commute_r5py_postal_code.csv` | 56 KB |
-| `data/processed/transit_commute_r5py_colonia.csv` | 128 KB |
+| `data/processed/transit_commute_r5py_colonia.csv` | 132 KB |
 | `data/processed/transit_commute_r5py_postal_code.metadata.json` | 4 KB |
 | `data/processed/transit_commute_r5py_colonia.metadata.json` | 4 KB |
 
@@ -148,11 +151,11 @@ Fastest postal-code r5py sample:
 
 | Area | Transit time | Transit score | Source | Origin stop context | Destination stop context |
 | --- | ---: | ---: | --- | --- | --- |
-| CP 11510 | 0 min | 100.0 | `r5py_gtfs_schedule` | Av. Horacio y Luis Vives | Av. Horacio y Luis Vives |
 | CP 11530 | 9 min | 95.5 | `r5py_gtfs_schedule` | Av. Horacio y Socrates | Av. Horacio y Luis Vives |
 | CP 11600 | 10 min | 95.0 | `r5py_gtfs_schedule` | Periférico - Ejército Nacional | Av. Horacio y Luis Vives |
 | CP 11500 | 13 min | 93.5 | `r5py_gtfs_schedule` | Miguel de Cervantes S. y Presa Pabellón | Av. Horacio y Luis Vives |
 | CP 11650 | 14 min | 93.0 | `r5py_gtfs_schedule` | Sierra Santa Rosa - Muinura | Av. Horacio y Luis Vives |
+| CP 11540 | 15 min | 92.5 | `r5py_gtfs_schedule` | Av. Horacio y Edgar Allan Poe | Av. Horacio y Luis Vives |
 
 Fastest colonia r5py sample:
 
@@ -177,6 +180,7 @@ Implemented and verified:
 - `scripts/experiments/compute_r5py_travel_times.py` runs with r5py 1.1.3.
 - The script supports both `TravelTimeMatrixComputer` and `TravelTimeMatrix`.
 - The script sanitizes GTFS into an ignored processed ZIP for R5 compatibility.
+- The script directs r5py cache files to ignored workspace storage by default.
 - Matrix computation is batched per area unit instead of one origin at a time.
 - `scripts/build_scores.py --transit-router r5py` preserves postal-code leading zeroes when loading cached r5py CSVs.
 - r5py rows overlay successful schedule-aware results.
@@ -186,10 +190,10 @@ Implemented and verified:
 Checks passed:
 
 ```bash
-python3 -m py_compile scripts/*.py scripts/experiments/*.py
+PYTHONPYCACHEPREFIX=/tmp/cdmx-pycache .venv/bin/python -m py_compile scripts/*.py scripts/experiments/*.py
 .venv/bin/python scripts/validate_processed.py
-cd frontend && npm run build
-cd frontend && npm run lint
+(cd frontend && npm run build)
+(cd frontend && npm run lint)
 ```
 
 ## Recommendation

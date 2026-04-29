@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_CONFIG = ROOT / "data" / "config"
 DATA_PROCESSED = ROOT / "data" / "processed"
 DATA_PROCESSED_R5PY = DATA_PROCESSED / "r5py"
+DEFAULT_R5PY_CACHE_HOME = DATA_PROCESSED_R5PY / "cache_home"
 DEFAULT_GTFS_ZIP = ROOT / "data" / "raw" / "gtfs" / "cdmx_gtfs.zip"
 DEFAULT_OSM_PBF = ROOT / "data" / "raw" / "osm" / "mexico-city.osm.pbf"
 DEFAULT_SERVICE_DATE = "2026-05-05"
@@ -157,6 +158,13 @@ def relative(path: Path) -> str:
         return str(path.resolve().relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def configure_r5py_cache() -> Path:
+    cache_home = Path(os.environ.get("XDG_CACHE_HOME", DEFAULT_R5PY_CACHE_HOME))
+    cache_home.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("XDG_CACHE_HOME", str(cache_home))
+    return cache_home
 
 
 def sanitized_gtfs_path(gtfs_zip: Path) -> Path:
@@ -501,6 +509,7 @@ def print_summary(rows: list[dict[str, Any]]) -> None:
 def main() -> None:
     started_at = time.monotonic()
     args = parse_args()
+    r5py_cache_home = configure_r5py_cache()
     output_path = args.output or DATA_PROCESSED / f"transit_commute_r5py_{args.area_unit}.csv"
     metadata_path = output_path.with_suffix(".metadata.json")
 
@@ -592,6 +601,7 @@ def main() -> None:
         "osm_pbf": relative(args.osm_pbf),
         "osm_source": OSM_SOURCE_URL,
         "osm_sha1": sha1(args.osm_pbf),
+        "r5py_cache_home": relative(r5py_cache_home),
         "java_home": os.environ.get("JAVA_HOME"),
         "r5py_version": r5py_version,
         "total_origins": len(rows),
