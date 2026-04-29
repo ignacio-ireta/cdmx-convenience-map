@@ -51,3 +51,9 @@ Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 - Work travel times are generated offline. The current implementation uses fallback straight-line estimates, documented in `docs/travel-time-roadmap.md`.
 - Amenity travel times are generated offline with nearest-candidate narrowing; the current implementation uses fallback walking-time estimates, not live routing.
 - Safety score is lower-is-better recent crime density. It uses the latest 12 months available in the FGJ CSV, not the current calendar date.
+
+## Multi-City Evolution
+
+If you want this project to become plug-and-play for other cities (for example Stavanger), see `docs/multi-city-roadmap.md`.
+
+Recommended first implementation step: introduce `--city` profile-driven configuration in the data pipeline while preserving the current CDMX outputs as a compatibility baseline.
