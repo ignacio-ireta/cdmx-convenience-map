@@ -91,6 +91,13 @@ DEFAULT_WEIGHTS = {
 
 CORE_TRANSIT_SYSTEMS = {"METRO", "MB", "TROLE"}
 SURFACE_TRANSIT_SYSTEMS = {"RTP", "CC"}
+TRANSIT_SYSTEM_FIELD_SLUGS = {
+    "METRO": "metro",
+    "MB": "metrobus",
+    "RTP": "rtp",
+    "TROLE": "trolebus",
+    "CC": "corredor",
+}
 WORK_TRAVEL_MODES = ("driving", "walking", "biking")
 DEFAULT_TRAVEL_TIME_CONFIG = {
     "source": "fallback_straight_line_estimate",
@@ -153,6 +160,7 @@ class PointDatasets:
     transit: gpd.GeoDataFrame
     core_transit: gpd.GeoDataFrame
     surface_transit: gpd.GeoDataFrame
+    transit_by_system: dict[str, gpd.GeoDataFrame]
     supermarkets: gpd.GeoDataFrame
     costcos: gpd.GeoDataFrame
     walmarts: gpd.GeoDataFrame
@@ -947,14 +955,26 @@ def load_point_datasets(places_config: dict) -> PointDatasets:
         transit_system = transit["system"].fillna("").astype(str).str.upper()
         core_transit = transit[transit_system.isin(CORE_TRANSIT_SYSTEMS)].copy()
         surface_transit = transit[transit_system.isin(SURFACE_TRANSIT_SYSTEMS)].copy()
+        transit_by_system = {
+            system: transit[transit_system.eq(system)].copy()
+            for system in TRANSIT_SYSTEM_FIELD_SLUGS
+        }
     else:
         core_transit = transit
         surface_transit = transit
+        empty_transit = gpd.GeoDataFrame(
+            transit.iloc[0:0].copy(), geometry="geometry", crs=transit.crs
+        )
+        transit_by_system = {
+            system: empty_transit.copy()
+            for system in TRANSIT_SYSTEM_FIELD_SLUGS
+        }
 
     return PointDatasets(
         transit=transit,
         core_transit=core_transit,
         surface_transit=surface_transit,
+        transit_by_system=transit_by_system,
         supermarkets=supermarkets,
         costcos=costcos,
         walmarts=walmarts,
@@ -995,6 +1015,10 @@ def score_areas(
         if not point_datasets.surface_transit.empty
         else point_datasets.transit,
     )
+    nearest_transit_by_system = {
+        system: nearest(reference_points, point_datasets.transit_by_system[system])
+        for system in TRANSIT_SYSTEM_FIELD_SLUGS
+    }
     nearest_supermarket = nearest(reference_points, point_datasets.supermarkets)
     nearest_costco = nearest(
         reference_points,
@@ -1079,6 +1103,10 @@ def score_areas(
     }
     score_core_transit = distance_score(nearest_core_transit.distances)
     score_surface_transit = distance_score(nearest_surface_transit.distances)
+    score_transit_by_system = {
+        system: distance_score(nearest_result.distances)
+        for system, nearest_result in nearest_transit_by_system.items()
+    }
     score_transit = (0.70 * score_core_transit) + (0.30 * score_surface_transit)
     score_supermarkets = distance_score(nearest_supermarket.distances)
     score_gyms = distance_score(nearest_gym.distances)
@@ -1108,6 +1136,10 @@ def score_areas(
     areas["dist_transit_m"] = round_distance(nearest_transit.distances)
     areas["dist_core_transit_m"] = round_distance(nearest_core_transit.distances)
     areas["dist_surface_transit_m"] = round_distance(nearest_surface_transit.distances)
+    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
+        areas[f"dist_{slug}_transit_m"] = round_distance(
+            nearest_transit_by_system[system].distances
+        )
     areas["dist_supermarket_m"] = round_distance(nearest_supermarket.distances)
     areas["dist_costco_m"] = round_distance(nearest_costco.distances)
     areas["dist_walmart_m"] = round_distance(nearest_walmart.distances)
@@ -1121,6 +1153,8 @@ def score_areas(
         areas[f"time_work_{mode}_min"] = round_minutes(work_times[mode])
         areas[f"score_work_{mode}"] = round_score(score_work_times[mode])
     areas["score_transit"] = round_score(score_transit)
+    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
+        areas[f"score_transit_{slug}"] = round_score(score_transit_by_system[system])
     areas["score_supermarkets"] = round_score(score_supermarkets)
     areas["score_supermarkets_time"] = round_score(score_supermarkets_time)
     areas["score_gyms"] = round_score(score_gyms)
@@ -1131,6 +1165,8 @@ def score_areas(
     areas["nearest_transit_name"] = nearest_transit.names
     areas["nearest_core_transit_name"] = nearest_core_transit.names
     areas["nearest_surface_transit_name"] = nearest_surface_transit.names
+    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
+        areas[f"nearest_{slug}_transit_name"] = nearest_transit_by_system[system].names
     areas["nearest_supermarket_name"] = nearest_supermarket.names
     areas["nearest_costco_name"] = nearest_costco.names
     areas["nearest_walmart_name"] = nearest_walmart.names
@@ -1140,6 +1176,10 @@ def score_areas(
     areas["nearest_transit_source"] = nearest_transit.sources
     areas["nearest_core_transit_source"] = nearest_core_transit.sources
     areas["nearest_surface_transit_source"] = nearest_surface_transit.sources
+    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
+        areas[f"nearest_{slug}_transit_source"] = nearest_transit_by_system[
+            system
+        ].sources
     areas["nearest_supermarket_source"] = nearest_supermarket.sources
     areas["nearest_costco_source"] = nearest_costco.sources
     areas["nearest_walmart_source"] = nearest_walmart.sources
@@ -1261,6 +1301,7 @@ def score_areas(
             ),
             "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
             "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
+            "System-specific transit distance and score fields support client-side transit method filters.",
             "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file.",
         ],
     }
@@ -1313,6 +1354,10 @@ def build_metadata(
             "transit_stops": int(len(point_datasets.transit)),
             "transit_core_points": int(len(point_datasets.core_transit)),
             "transit_surface_points": int(len(point_datasets.surface_transit)),
+            "transit_system_points": {
+                slug: int(len(point_datasets.transit_by_system[system]))
+                for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items()
+            },
             "supermarkets": int(len(point_datasets.supermarkets)),
             "gyms": int(len(point_datasets.gyms)),
             "workplaces": int(len(point_datasets.workplaces)),

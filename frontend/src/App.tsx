@@ -32,6 +32,8 @@ type AreaUnit = 'postal_code' | 'colonia'
 type WorkMode = 'distance' | 'driving' | 'walking' | 'biking'
 type TravelWorkMode = Exclude<WorkMode, 'distance'>
 type AmenityMode = 'distance' | 'time'
+type StorePreferenceKey = 'costco' | 'walmart'
+type TransitAccessKey = 'metro' | 'metrobus' | 'rtp' | 'trolebus' | 'corredor'
 
 type AreaProperties = {
   area_unit: AreaUnit
@@ -49,6 +51,11 @@ type AreaProperties = {
   dist_transit_m?: number
   dist_core_transit_m?: number
   dist_surface_transit_m?: number
+  dist_metro_transit_m?: number
+  dist_metrobus_transit_m?: number
+  dist_rtp_transit_m?: number
+  dist_trolebus_transit_m?: number
+  dist_corredor_transit_m?: number
   dist_supermarket_m?: number
   dist_costco_m?: number
   dist_walmart_m?: number
@@ -83,6 +90,11 @@ type AreaProperties = {
   score_work_biking?: number
   score_work_transit?: number
   score_transit?: number
+  score_transit_metro?: number
+  score_transit_metrobus?: number
+  score_transit_rtp?: number
+  score_transit_trolebus?: number
+  score_transit_corredor?: number
   score_supermarkets?: number
   score_supermarkets_time?: number
   score_gyms?: number
@@ -93,6 +105,11 @@ type AreaProperties = {
   nearest_transit_name?: string
   nearest_core_transit_name?: string
   nearest_surface_transit_name?: string
+  nearest_metro_transit_name?: string
+  nearest_metrobus_transit_name?: string
+  nearest_rtp_transit_name?: string
+  nearest_trolebus_transit_name?: string
+  nearest_corredor_transit_name?: string
   nearest_supermarket_name?: string
   nearest_costco_name?: string
   nearest_walmart_name?: string
@@ -102,6 +119,11 @@ type AreaProperties = {
   nearest_transit_source?: string
   nearest_core_transit_source?: string
   nearest_surface_transit_source?: string
+  nearest_metro_transit_source?: string
+  nearest_metrobus_transit_source?: string
+  nearest_rtp_transit_source?: string
+  nearest_trolebus_transit_source?: string
+  nearest_corredor_transit_source?: string
   nearest_supermarket_source?: string
   nearest_costco_source?: string
   nearest_walmart_source?: string
@@ -128,12 +150,22 @@ type WorkModel = {
   travelTimes: Record<TravelWorkMode, Map<string, number>>
   travelScores: Record<TravelWorkMode, Map<string, number>>
 }
+type FieldScoreMap = {
+  hasValues: boolean
+  scores: Map<string, number>
+}
+type PreferenceScoreModel = {
+  storeDistanceScores: Record<StorePreferenceKey, FieldScoreMap>
+  storeTimeScores: Record<StorePreferenceKey, FieldScoreMap>
+  transitAccessScores: Record<TransitAccessKey, FieldScoreMap>
+}
 type ScoreMetadata = {
   feature_count?: number
   point_counts?: {
     transit_stops?: number
     transit_core_points?: number
     transit_surface_points?: number
+    transit_system_points?: Partial<Record<TransitAccessKey, number>>
     supermarkets?: number
     gyms?: number
     workplaces?: number
@@ -243,6 +275,92 @@ const WORK_MODES: { key: WorkMode; label: string; shortLabel: string }[] = [
 const AMENITY_MODES: { key: AmenityMode; label: string }[] = [
   { key: 'distance', label: 'Distance' },
   { key: 'time', label: 'Time' },
+]
+
+type StoreOption = {
+  key: StorePreferenceKey
+  label: string
+  distanceField: keyof AreaProperties
+  timeField: keyof AreaProperties
+  nearestNameField: keyof AreaProperties
+  nearestSourceField: keyof AreaProperties
+}
+
+type TransitAccessOption = {
+  key: TransitAccessKey
+  label: string
+  shortLabel: string
+  distanceField: keyof AreaProperties
+  scoreField: keyof AreaProperties
+  nearestNameField: keyof AreaProperties
+  nearestSourceField: keyof AreaProperties
+}
+
+const STORE_OPTIONS: StoreOption[] = [
+  {
+    key: 'costco',
+    label: 'Costco',
+    distanceField: 'dist_costco_m',
+    timeField: 'time_costco_min',
+    nearestNameField: 'nearest_costco_name',
+    nearestSourceField: 'nearest_costco_source',
+  },
+  {
+    key: 'walmart',
+    label: 'Walmart',
+    distanceField: 'dist_walmart_m',
+    timeField: 'time_walmart_min',
+    nearestNameField: 'nearest_walmart_name',
+    nearestSourceField: 'nearest_walmart_source',
+  },
+]
+
+const TRANSIT_ACCESS_OPTIONS: TransitAccessOption[] = [
+  {
+    key: 'metro',
+    label: 'Metro',
+    shortLabel: 'Metro',
+    distanceField: 'dist_metro_transit_m',
+    scoreField: 'score_transit_metro',
+    nearestNameField: 'nearest_metro_transit_name',
+    nearestSourceField: 'nearest_metro_transit_source',
+  },
+  {
+    key: 'metrobus',
+    label: 'Metrobús',
+    shortLabel: 'MB',
+    distanceField: 'dist_metrobus_transit_m',
+    scoreField: 'score_transit_metrobus',
+    nearestNameField: 'nearest_metrobus_transit_name',
+    nearestSourceField: 'nearest_metrobus_transit_source',
+  },
+  {
+    key: 'rtp',
+    label: 'RTP',
+    shortLabel: 'RTP',
+    distanceField: 'dist_rtp_transit_m',
+    scoreField: 'score_transit_rtp',
+    nearestNameField: 'nearest_rtp_transit_name',
+    nearestSourceField: 'nearest_rtp_transit_source',
+  },
+  {
+    key: 'trolebus',
+    label: 'Trolebús',
+    shortLabel: 'Trole',
+    distanceField: 'dist_trolebus_transit_m',
+    scoreField: 'score_transit_trolebus',
+    nearestNameField: 'nearest_trolebus_transit_name',
+    nearestSourceField: 'nearest_trolebus_transit_source',
+  },
+  {
+    key: 'corredor',
+    label: 'Corredor',
+    shortLabel: 'CC',
+    distanceField: 'dist_corredor_transit_m',
+    scoreField: 'score_transit_corredor',
+    nearestNameField: 'nearest_corredor_transit_name',
+    nearestSourceField: 'nearest_corredor_transit_source',
+  },
 ]
 
 const TRAVEL_WORK_MODES: TravelWorkMode[] = ['driving', 'walking', 'biking']
@@ -382,6 +500,11 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     dist_transit_m: numberFrom(raw.dist_transit_m),
     dist_core_transit_m: numberFrom(raw.dist_core_transit_m),
     dist_surface_transit_m: numberFrom(raw.dist_surface_transit_m),
+    dist_metro_transit_m: numberFrom(raw.dist_metro_transit_m),
+    dist_metrobus_transit_m: numberFrom(raw.dist_metrobus_transit_m),
+    dist_rtp_transit_m: numberFrom(raw.dist_rtp_transit_m),
+    dist_trolebus_transit_m: numberFrom(raw.dist_trolebus_transit_m),
+    dist_corredor_transit_m: numberFrom(raw.dist_corredor_transit_m),
     dist_supermarket_m: numberFrom(raw.dist_supermarket_m),
     dist_costco_m: numberFrom(raw.dist_costco_m),
     dist_walmart_m: numberFrom(raw.dist_walmart_m),
@@ -420,6 +543,11 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     score_work_biking: numberFrom(raw.score_work_biking),
     score_work_transit: numberFrom(raw.score_work_transit),
     score_transit: numberFrom(raw.score_transit),
+    score_transit_metro: numberFrom(raw.score_transit_metro),
+    score_transit_metrobus: numberFrom(raw.score_transit_metrobus),
+    score_transit_rtp: numberFrom(raw.score_transit_rtp),
+    score_transit_trolebus: numberFrom(raw.score_transit_trolebus),
+    score_transit_corredor: numberFrom(raw.score_transit_corredor),
     score_supermarkets: numberFrom(raw.score_supermarkets),
     score_supermarkets_time: numberFrom(raw.score_supermarkets_time),
     score_gyms: numberFrom(raw.score_gyms),
@@ -430,6 +558,17 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     nearest_transit_name: optionalString(raw.nearest_transit_name),
     nearest_core_transit_name: optionalString(raw.nearest_core_transit_name),
     nearest_surface_transit_name: optionalString(raw.nearest_surface_transit_name),
+    nearest_metro_transit_name: optionalString(raw.nearest_metro_transit_name),
+    nearest_metrobus_transit_name: optionalString(
+      raw.nearest_metrobus_transit_name,
+    ),
+    nearest_rtp_transit_name: optionalString(raw.nearest_rtp_transit_name),
+    nearest_trolebus_transit_name: optionalString(
+      raw.nearest_trolebus_transit_name,
+    ),
+    nearest_corredor_transit_name: optionalString(
+      raw.nearest_corredor_transit_name,
+    ),
     nearest_supermarket_name: optionalString(raw.nearest_supermarket_name),
     nearest_costco_name: optionalString(raw.nearest_costco_name),
     nearest_walmart_name: optionalString(raw.nearest_walmart_name),
@@ -439,6 +578,17 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     nearest_transit_source: optionalString(raw.nearest_transit_source),
     nearest_core_transit_source: optionalString(raw.nearest_core_transit_source),
     nearest_surface_transit_source: optionalString(raw.nearest_surface_transit_source),
+    nearest_metro_transit_source: optionalString(raw.nearest_metro_transit_source),
+    nearest_metrobus_transit_source: optionalString(
+      raw.nearest_metrobus_transit_source,
+    ),
+    nearest_rtp_transit_source: optionalString(raw.nearest_rtp_transit_source),
+    nearest_trolebus_transit_source: optionalString(
+      raw.nearest_trolebus_transit_source,
+    ),
+    nearest_corredor_transit_source: optionalString(
+      raw.nearest_corredor_transit_source,
+    ),
     nearest_supermarket_source: optionalString(raw.nearest_supermarket_source),
     nearest_costco_source: optionalString(raw.nearest_costco_source),
     nearest_walmart_source: optionalString(raw.nearest_walmart_source),
@@ -552,6 +702,16 @@ function getAreaSearchRank(
   return null
 }
 
+function toggleRequiredSelection<Key extends string>(
+  current: Key[],
+  key: Key,
+): Key[] {
+  if (current.includes(key)) {
+    return current.length === 1 ? current : current.filter((item) => item !== key)
+  }
+  return [...current, key]
+}
+
 function getScore(
   properties: AreaProperties,
   metric: MetricKey,
@@ -560,14 +720,29 @@ function getScore(
   workMode: WorkMode,
   supermarketMode: AmenityMode,
   gymMode: AmenityMode,
+  preferenceScoreModel: PreferenceScoreModel | null,
+  selectedStores: StorePreferenceKey[],
+  selectedTransitAccess: TransitAccessKey[],
 ) {
   if (metric !== 'combined') {
     if (metric === 'work') return getWorkScore(properties, workModel, workMode)
     if (metric === 'transitCommute') return properties.score_work_transit ?? 0
     if (metric === 'supermarkets') {
-      return getSupermarketScore(properties, supermarketMode)
+      return getSupermarketScore(
+        properties,
+        supermarketMode,
+        preferenceScoreModel,
+        selectedStores,
+      )
     }
     if (metric === 'gyms') return getGymScore(properties, gymMode)
+    if (metric === 'transit') {
+      return getTransitAccessScore(
+        properties,
+        preferenceScoreModel,
+        selectedTransitAccess,
+      )
+    }
     return Number(properties[SCORE_FIELDS[metric]]) || 0
   }
 
@@ -581,10 +756,21 @@ function getScore(
       key === 'work'
         ? getWorkScore(properties, workModel, workMode)
         : key === 'supermarkets'
-          ? getSupermarketScore(properties, supermarketMode)
+          ? getSupermarketScore(
+              properties,
+              supermarketMode,
+              preferenceScoreModel,
+              selectedStores,
+            )
           : key === 'gyms'
             ? getGymScore(properties, gymMode)
-        : Number(properties[SCORE_FIELDS[key as WeightKey]]) || 0
+            : key === 'transit'
+              ? getTransitAccessScore(
+                  properties,
+                  preferenceScoreModel,
+                  selectedTransitAccess,
+                )
+              : Number(properties[SCORE_FIELDS[key as WeightKey]]) || 0
     return sum + score * (weight / total)
   }, 0)
 }
@@ -627,6 +813,87 @@ function scoreCloserIsBetter(values: number[]) {
   const cap = percentile(values, 0.95)
   const scores = new Map<string, number>()
   return { cap, scores }
+}
+
+function buildCloserScoreMap(
+  data: AreaFeatureCollection,
+  field: keyof AreaProperties,
+): FieldScoreMap {
+  const entries = data.features.map((feature) => ({
+    areaId: feature.properties.area_id,
+    value: Number(feature.properties[field]),
+  }))
+  const values = entries
+    .map((entry) => entry.value)
+    .filter((value) => Number.isFinite(value) && value >= 0)
+  if (!values.length) {
+    return { hasValues: false, scores: new Map() }
+  }
+
+  const cap = percentile(values, 0.95)
+  const safeCap = cap > 0 ? cap : Math.max(...values, 1)
+  const scores = new Map<string, number>()
+  for (const { areaId, value } of entries) {
+    const score =
+      Number.isFinite(value) && value >= 0
+        ? 100 * (1 - Math.min(value, safeCap) / safeCap)
+        : 0
+    scores.set(areaId, Math.max(0, Math.min(100, score)))
+  }
+  return { hasValues: true, scores }
+}
+
+function buildScoreRecord<Key extends string>(
+  data: AreaFeatureCollection,
+  options: { key: Key; field: keyof AreaProperties }[],
+): Record<Key, FieldScoreMap> {
+  return Object.fromEntries(
+    options.map((option) => [
+      option.key,
+      buildCloserScoreMap(data, option.field),
+    ]),
+  ) as Record<Key, FieldScoreMap>
+}
+
+function buildPreferenceScoreModel(data: AreaFeatureCollection): PreferenceScoreModel {
+  return {
+    storeDistanceScores: buildScoreRecord(
+      data,
+      STORE_OPTIONS.map((option) => ({
+        key: option.key,
+        field: option.distanceField,
+      })),
+    ),
+    storeTimeScores: buildScoreRecord(
+      data,
+      STORE_OPTIONS.map((option) => ({
+        key: option.key,
+        field: option.timeField,
+      })),
+    ),
+    transitAccessScores: buildScoreRecord(
+      data,
+      TRANSIT_ACCESS_OPTIONS.map((option) => ({
+        key: option.key,
+        field: option.distanceField,
+      })),
+    ),
+  }
+}
+
+function averageSelectedScores<Key extends string>(
+  areaId: string,
+  selectedKeys: Key[],
+  scoreMaps: Record<Key, FieldScoreMap>,
+) {
+  const scores = selectedKeys
+    .map((key) => {
+      const scoreMap = scoreMaps[key]
+      return scoreMap?.hasValues ? scoreMap.scores.get(areaId) : undefined
+    })
+    .filter((value): value is number => typeof value === 'number')
+  if (!scores.length) return undefined
+  return scores.reduce((sum, value) => sum + value, 0) / scores.length
 }
 
 function estimateTravelMinutes(distanceMeters: number, mode: TravelWorkMode) {
@@ -752,10 +1019,46 @@ function getWorkSource(
 function getSupermarketScore(
   properties: AreaProperties,
   supermarketMode: AmenityMode,
+  preferenceScoreModel: PreferenceScoreModel | null,
+  selectedStores: StorePreferenceKey[],
 ) {
+  const selectedScore = preferenceScoreModel
+    ? averageSelectedScores(
+        properties.area_id,
+        selectedStores,
+        supermarketMode === 'time'
+          ? preferenceScoreModel.storeTimeScores
+          : preferenceScoreModel.storeDistanceScores,
+      )
+    : undefined
+  if (typeof selectedScore === 'number') return selectedScore
+
   return supermarketMode === 'time'
     ? (properties.score_supermarkets_time ?? properties.score_supermarkets ?? 0)
     : (properties.score_supermarkets ?? 0)
+}
+
+function getTransitAccessScore(
+  properties: AreaProperties,
+  preferenceScoreModel: PreferenceScoreModel | null,
+  selectedTransitAccess: TransitAccessKey[],
+) {
+  const selectedScore = preferenceScoreModel
+    ? averageSelectedScores(
+        properties.area_id,
+        selectedTransitAccess,
+        preferenceScoreModel.transitAccessScores,
+      )
+    : undefined
+  if (typeof selectedScore === 'number') return selectedScore
+  if (selectedTransitAccess.length === 1) {
+    const option = TRANSIT_ACCESS_OPTIONS.find(
+      (item) => item.key === selectedTransitAccess[0],
+    )
+    const score = option ? Number(properties[option.scoreField]) : Number.NaN
+    if (Number.isFinite(score)) return score
+  }
+  return properties.score_transit ?? 0
 }
 
 function getGymScore(properties: AreaProperties, gymMode: AmenityMode) {
@@ -772,6 +1075,110 @@ function getAmenitySource(
   return mode === 'time'
     ? properties.amenity_travel_time_source || distanceSource
     : distanceSource
+}
+
+function selectedOptionLabels<Key extends string>(
+  options: { key: Key; label: string }[],
+  selectedKeys: Key[],
+) {
+  return options
+    .filter((option) => selectedKeys.includes(option.key))
+    .map((option) => option.label)
+    .join(', ')
+}
+
+function selectedStoreLabel(selectedStores: StorePreferenceKey[]) {
+  return selectedOptionLabels(STORE_OPTIONS, selectedStores) || 'No stores'
+}
+
+function selectedTransitLabel(selectedTransitAccess: TransitAccessKey[]) {
+  return (
+    selectedOptionLabels(TRANSIT_ACCESS_OPTIONS, selectedTransitAccess) ||
+    'No transit'
+  )
+}
+
+function getSingleStoreOption(selectedStores: StorePreferenceKey[]) {
+  if (selectedStores.length !== 1) return undefined
+  return STORE_OPTIONS.find((option) => option.key === selectedStores[0])
+}
+
+function getSingleTransitAccessOption(selectedTransitAccess: TransitAccessKey[]) {
+  if (selectedTransitAccess.length !== 1) return undefined
+  return TRANSIT_ACCESS_OPTIONS.find(
+    (option) => option.key === selectedTransitAccess[0],
+  )
+}
+
+function getStoreDetailValue(
+  properties: AreaProperties,
+  supermarketMode: AmenityMode,
+  selectedStores: StorePreferenceKey[],
+) {
+  const option = getSingleStoreOption(selectedStores)
+  if (!option) {
+    return formatDistanceAndTime(
+      properties.dist_supermarket_m,
+      properties.time_supermarket_min,
+    )
+  }
+  return supermarketMode === 'time'
+    ? formatDistanceAndTime(
+        properties[option.distanceField] as number | undefined,
+        properties[option.timeField] as number | undefined,
+      )
+    : formatMeters(properties[option.distanceField] as number | undefined)
+}
+
+function getStoreNearestName(
+  properties: AreaProperties,
+  selectedStores: StorePreferenceKey[],
+) {
+  const option = getSingleStoreOption(selectedStores)
+  if (!option) return properties.nearest_supermarket_name
+  return properties[option.nearestNameField] as string | undefined
+}
+
+function getStoreSource(
+  properties: AreaProperties,
+  supermarketMode: AmenityMode,
+  selectedStores: StorePreferenceKey[],
+) {
+  const option = getSingleStoreOption(selectedStores)
+  const distanceSource = option
+    ? (properties[option.nearestSourceField] as string | undefined)
+    : properties.nearest_supermarket_source
+  return getAmenitySource(properties, supermarketMode, distanceSource)
+}
+
+function getTransitAccessDistance(
+  properties: AreaProperties,
+  selectedTransitAccess: TransitAccessKey[],
+) {
+  const option = getSingleTransitAccessOption(selectedTransitAccess)
+  return option
+    ? (properties[option.distanceField] as number | undefined)
+    : properties.dist_transit_m
+}
+
+function getTransitAccessNearestName(
+  properties: AreaProperties,
+  selectedTransitAccess: TransitAccessKey[],
+) {
+  const option = getSingleTransitAccessOption(selectedTransitAccess)
+  return option
+    ? (properties[option.nearestNameField] as string | undefined)
+    : properties.nearest_transit_name
+}
+
+function getTransitAccessSource(
+  properties: AreaProperties,
+  selectedTransitAccess: TransitAccessKey[],
+) {
+  const option = getSingleTransitAccessOption(selectedTransitAccess)
+  return option
+    ? (properties[option.nearestSourceField] as string | undefined)
+    : properties.nearest_transit_source
 }
 
 function hasTransitCommute(properties: AreaProperties) {
@@ -848,6 +1255,8 @@ function scoreModeSummary(
   workMode: WorkMode,
   supermarketMode: AmenityMode,
   gymMode: AmenityMode,
+  selectedStores: StorePreferenceKey[],
+  selectedTransitAccess: TransitAccessKey[],
 ) {
   if (selectedMetric === 'work') {
     const mode =
@@ -855,7 +1264,7 @@ function scoreModeSummary(
     return `Work scored by ${mode.toLocaleLowerCase()}`
   }
   if (selectedMetric === 'supermarkets') {
-    return `Stores scored by ${supermarketMode}`
+    return `Stores scored by ${supermarketMode}; brands ${selectedStoreLabel(selectedStores)}`
   }
   if (selectedMetric === 'gyms') {
     return `Gyms scored by ${gymMode}`
@@ -864,7 +1273,10 @@ function scoreModeSummary(
     return 'Transit commute scored by offline Apimetro stop-pair approximation'
   }
   if (selectedMetric === 'combined') {
-    return `Combined score using work ${workMode}, stores ${supermarketMode}, gyms ${gymMode}`
+    return `Combined score using work ${workMode}, transit ${selectedTransitLabel(selectedTransitAccess)}, stores ${supermarketMode} (${selectedStoreLabel(selectedStores)}), gyms ${gymMode}`
+  }
+  if (selectedMetric === 'transit') {
+    return `Transit access scored by ${selectedTransitLabel(selectedTransitAccess)}`
   }
   return 'Single metric score'
 }
@@ -947,6 +1359,13 @@ function App() {
   const [supermarketMode, setSupermarketMode] =
     useState<AmenityMode>('distance')
   const [gymMode, setGymMode] = useState<AmenityMode>('distance')
+  const [selectedStores, setSelectedStores] = useState<StorePreferenceKey[]>([
+    'costco',
+    'walmart',
+  ])
+  const [selectedTransitAccess, setSelectedTransitAccess] = useState<
+    TransitAccessKey[]
+  >(['metro', 'metrobus', 'rtp', 'trolebus', 'corredor'])
   const [weights, setWeights] =
     useState<Record<WeightKey, number>>(DEFAULT_WEIGHTS)
   const [selected, setSelected] = useState<AreaFeature | null>(null)
@@ -1034,6 +1453,10 @@ function App() {
     return buildWorkModel(data, workFeature)
   }, [data, workFeature])
 
+  const preferenceScoreModel = useMemo(() => {
+    return data ? buildPreferenceScoreModel(data) : null
+  }, [data])
+
   const selectedScore = selected
     ? getScore(
         selected.properties,
@@ -1043,6 +1466,9 @@ function App() {
         workMode,
         supermarketMode,
         gymMode,
+        preferenceScoreModel,
+        selectedStores,
+        selectedTransitAccess,
       )
     : 0
 
@@ -1059,6 +1485,9 @@ function App() {
             workMode,
             supermarketMode,
             gymMode,
+            preferenceScoreModel,
+            selectedStores,
+            selectedTransitAccess,
           ) -
           getScore(
             a.properties,
@@ -1068,10 +1497,24 @@ function App() {
             workMode,
             supermarketMode,
             gymMode,
+            preferenceScoreModel,
+            selectedStores,
+            selectedTransitAccess,
           ),
       )
       .slice(0, 100)
-  }, [data, selectedMetric, weights, workModel, workMode, supermarketMode, gymMode])
+  }, [
+    data,
+    selectedMetric,
+    weights,
+    workModel,
+    workMode,
+    supermarketMode,
+    gymMode,
+    preferenceScoreModel,
+    selectedStores,
+    selectedTransitAccess,
+  ])
 
   const trimmedSearchQuery = query.trim()
   const searchMatches = useMemo<SearchMatch[]>(() => {
@@ -1121,6 +1564,9 @@ function App() {
           workMode,
           supermarketMode,
           gymMode,
+          preferenceScoreModel,
+          selectedStores,
+          selectedTransitAccess,
         ),
       )
       return `${index + 1}\t${areaFullLabel(feature.properties)}\t${areaUnitLabel(feature.properties.area_unit)}\t${score}`
@@ -1131,9 +1577,18 @@ function App() {
       'Summary',
       `Geography: ${selectedGeography.label}`,
       `Metric: ${metricLabel}`,
-      `Score mode: ${scoreModeSummary(selectedMetric, workMode, supermarketMode, gymMode)}`,
+      `Score mode: ${scoreModeSummary(
+        selectedMetric,
+        workMode,
+        supermarketMode,
+        gymMode,
+        selectedStores,
+        selectedTransitAccess,
+      )}`,
       `Work location: ${workplaceLabel}`,
       `Weights: ${weightSummary(weights)}`,
+      `Store brands: ${selectedStoreLabel(selectedStores)}`,
+      `Transit access methods: ${selectedTransitLabel(selectedTransitAccess)}`,
       `Search query: ${trimmedSearchQuery || 'all areas'}`,
       `Copied results: top ${rows.length} of ${data?.features.length ?? rows.length} ${selectedGeography.pluralLabel.toLocaleLowerCase()}`,
       `Transit data: Apimetro (${metadata?.point_counts?.transit_stops ?? 'n/a'} points)`,
@@ -1151,9 +1606,12 @@ function App() {
     data,
     gymMode,
     metadata,
+    preferenceScoreModel,
     selectedGeography.label,
     selectedGeography.pluralLabel,
     selectedMetric,
+    selectedStores,
+    selectedTransitAccess,
     sortedTopAreas,
     supermarketMode,
     trimmedSearchQuery,
@@ -1164,7 +1622,7 @@ function App() {
 
   const mapKey = `${selectedMetric}-${Object.values(weights).join('-')}-${
     selected?.properties.area_id ?? 'none'
-  }-${workModel?.areaId ?? 'sample-work'}-${selectedAreaUnit}-${workMode}-${supermarketMode}-${gymMode}`
+  }-${workModel?.areaId ?? 'sample-work'}-${selectedAreaUnit}-${workMode}-${supermarketMode}-${gymMode}-${selectedStores.join('.')}-${selectedTransitAccess.join('.')}`
 
   const areaStyle = (feature?: Feature<Geometry, AreaProperties>) => {
     const properties = feature?.properties
@@ -1178,6 +1636,9 @@ function App() {
           workMode,
           supermarketMode,
           gymMode,
+          preferenceScoreModel,
+          selectedStores,
+          selectedTransitAccess,
         )
       : 0
     return {
@@ -1201,6 +1662,9 @@ function App() {
       workMode,
       supermarketMode,
       gymMode,
+      preferenceScoreModel,
+      selectedStores,
+      selectedTransitAccess,
     )
     layer.on({
       click: () => setSelected(feature),
@@ -1231,6 +1695,14 @@ function App() {
 
   function updateWeight(key: WeightKey, value: number) {
     setWeights((current) => ({ ...current, [key]: value }))
+  }
+
+  function toggleStorePreference(key: StorePreferenceKey) {
+    setSelectedStores((current) => toggleRequiredSelection(current, key))
+  }
+
+  function toggleTransitPreference(key: TransitAccessKey) {
+    setSelectedTransitAccess((current) => toggleRequiredSelection(current, key))
   }
 
   function selectAreaUnit(areaUnit: AreaUnit) {
@@ -1367,6 +1839,9 @@ function App() {
                             workMode,
                             supermarketMode,
                             gymMode,
+                            preferenceScoreModel,
+                            selectedStores,
+                            selectedTransitAccess,
                           ),
                         )}
                       </em>
@@ -1483,6 +1958,36 @@ function App() {
                   >
                     {mode.label}
                   </button>
+                ))}
+              </div>
+            </div>
+            <div className="amenity-mode-row preference-row">
+              <span>Brands</span>
+              <div className="option-checkboxes store-options">
+                {STORE_OPTIONS.map((option) => (
+                  <label className="option-checkbox" key={option.key}>
+                    <input
+                      checked={selectedStores.includes(option.key)}
+                      onChange={() => toggleStorePreference(option.key)}
+                      type="checkbox"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="amenity-mode-row preference-row">
+              <span>Transit</span>
+              <div className="option-checkboxes transit-options">
+                {TRANSIT_ACCESS_OPTIONS.map((option) => (
+                  <label className="option-checkbox" key={option.key}>
+                    <input
+                      checked={selectedTransitAccess.includes(option.key)}
+                      onChange={() => toggleTransitPreference(option.key)}
+                      type="checkbox"
+                    />
+                    <span>{option.shortLabel}</span>
+                  </label>
                 ))}
               </div>
             </div>
@@ -1629,11 +2134,24 @@ function App() {
                   source={getWorkSource(selected.properties, workModel, workMode)}
                 />
                 <MetricRow
-                  label="Transit access"
-                  score={selected.properties.score_transit}
-                  distance={selected.properties.dist_transit_m}
-                  nearest={selected.properties.nearest_transit_name}
-                  source={selected.properties.nearest_transit_source}
+                  label={`Transit access (${selectedTransitLabel(selectedTransitAccess)})`}
+                  score={getTransitAccessScore(
+                    selected.properties,
+                    preferenceScoreModel,
+                    selectedTransitAccess,
+                  )}
+                  distance={getTransitAccessDistance(
+                    selected.properties,
+                    selectedTransitAccess,
+                  )}
+                  nearest={getTransitAccessNearestName(
+                    selected.properties,
+                    selectedTransitAccess,
+                  )}
+                  source={getTransitAccessSource(
+                    selected.properties,
+                    selectedTransitAccess,
+                  )}
                 />
                 {hasTransitCommute(selected.properties) ? (
                   <MetricRow
@@ -1645,20 +2163,26 @@ function App() {
                   />
                 ) : null}
                 <MetricRow
-                  label={`Stores (${supermarketMode === 'time' ? 'Time' : 'Distance'})`}
+                  label={`Stores (${selectedStoreLabel(selectedStores)})`}
                   score={getSupermarketScore(
                     selected.properties,
                     supermarketMode,
+                    preferenceScoreModel,
+                    selectedStores,
                   )}
-                  value={formatDistanceAndTime(
-                    selected.properties.dist_supermarket_m,
-                    selected.properties.time_supermarket_min,
-                  )}
-                  nearest={selected.properties.nearest_supermarket_name}
-                  source={getAmenitySource(
+                  value={getStoreDetailValue(
                     selected.properties,
                     supermarketMode,
-                    selected.properties.nearest_supermarket_source,
+                    selectedStores,
+                  )}
+                  nearest={getStoreNearestName(
+                    selected.properties,
+                    selectedStores,
+                  )}
+                  source={getStoreSource(
+                    selected.properties,
+                    supermarketMode,
+                    selectedStores,
                   )}
                 />
                 <MetricRow
@@ -1716,6 +2240,18 @@ function App() {
                   <dt>Surface transit</dt>
                   <dd>{formatMeters(selected.properties.dist_surface_transit_m)}</dd>
                 </div>
+                {TRANSIT_ACCESS_OPTIONS.map((option) => (
+                  <div key={option.key}>
+                    <dt>{option.label}</dt>
+                    <dd>
+                      {formatMeters(
+                        selected.properties[
+                          option.distanceField
+                        ] as number | undefined,
+                      )}
+                    </dd>
+                  </div>
+                ))}
                 {hasTransitCommute(selected.properties) ? (
                   <>
                     <div>
@@ -1899,6 +2435,9 @@ function App() {
                         workMode,
                         supermarketMode,
                         gymMode,
+                        preferenceScoreModel,
+                        selectedStores,
+                        selectedTransitAccess,
                       ),
                     )}
                   </em>

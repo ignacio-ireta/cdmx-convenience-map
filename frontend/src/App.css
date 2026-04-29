@@ -343,6 +343,10 @@
   text-transform: uppercase;
 }
 
+.amenity-mode-row.preference-row {
+  align-items: start;
+}
+
 .amenity-mode-buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -366,6 +370,55 @@
 .amenity-mode-buttons button.active {
   border-color: #0f766e;
   background: #e7f3ef;
+}
+
+.option-checkboxes {
+  display: grid;
+  gap: 6px;
+}
+
+.store-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.transit-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.option-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 5px 7px;
+  border: 1px solid #d9d7cf;
+  border-radius: 6px;
+  color: #18201d;
+  background: #f8f7f2;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.option-checkbox:has(input:checked) {
+  border-color: #0f766e;
+  background: #e7f3ef;
+}
+
+.option-checkbox input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #0f766e;
+}
+
+.option-checkbox span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .form-note {

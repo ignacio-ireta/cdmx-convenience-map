@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-29T05:30:24+00:00",
+  "generated_at": "2026-04-29T05:39:07+00:00",
   "area_unit": "postal_code",
   "feature_count": 1215,
   "weights": {
@@ -13,6 +13,13 @@
     "transit_stops": 10849,
     "transit_core_points": 1308,
     "transit_surface_points": 9541,
+    "transit_system_points": {
+      "metro": 195,
+      "metrobus": 373,
+      "rtp": 4912,
+      "trolebus": 740,
+      "corredor": 4629
+    },
     "supermarkets": 130,
     "gyms": 553,
     "workplaces": 1,
@@ -92,7 +99,7 @@
       "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
       "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
     ],
-    "generated_at": "2026-04-29T05:30:24+00:00",
+    "generated_at": "2026-04-29T05:39:07+00:00",
     "engine": "r5py",
     "router": {
       "engine": "r5py",
@@ -198,6 +205,7 @@
     "Work transit commute uses opt-in r5py schedule-aware routing where available, with Apimetro approximation fallback.",
     "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
     "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
+    "System-specific transit distance and score fields support client-side transit method filters.",
     "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file."
   ]
 }
