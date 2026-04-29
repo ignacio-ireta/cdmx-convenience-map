@@ -25,3 +25,4 @@ data/processed/*.json
 !data/raw/workplaces.csv
 !data/seeds/*.csv
 !data/archive/README.md
+.venv-routing/
