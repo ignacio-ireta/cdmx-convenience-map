@@ -1,6 +1,7 @@
 {
-  "area_unit": "colonia",
-  "feature_count": 1837,
+  "generated_at": "2026-04-29T04:57:43+00:00",
+  "area_unit": "postal_code",
+  "feature_count": 1215,
   "weights": {
     "work": 0.3,
     "transit": 0.25,
@@ -18,8 +19,8 @@
     "crime_records": 1340993
   },
   "crime": {
-    "records_total": 1341425,
-    "records_recent_12m": 231362,
+    "records_total": 1340004,
+    "records_recent_12m": 231158,
     "latest_date": "2024-09-30",
     "recent_start_date": "2023-09-30"
   },
@@ -51,27 +52,126 @@
     "mode": "walking",
     "candidate_count": 5,
     "candidate_pairs": {
-      "supermarkets": 9185,
-      "costco": 9185,
-      "walmart": 9185,
-      "gyms": 9185
+      "supermarkets": 6075,
+      "costco": 6075,
+      "walmart": 6075,
+      "gyms": 6075
     },
     "estimated_pairs": {
-      "supermarkets": 9185,
-      "costco": 9185,
-      "walmart": 9185,
-      "gyms": 9185
+      "supermarkets": 6075,
+      "costco": 6075,
+      "walmart": 6075,
+      "gyms": 6075
+    }
+  },
+  "transit_commute_source": "r5py_gtfs_schedule",
+  "transit_commute": {
+    "source": "apimetro_stop_pair_approximation",
+    "candidate_stop_count": 5,
+    "walking_speed_kmh": 4.8,
+    "speeds_kmh": {
+      "metro": 28.0,
+      "metrobus": 18.0,
+      "bus": 14.0,
+      "trolleybus": 14.0,
+      "default_transit": 16.0
+    },
+    "penalties_min": {
+      "same_line": 2.0,
+      "same_system_different_or_unknown_line": 8.0,
+      "different_system": 12.0
+    },
+    "max_walk_m": {
+      "origin": 1200.0,
+      "destination": 1200.0
+    },
+    "known_limitations": [
+      "Uses Apimetro stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
+      "Line values are only used when present in the processed stop data; the current Apimetro cache does not include line/order fields.",
+      "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
+      "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
+      "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
+    ],
+    "generated_at": "2026-04-29T04:57:43+00:00",
+    "engine": "r5py",
+    "router": {
+      "engine": "r5py",
+      "fallback_engine": "apimetro_approximation",
+      "csv_path": "data/processed/transit_commute_r5py_postal_code.csv",
+      "status": "loaded",
+      "gtfs_sha1": "6cce716226e035ee585c60ac1417ab91dafe998a",
+      "osm_source": "https://download.bbbike.org/osm/bbbike/MexicoCity/MexicoCity.osm.pbf",
+      "service_date": "2026-05-05",
+      "departure_window_minutes": 120,
+      "routed_count": 823,
+      "failed_count": 392,
+      "metadata_path": "data/processed/transit_commute_r5py_postal_code.metadata.json",
+      "osm_sha1": "03da50a72e27b9b26d9a2b83da742be2c8eeaab1",
+      "departure_time": "08:00",
+      "max_time_minutes": 300,
+      "global_error": null,
+      "coverage_percent": 67.7,
+      "prototype_metadata": {
+        "engine": "r5py",
+        "source": "r5py_gtfs_schedule",
+        "area_unit": "postal_code",
+        "service_date": "2026-05-05",
+        "departure_time": "08:00",
+        "departure_window_minutes": 120,
+        "max_time_minutes": 300,
+        "gtfs_zip": "data/processed/r5py/cdmx_gtfs_r5py_sanitized.zip",
+        "gtfs_sha1": "6cce716226e035ee585c60ac1417ab91dafe998a",
+        "gtfs_sanitizer": {
+          "sanitized": true,
+          "input_zip": "data/raw/gtfs/cdmx_gtfs.zip",
+          "input_sha1": "0ab3dea28a81bd58a83b0d2b21dcfa344b211a6e",
+          "blank_numeric_fields_fixed": {
+            "agency.txt": {
+              "missing_route_agencies_added": 1
+            },
+            "trips.txt": {
+              "direction_id": 1205
+            },
+            "frequencies.txt": {
+              "exact_times": 1584
+            }
+          }
+        },
+        "osm_pbf": "data/raw/osm/mexico-city.osm.pbf",
+        "osm_source": "https://download.bbbike.org/osm/bbbike/MexicoCity/MexicoCity.osm.pbf",
+        "osm_sha1": "03da50a72e27b9b26d9a2b83da742be2c8eeaab1",
+        "java_home": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+        "r5py_version": "1.1.3",
+        "total_origins": 1215,
+        "routed_count": 823,
+        "failed_count": 392,
+        "coverage_percent": 67.7,
+        "median_time_min": 156.0,
+        "mean_time_min": 159.1,
+        "runtime_seconds": 229.7,
+        "global_error": null,
+        "output_csv": "data/processed/transit_commute_r5py_postal_code.csv"
+      }
+    },
+    "transit_commute_source": "r5py_gtfs_schedule",
+    "estimated_areas": 1215,
+    "failed_areas": 0,
+    "source_counts": {
+      "r5py_gtfs_schedule": 823,
+      "apimetro_stop_pair_approximation": 392
     }
   },
   "source_urls": {
-    "colonias": "https://public.opendatasoft.com/explore/dataset/georef-mexico-colonia/export/",
+    "postal_codes": "https://datos.cdmx.gob.mx/dataset/codigos-postales",
     "transit_apimetro": "https://apimetro.dev/docs",
+    "transit_gtfs_cdmx": "https://datos.cdmx.gob.mx/dataset/75538d96-3ade-4bc5-ae7d-d85595e4522d/resource/32ed1b6b-41cd-49b3-b7f0-b57acb0eb819/download/gtfs-2.zip",
+    "osm_bbbike_mexico_city": "https://download.bbbike.org/osm/bbbike/MexicoCity/MexicoCity.osm.pbf",
     "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
     "crime_victims_fgj": "https://datos.cdmx.gob.mx/dataset/victimas-en-carpetas-de-investigacion-fgj/resource/d543a7b1-f8cb-439f-8a5c-e56c5479eeb5"
   },
   "sources": {
-    "areas": "data/raw/colonias.geojson",
-    "colonia": "data/raw/colonias.geojson",
+    "areas": "data/raw/correos-postales.json",
+    "postal_code": "data/raw/correos-postales.json",
     "places_config": "data/config/places.json",
     "transit_stops": "data/processed/transit_stops.csv",
     "supermarkets": "data/processed/supermarkets.csv",
@@ -80,16 +180,21 @@
     "crime_points": "data/processed/crime_points.csv"
   },
   "outputs": {
-    "processed": "data/processed/scores_colonia.geojson",
-    "public": "frontend/public/data/scores_colonia.geojson",
-    "legacy_processed": [],
-    "legacy_public": []
+    "processed": "data/processed/scores_postal_code.geojson",
+    "public": "frontend/public/data/scores_postal_code.geojson",
+    "legacy_processed": [
+      "data/processed/cdmx_postal_scores.geojson"
+    ],
+    "legacy_public": [
+      "frontend/public/data/cdmx_postal_scores.geojson"
+    ]
   },
   "notes": [
     "Distances are straight-line representative-point-to-point distances in meters.",
     "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
     "Scores are closer-is-better and clipped at the 95th percentile per metric.",
     "Work travel times are offline fallback estimates unless the travel_time source is replaced with cached routing results.",
+    "Work transit commute uses opt-in r5py schedule-aware routing where available, with Apimetro approximation fallback.",
     "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
     "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
     "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file."

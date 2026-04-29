@@ -17,8 +17,11 @@ data/raw/*.json
 data/raw/*.geojson
 data/raw/*.zip
 data/raw/*.csv
+data/raw/*.pbf
 data/raw/gtfs/
+data/raw/osm/
 data/archive/**
+data/processed/
 data/processed/*.csv
 data/processed/*.geojson
 data/processed/*.json

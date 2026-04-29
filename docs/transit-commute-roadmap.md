@@ -1,5 +1,11 @@
 # Transit Commute Roadmap
 
+This roadmap is retained for historical context. The current implementation and
+next-step recommendation are documented in:
+
+- `docs/transit-commute.md`
+- `docs/transit-routing-roadmap.md`
+
 ## Current State
 
 The current transit score is a proximity score, not a commute-time score.
@@ -82,9 +88,9 @@ transit_in_vehicle_min
 transit_walk_time_min
 ```
 
-`score_work_transit` should be a 0-100 closer-is-better score over `time_work_transit_min`, clipped at the 95th percentile like the other metrics. Missing or unroutable areas should have null values in the raw commute fields and score `0`, with a metadata count of failed routes.
+`score_work_transit` should be a 0-100 closer-is-better score over `time_work_transit_min`. Missing or unroutable areas should have null raw commute fields, a populated failure/fallback source, and a metadata count of failed routes.
 
-Frontend placeholder support already accepts and conditionally displays the required fields when present. Existing `score_transit` remains untouched.
+Frontend support accepts and conditionally displays these fields when present. Existing `score_transit` remains untouched.
 
 ## Required Data
 
@@ -129,7 +135,7 @@ Suggested metadata:
 ```json
 {
   "transit_commute": {
-    "source": "otp",
+    "source": "r5py",
     "service_date": "YYYY-MM-DD",
     "departure_window": "08:00-10:00",
     "routed_areas": 1215,
@@ -142,9 +148,31 @@ Suggested metadata:
 
 ## Engine Options
 
-### Recommended: OpenTripPlanner
+### Recommended: r5py/R5
 
-OpenTripPlanner is the best first implementation target for this project.
+r5py/R5 is now the preferred next implementation target for this project.
+
+Why:
+
+- Python-friendly preprocessing workflow.
+- Works naturally with GeoPandas origins and destinations.
+- Designed for public-transport travel-time matrices.
+- Uses OSM plus GTFS and can keep all routing out of the browser.
+
+Shape:
+
+1. Put GTFS ZIP files and an OSM extract under ignored raw/intermediate data paths.
+2. Validate feed freshness, service calendars, route coverage, and stop coordinates.
+3. Build the R5 transport network locally during preprocessing.
+4. Compute a travel-time matrix from each area representative point to the workplace.
+5. Use a robust statistic over a commute departure window.
+6. Cache route results.
+7. Write static GeoJSON fields.
+
+### Alternative: OpenTripPlanner
+
+OpenTripPlanner is the main alternative if an API-server-style router or richer
+itinerary details are desired.
 
 Why:
 
@@ -235,4 +263,3 @@ Use three levels of validation:
 ## Recommendation
 
 Use OpenTripPlanner first, but only after a current, complete GTFS bundle is available and validated locally. Until then, keep the existing Apimetro proximity score as the production transit layer and avoid shipping a half-working transit router.
-

@@ -7,6 +7,7 @@ import {
   Dumbbell,
   Layers,
   MapPinned,
+  Route,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -21,10 +22,11 @@ type MetricKey =
   | 'combined'
   | 'work'
   | 'transit'
+  | 'transitCommute'
   | 'supermarkets'
   | 'gyms'
   | 'safety'
-type WeightKey = Exclude<MetricKey, 'combined'>
+type WeightKey = Exclude<MetricKey, 'combined' | 'transitCommute'>
 
 type AreaUnit = 'postal_code' | 'colonia'
 type WorkMode = 'distance' | 'driving' | 'walking' | 'biking'
@@ -59,9 +61,22 @@ type AreaProperties = {
   time_walmart_min?: number
   time_gym_min?: number
   time_work_transit_min?: number
+  time_work_transit_p75_min?: number
   transfers_work_transit?: number
   walk_to_origin_stop_m?: number
   destination_walk_m?: number
+  transit_commute_source?: string
+  transit_origin_stop_name?: string
+  transit_origin_system?: string
+  transit_origin_line?: string
+  transit_origin_walk_m?: number
+  transit_destination_stop_name?: string
+  transit_destination_system?: string
+  transit_destination_line?: string
+  transit_destination_walk_m?: number
+  transit_transfer_penalty_min?: number
+  transit_route_complexity?: string
+  transit_commute_notes?: string
   score_work?: number
   score_work_driving?: number
   score_work_walking?: number
@@ -148,6 +163,20 @@ type ScoreMetadata = {
     candidate_pairs?: Record<string, number>
     estimated_pairs?: Record<string, number>
   }
+  transit_commute?: {
+    source?: string
+    transit_commute_source?: string
+    generated_at?: string
+    candidate_stop_count?: number
+    walking_speed_kmh?: number
+    speeds_kmh?: Record<string, number>
+    penalties_min?: Record<string, number>
+    max_walk_m?: Record<string, number>
+    estimated_areas?: number
+    failed_areas?: number
+    known_limitations?: string[]
+  }
+  transit_commute_source?: string
   source_urls?: Record<string, string>
 }
 
@@ -174,7 +203,18 @@ type SearchMatch = {
 const METRICS: MetricConfig[] = [
   { key: 'combined', label: 'Combined', shortLabel: 'Overall', icon: Layers },
   { key: 'work', label: 'Work', shortLabel: 'Work', icon: BriefcaseBusiness },
-  { key: 'transit', label: 'Transit', shortLabel: 'Transit', icon: TrainFront },
+  {
+    key: 'transit',
+    label: 'Transit access',
+    shortLabel: 'Access',
+    icon: TrainFront,
+  },
+  {
+    key: 'transitCommute',
+    label: 'Transit commute',
+    shortLabel: 'Commute',
+    icon: Route,
+  },
   {
     key: 'supermarkets',
     label: 'Supermarkets',
@@ -354,9 +394,26 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     time_walmart_min: numberFrom(raw.time_walmart_min),
     time_gym_min: numberFrom(raw.time_gym_min),
     time_work_transit_min: numberFrom(raw.time_work_transit_min),
+    time_work_transit_p75_min: numberFrom(raw.time_work_transit_p75_min),
     transfers_work_transit: numberFrom(raw.transfers_work_transit),
     walk_to_origin_stop_m: numberFrom(raw.walk_to_origin_stop_m),
     destination_walk_m: numberFrom(raw.destination_walk_m),
+    transit_commute_source: optionalString(raw.transit_commute_source),
+    transit_origin_stop_name: optionalString(raw.transit_origin_stop_name),
+    transit_origin_system: optionalString(raw.transit_origin_system),
+    transit_origin_line: optionalString(raw.transit_origin_line),
+    transit_origin_walk_m: numberFrom(raw.transit_origin_walk_m),
+    transit_destination_stop_name: optionalString(
+      raw.transit_destination_stop_name,
+    ),
+    transit_destination_system: optionalString(
+      raw.transit_destination_system,
+    ),
+    transit_destination_line: optionalString(raw.transit_destination_line),
+    transit_destination_walk_m: numberFrom(raw.transit_destination_walk_m),
+    transit_transfer_penalty_min: numberFrom(raw.transit_transfer_penalty_min),
+    transit_route_complexity: optionalString(raw.transit_route_complexity),
+    transit_commute_notes: optionalString(raw.transit_commute_notes),
     score_work: numberFrom(raw.score_work),
     score_work_driving: numberFrom(raw.score_work_driving),
     score_work_walking: numberFrom(raw.score_work_walking),
@@ -506,6 +563,7 @@ function getScore(
 ) {
   if (metric !== 'combined') {
     if (metric === 'work') return getWorkScore(properties, workModel, workMode)
+    if (metric === 'transitCommute') return properties.score_work_transit ?? 0
     if (metric === 'supermarkets') {
       return getSupermarketScore(properties, supermarketMode)
     }
@@ -719,10 +777,8 @@ function getAmenitySource(
 function hasTransitCommute(properties: AreaProperties) {
   return (
     typeof properties.time_work_transit_min === 'number' ||
-    typeof properties.transfers_work_transit === 'number' ||
-    typeof properties.walk_to_origin_stop_m === 'number' ||
-    typeof properties.destination_walk_m === 'number' ||
-    Boolean(properties.transit_route_summary)
+    typeof properties.score_work_transit === 'number' ||
+    Boolean(properties.transit_commute_source)
   )
 }
 
@@ -804,6 +860,9 @@ function scoreModeSummary(
   if (selectedMetric === 'gyms') {
     return `Gyms scored by ${gymMode}`
   }
+  if (selectedMetric === 'transitCommute') {
+    return 'Transit commute scored by offline Apimetro stop-pair approximation'
+  }
   if (selectedMetric === 'combined') {
     return `Combined score using work ${workMode}, stores ${supermarketMode}, gyms ${gymMode}`
   }
@@ -822,9 +881,33 @@ function formatSource(source?: string) {
   if (source === 'fallback_straight_line_estimate') return 'fallback estimate'
   if (source === 'fallback_travel_time') return 'fallback estimate'
   if (source === 'offline_transit_router') return 'offline transit router'
+  if (source === 'apimetro_stop_pair_approximation') {
+    return 'Approximation from Apimetro stops; not schedule-aware'
+  }
+  if (source === 'r5py_gtfs_schedule') return 'r5py GTFS schedule'
+  if (source === 'transit_commute_failed') return 'Transit commute failed'
+  if (source === 'transit_commute_not_configured') return 'Transit commute not configured'
+  if (source === 'no_transit_stops_available') return 'No transit stops available'
+  if (source === 'no_valid_transit_stop_coordinates') {
+    return 'No valid transit stop coordinates'
+  }
   if (source === 'fgj_cdmx_victimas') return 'FGJ CDMX'
   if (source === 'seed') return 'seed fallback'
   return source
+}
+
+function transitStopLabel(system?: string, name?: string, line?: string) {
+  if (!name) return 'n/a'
+  const prefix = [system, line].filter(Boolean).join(' ')
+  return prefix ? `${prefix} ${name}` : name
+}
+
+function formatTransitComplexity(value?: string) {
+  if (value === 'same_line') return 'Same line'
+  if (value === 'same_system_different_line') return 'Same system, different line'
+  if (value === 'same_system_unknown_line') return 'Same system, line unknown'
+  if (value === 'different_system') return 'Different systems'
+  return value || 'n/a'
 }
 
 function FitToData({ data }: { data: AreaFeatureCollection }) {
@@ -1444,6 +1527,13 @@ function App() {
               </dd>
             </div>
             <div>
+              <dt>Transit commute</dt>
+              <dd>
+                {metadata?.transit_commute?.estimated_areas ?? 'n/a'} estimated ·{' '}
+                {metadata?.transit_commute?.candidate_stop_count ?? 'n/a'} candidates
+              </dd>
+            </div>
+            <div>
               <dt>Stores</dt>
               <dd>OSM Overpass · {metadata?.point_counts?.supermarkets ?? 'n/a'} points</dd>
             </div>
@@ -1539,7 +1629,7 @@ function App() {
                   source={getWorkSource(selected.properties, workModel, workMode)}
                 />
                 <MetricRow
-                  label="Transit"
+                  label="Transit access"
                   score={selected.properties.score_transit}
                   distance={selected.properties.dist_transit_m}
                   nearest={selected.properties.nearest_transit_name}
@@ -1551,7 +1641,7 @@ function App() {
                     score={selected.properties.score_work_transit}
                     value={formatMinutes(selected.properties.time_work_transit_min)}
                     nearest={selected.properties.transit_route_summary}
-                    source="offline_transit_router"
+                    source={selected.properties.transit_commute_source}
                   />
                 ) : null}
                 <MetricRow
@@ -1629,18 +1719,66 @@ function App() {
                 {hasTransitCommute(selected.properties) ? (
                   <>
                     <div>
-                      <dt>Transit transfers</dt>
-                      <dd>{selected.properties.transfers_work_transit ?? 'n/a'}</dd>
+                      <dt>Transit origin</dt>
+                      <dd>
+                        {transitStopLabel(
+                          selected.properties.transit_origin_system,
+                          selected.properties.transit_origin_stop_name,
+                          selected.properties.transit_origin_line,
+                        )}
+                      </dd>
                     </div>
                     <div>
-                      <dt>Walk to stop</dt>
+                      <dt>Transit destination</dt>
                       <dd>
-                        {formatMeters(selected.properties.walk_to_origin_stop_m)}
+                        {transitStopLabel(
+                          selected.properties.transit_destination_system,
+                          selected.properties.transit_destination_stop_name,
+                          selected.properties.transit_destination_line,
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Walk to origin stop</dt>
+                      <dd>
+                        {formatMeters(selected.properties.transit_origin_walk_m)}
                       </dd>
                     </div>
                     <div>
                       <dt>Destination walk</dt>
-                      <dd>{formatMeters(selected.properties.destination_walk_m)}</dd>
+                      <dd>
+                        {formatMeters(
+                          selected.properties.transit_destination_walk_m,
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Transfer penalty</dt>
+                      <dd>
+                        {formatMinutes(
+                          selected.properties.transit_transfer_penalty_min,
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Route complexity</dt>
+                      <dd>
+                        {formatTransitComplexity(
+                          selected.properties.transit_route_complexity,
+                        )}
+                      </dd>
+                    </div>
+                    <div className="raw-note">
+                      <dt>Transit source</dt>
+                      <dd>
+                        {formatSource(selected.properties.transit_commute_source)}
+                      </dd>
+                    </div>
+                    <div className="raw-note">
+                      <dt>Transit note</dt>
+                      <dd>
+                        {selected.properties.transit_commute_notes || 'n/a'}
+                      </dd>
                     </div>
                   </>
                 ) : null}

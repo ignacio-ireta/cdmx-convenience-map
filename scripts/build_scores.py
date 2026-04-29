@@ -5,6 +5,7 @@ import json
 import math
 import shutil
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import geopandas as gpd
@@ -18,6 +19,13 @@ from common import (
     FRONTEND_PUBLIC_DATA,
     ROOT,
     ensure_dirs,
+)
+from transit_commute import (
+    OUTPUT_COLUMNS as TRANSIT_COMMUTE_COLUMNS,
+    TransitCommuteConfig,
+    estimate_transit_commute_to_work,
+    score_transit_commute_minutes,
+    transit_commute_metadata,
 )
 
 
@@ -97,6 +105,18 @@ DEFAULT_TRAVEL_TIME_CONFIG = {
         "biking": 1.25,
     },
 }
+
+TRANSIT_COMMUTE_NOT_CONFIGURED_SOURCE = "transit_commute_not_configured"
+TRANSIT_COMMUTE_FAILED_SOURCE = "transit_commute_failed"
+TRANSIT_ROUTER_APIMETRO = "apimetro_approximation"
+TRANSIT_ROUTER_R5PY = "r5py"
+R5PY_TRANSIT_COMMUTE_SOURCE = "r5py_gtfs_schedule"
+R5PY_OSM_SOURCE = "https://download.bbbike.org/osm/bbbike/MexicoCity/MexicoCity.osm.pbf"
+TRANSIT_COMMUTE_OUTPUT_COLUMNS = []
+for transit_column in TRANSIT_COMMUTE_COLUMNS:
+    TRANSIT_COMMUTE_OUTPUT_COLUMNS.append(transit_column)
+    if transit_column == "time_work_transit_min":
+        TRANSIT_COMMUTE_OUTPUT_COLUMNS.append("time_work_transit_p75_min")
 
 
 @dataclass(frozen=True)
@@ -337,6 +357,10 @@ def amenity_travel_time_config(places_config: dict, travel_time_config: dict) ->
     }
 
 
+def transit_commute_config(places_config: dict) -> TransitCommuteConfig:
+    return TransitCommuteConfig.from_mapping(places_config.get("transit_commute", {}))
+
+
 def load_workplaces(places_config: dict) -> gpd.GeoDataFrame:
     workplace = places_config.get("workplace", {})
     latitude = workplace.get("latitude")
@@ -527,6 +551,254 @@ def round_minutes(values: np.ndarray) -> list[float]:
     return np.round(np.clip(clean, 0, None), 1).tolist()
 
 
+def nullable_number(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return numeric if math.isfinite(numeric) else None
+
+
+def workplace_coordinates(places_config: dict, workplaces: gpd.GeoDataFrame) -> tuple[float, float] | None:
+    configured = places_config.get("workplace", {})
+    latitude = nullable_number(configured.get("latitude"))
+    longitude = nullable_number(configured.get("longitude"))
+    if latitude is not None and longitude is not None:
+        return latitude, longitude
+    if workplaces.empty:
+        return None
+    first_workplace = workplaces.to_crs(WGS84_CRS).geometry.iloc[0]
+    return float(first_workplace.y), float(first_workplace.x)
+
+
+def failed_transit_commute_frame(
+    areas: gpd.GeoDataFrame,
+    source: str,
+    notes: str,
+) -> pd.DataFrame:
+    rows = []
+    for _, area in areas.iterrows():
+        row = {column: None for column in TRANSIT_COMMUTE_OUTPUT_COLUMNS}
+        row["area_unit"] = area.get("area_unit", "")
+        row["area_id"] = area.get("area_id", "")
+        row["score_work_transit"] = None
+        row["transit_commute_source"] = source
+        row["transit_commute_notes"] = notes
+        rows.append(row)
+    return pd.DataFrame(rows, columns=TRANSIT_COMMUTE_OUTPUT_COLUMNS)
+
+
+def ensure_transit_commute_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    output = frame.copy()
+    for column in TRANSIT_COMMUTE_OUTPUT_COLUMNS:
+        if column not in output.columns:
+            output[column] = None
+    return output[TRANSIT_COMMUTE_OUTPUT_COLUMNS]
+
+
+def build_transit_commute_frame(
+    areas: gpd.GeoDataFrame,
+    point_datasets: PointDatasets,
+    places_config: dict,
+    config: TransitCommuteConfig,
+) -> pd.DataFrame:
+    coordinates = workplace_coordinates(places_config, point_datasets.workplaces)
+    if coordinates is None:
+        print("WARNING: Transit commute skipped because no workplace coordinates exist.")
+        return failed_transit_commute_frame(
+            areas,
+            TRANSIT_COMMUTE_NOT_CONFIGURED_SOURCE,
+            "Transit commute was not estimated because no workplace coordinates were configured.",
+        )
+
+    try:
+        return ensure_transit_commute_columns(
+            estimate_transit_commute_to_work(
+                areas,
+                point_datasets.transit,
+                workplace_lat=coordinates[0],
+                workplace_lon=coordinates[1],
+                config=config,
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - keep score generation robust.
+        print(f"WARNING: Transit commute estimation failed: {exc}")
+        return failed_transit_commute_frame(
+            areas,
+            TRANSIT_COMMUTE_FAILED_SOURCE,
+            f"Transit commute estimation failed during preprocessing: {exc}",
+        )
+
+
+def normalize_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "t", "yes", "y"}
+
+
+def load_r5py_metadata(csv_path: Path) -> dict:
+    metadata_path = csv_path.with_suffix(".metadata.json")
+    if not metadata_path.exists():
+        return {}
+    try:
+        return json.loads(metadata_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"WARNING: Could not parse r5py metadata {metadata_path}: {exc}")
+        return {"metadata_error": str(exc)}
+
+
+def transit_commute_r5py_csv_path(area_unit: str) -> Path:
+    return DATA_PROCESSED / f"transit_commute_r5py_{area_unit}.csv"
+
+
+def apply_r5py_transit_commute(
+    *,
+    area_unit: str,
+    transit_commute: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict]:
+    csv_path = transit_commute_r5py_csv_path(area_unit)
+    result = ensure_transit_commute_columns(transit_commute)
+    router_info = {
+        "engine": TRANSIT_ROUTER_R5PY,
+        "fallback_engine": TRANSIT_ROUTER_APIMETRO,
+        "csv_path": repo_relative(csv_path),
+        "status": "not_loaded",
+        "gtfs_sha1": None,
+        "osm_source": R5PY_OSM_SOURCE,
+        "service_date": None,
+        "departure_window_minutes": None,
+        "routed_count": 0,
+        "failed_count": int(len(result)),
+    }
+
+    if not csv_path.exists():
+        print(f"WARNING: r5py transit CSV missing at {csv_path}; using Apimetro fallback.")
+        router_info["status"] = "missing_csv"
+        return result, router_info
+
+    metadata = load_r5py_metadata(csv_path)
+    router_info.update(
+        {
+            "status": "loaded",
+            "metadata_path": repo_relative(csv_path.with_suffix(".metadata.json")),
+            "gtfs_sha1": metadata.get("gtfs_sha1"),
+            "osm_source": metadata.get("osm_source") or R5PY_OSM_SOURCE,
+            "osm_sha1": metadata.get("osm_sha1"),
+            "service_date": metadata.get("service_date"),
+            "departure_time": metadata.get("departure_time"),
+            "departure_window_minutes": metadata.get("departure_window_minutes"),
+            "max_time_minutes": metadata.get("max_time_minutes"),
+            "global_error": metadata.get("global_error"),
+        }
+    )
+
+    try:
+        r5py = pd.read_csv(csv_path, dtype={"area_id": str})
+    except Exception as exc:  # noqa: BLE001 - keep opt-in fallback robust.
+        print(f"WARNING: Could not read r5py transit CSV {csv_path}: {exc}")
+        router_info["status"] = "read_failed"
+        router_info["error"] = str(exc)
+        return result, router_info
+
+    required = {
+        "area_id",
+        "time_work_transit_min",
+        "routed_successfully",
+        "transit_commute_source",
+    }
+    missing = sorted(required - set(r5py.columns))
+    if missing:
+        print(
+            "WARNING: r5py transit CSV is missing required columns "
+            f"{', '.join(missing)}; using Apimetro fallback."
+        )
+        router_info["status"] = "invalid_csv"
+        router_info["missing_columns"] = missing
+        return result, router_info
+
+    r5py = r5py.copy()
+    r5py["area_id"] = r5py["area_id"].fillna("").astype(str)
+    if area_unit == "postal_code":
+        r5py["area_id"] = r5py["area_id"].str.zfill(5)
+    r5py["routed_successfully"] = r5py["routed_successfully"].map(normalize_bool)
+    r5py["time_work_transit_min"] = pd.to_numeric(
+        r5py["time_work_transit_min"], errors="coerce"
+    )
+    if "time_work_transit_p75_min" not in r5py.columns:
+        r5py["time_work_transit_p75_min"] = np.nan
+    r5py["time_work_transit_p75_min"] = pd.to_numeric(
+        r5py["time_work_transit_p75_min"], errors="coerce"
+    )
+    successful = r5py[
+        r5py["routed_successfully"] & r5py["time_work_transit_min"].notna()
+    ].drop_duplicates("area_id", keep="first")
+    successful = successful.set_index("area_id")
+
+    matched_area_ids = result["area_id"].fillna("").astype(str).isin(successful.index)
+    if matched_area_ids.any():
+        result_area_ids = result.loc[matched_area_ids, "area_id"].astype(str)
+        median_values = result_area_ids.map(successful["time_work_transit_min"])
+        p75_values = result_area_ids.map(successful["time_work_transit_p75_min"])
+        result.loc[matched_area_ids, "time_work_transit_min"] = median_values.round(1).to_numpy()
+        result.loc[matched_area_ids, "time_work_transit_p75_min"] = p75_values.round(1).to_numpy()
+        result.loc[matched_area_ids, "score_work_transit"] = [
+            nullable_round(score_transit_commute_minutes(value), 1)
+            for value in median_values
+        ]
+        result.loc[matched_area_ids, "transit_commute_source"] = R5PY_TRANSIT_COMMUTE_SOURCE
+        result.loc[matched_area_ids, "transit_commute_notes"] = (
+            "Schedule-aware r5py route using CDMX GTFS and BBBike MexicoCity OSM. "
+            "Stop names remain Apimetro nearest-stop context, not r5py itinerary legs."
+        )
+
+    routed_count = int(matched_area_ids.sum())
+    router_info["routed_count"] = routed_count
+    router_info["failed_count"] = int(len(result) - routed_count)
+    router_info["coverage_percent"] = (
+        round((routed_count / len(result)) * 100, 1) if len(result) else 0.0
+    )
+    if metadata:
+        router_info["prototype_metadata"] = {
+            key: value
+            for key, value in metadata.items()
+            if key not in {"global_traceback"}
+        }
+    return result, router_info
+
+
+def nullable_round(value: object, digits: int) -> float | None:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric):
+        return None
+    return round(numeric, digits)
+
+
+def repo_relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def transit_route_summary(row: pd.Series) -> str:
+    origin_name = str(row.get("transit_origin_stop_name") or "").strip()
+    origin_system = str(row.get("transit_origin_system") or "").strip()
+    destination_name = str(row.get("transit_destination_stop_name") or "").strip()
+    destination_system = str(row.get("transit_destination_system") or "").strip()
+    if not origin_name or not destination_name:
+        return ""
+    origin = f"{origin_system} {origin_name}".strip()
+    destination = f"{destination_system} {destination_name}".strip()
+    return f"{origin} -> {destination}"
+
+
 def read_crimes(path: Path) -> gpd.GeoDataFrame:
     if not path.exists():
         return gpd.GeoDataFrame(
@@ -698,6 +970,7 @@ def score_areas(
     input_path: Path,
     point_datasets: PointDatasets,
     places_config: dict,
+    transit_router: str = TRANSIT_ROUTER_APIMETRO,
 ) -> ScoredAreaResult:
     areas = prepare_area_properties(load_area_geometries(input_path), config)
     areas_metric = areas.to_crs(METRIC_CRS)
@@ -706,6 +979,7 @@ def score_areas(
     reference_wgs84 = gpd.GeoSeries(reference_points, crs=METRIC_CRS).to_crs(WGS84_CRS)
     travel_time_config = merged_travel_time_config(places_config)
     amenity_time_config = amenity_travel_time_config(places_config, travel_time_config)
+    work_transit_config = transit_commute_config(places_config)
 
     nearest_work = nearest(reference_points, point_datasets.workplaces)
     nearest_transit = nearest(reference_points, point_datasets.transit)
@@ -771,6 +1045,25 @@ def score_areas(
         route_source=amenity_time_config["source"],
         travel_time_config=travel_time_config,
     )
+    transit_commute = build_transit_commute_frame(
+        areas,
+        point_datasets,
+        places_config,
+        work_transit_config,
+    )
+    transit_router_info = {
+        "engine": TRANSIT_ROUTER_APIMETRO,
+        "source": work_transit_config.source,
+        "routed_count": int(transit_commute["time_work_transit_min"].notna().sum()),
+        "failed_count": int(len(transit_commute) - transit_commute["time_work_transit_min"].notna().sum()),
+    }
+    if transit_router == TRANSIT_ROUTER_R5PY:
+        transit_commute, transit_router_info = apply_r5py_transit_commute(
+            area_unit=config.area_unit,
+            transit_commute=transit_commute,
+        )
+    transit_commute = ensure_transit_commute_columns(transit_commute)
+    transit_commute = transit_commute.set_index("area_id").reindex(areas["area_id"])
 
     score_work = distance_score(nearest_work.distances)
     work_times = {
@@ -852,6 +1145,31 @@ def score_areas(
     areas["nearest_walmart_source"] = nearest_walmart.sources
     areas["nearest_gym_source"] = nearest_gym.sources
     areas["amenity_travel_time_source"] = amenity_time_config["source"]
+    for column in TRANSIT_COMMUTE_OUTPUT_COLUMNS:
+        if column in {"area_unit", "area_id"}:
+            continue
+        values = transit_commute[column] if column in transit_commute.columns else None
+        if values is None:
+            areas[column] = [None] * len(areas)
+        else:
+            areas[column] = values.astype("object").where(pd.notna(values), None).tolist()
+    areas["transfers_work_transit"] = [
+        0 if complexity == "same_line" else 1 if isinstance(complexity, str) else None
+        for complexity in areas["transit_route_complexity"]
+    ]
+    areas["walk_to_origin_stop_m"] = areas["transit_origin_walk_m"]
+    areas["destination_walk_m"] = areas["transit_destination_walk_m"]
+    areas["transit_route_summary"] = [
+        transit_route_summary(row)
+        for _, row in areas[
+            [
+                "transit_origin_stop_name",
+                "transit_origin_system",
+                "transit_destination_stop_name",
+                "transit_destination_system",
+            ]
+        ].iterrows()
+    ]
     areas["crime_incidents_total"] = (
         crime_aggregation["crime_incidents_total"].fillna(0).astype(int).tolist()
     )
@@ -878,7 +1196,13 @@ def score_areas(
         areas_metric.geometry.simplify(8, preserve_topology=True).to_crs(WGS84_CRS)
     )
 
+    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    transit_estimated = int(transit_commute["time_work_transit_min"].notna().sum())
+    transit_sources = (
+        transit_commute["transit_commute_source"].fillna("unknown").value_counts().to_dict()
+    )
     metadata = {
+        "generated_at": generated_at,
         "area_unit": config.area_unit,
         "feature_count": int(len(output)),
         "crime": crime_metadata,
@@ -910,11 +1234,31 @@ def score_areas(
                 "gyms": routed_gym.estimated_pairs,
             },
         },
+        "transit_commute": {
+            **transit_commute_metadata(work_transit_config),
+            "generated_at": generated_at,
+            "engine": transit_router_info.get("engine", TRANSIT_ROUTER_APIMETRO),
+            "router": transit_router_info,
+            "transit_commute_source": (
+                R5PY_TRANSIT_COMMUTE_SOURCE
+                if transit_router == TRANSIT_ROUTER_R5PY
+                else work_transit_config.source
+            ),
+            "estimated_areas": transit_estimated,
+            "failed_areas": int(len(output) - transit_estimated),
+            "source_counts": {str(key): int(value) for key, value in transit_sources.items()},
+        },
         "notes": [
             "Distances are straight-line representative-point-to-point distances in meters.",
             "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
             "Scores are closer-is-better and clipped at the 95th percentile per metric.",
             "Work travel times are offline fallback estimates unless the travel_time source is replaced with cached routing results.",
+            (
+                "Work transit commute uses opt-in r5py schedule-aware routing where available, "
+                "with Apimetro approximation fallback."
+                if transit_router == TRANSIT_ROUTER_R5PY
+                else "Work transit commute uses an offline Apimetro stop-pair approximation and is not schedule-aware."
+            ),
             "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
             "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
             "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file.",
@@ -950,12 +1294,18 @@ def build_metadata(
     source_urls = {
         config.source_url_key: config.source_url,
         "transit_apimetro": "https://apimetro.dev/docs",
+        "transit_gtfs_cdmx": (
+            "https://datos.cdmx.gob.mx/dataset/75538d96-3ade-4bc5-ae7d-d85595e4522d/"
+            "resource/32ed1b6b-41cd-49b3-b7f0-b57acb0eb819/download/gtfs-2.zip"
+        ),
+        "osm_bbbike_mexico_city": R5PY_OSM_SOURCE,
         "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
         "crime_victims_fgj": "https://datos.cdmx.gob.mx/dataset/victimas-en-carpetas-de-investigacion-fgj/resource/d543a7b1-f8cb-439f-8a5c-e56c5479eeb5",
     }
     source_urls = {key: value for key, value in source_urls.items() if value}
 
     return {
+        "generated_at": score_metadata["generated_at"],
         "area_unit": config.area_unit,
         "feature_count": score_metadata["feature_count"],
         "weights": DEFAULT_WEIGHTS,
@@ -972,6 +1322,10 @@ def build_metadata(
         "workplace": score_metadata["workplace"],
         "travel_time": score_metadata["travel_time"],
         "amenity_travel_time": score_metadata["amenity_travel_time"],
+        "transit_commute_source": score_metadata["transit_commute"][
+            "transit_commute_source"
+        ],
+        "transit_commute": score_metadata["transit_commute"],
         "source_urls": source_urls,
         "sources": {
             "areas": repo_path(input_path),
@@ -1018,6 +1372,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not write legacy output aliases such as cdmx_postal_scores.geojson.",
     )
+    parser.add_argument(
+        "--transit-router",
+        choices=[TRANSIT_ROUTER_APIMETRO, TRANSIT_ROUTER_R5PY],
+        default=TRANSIT_ROUTER_APIMETRO,
+        help=(
+            "Transit commute router to use. Defaults to the existing Apimetro "
+            "approximation; r5py overlays cached schedule-aware CSV results when present."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1036,6 +1399,7 @@ def main() -> None:
         input_path=input_path,
         point_datasets=point_datasets,
         places_config=places_config,
+        transit_router=args.transit_router,
     )
 
     write_geojson(scored.output, output_path)
