@@ -1,8 +1,10 @@
 .app-shell {
   display: grid;
   grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  height: 100svh;
   min-height: 100svh;
   width: 100%;
+  overflow: hidden;
   background: #f6f5f1;
   color: #18201d;
 }
@@ -589,11 +591,12 @@
 
 .map-area {
   position: relative;
-  min-height: 100svh;
+  min-height: 0;
+  height: 100%;
 }
 
 .leaflet-map {
-  min-height: 100svh;
+  min-height: 0;
   height: 100%;
   width: 100%;
   background: #dfe5df;
@@ -742,6 +745,8 @@
 @media (max-width: 880px) {
   .app-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .control-panel {
@@ -753,6 +758,7 @@
   .map-area,
   .leaflet-map,
   .map-message {
+    height: auto;
     min-height: 62svh;
   }
 }

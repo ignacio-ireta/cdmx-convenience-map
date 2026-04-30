@@ -13,8 +13,8 @@ import {
   ShoppingCart,
   TrainFront,
 } from 'lucide-react'
-import L, { type LatLngExpression, type Layer, type PathOptions } from 'leaflet'
-import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
+import L, { type Layer, type PathOptions } from 'leaflet'
+import { GeoJSON, MapContainer, TileLayer } from 'react-leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import './App.css'
 
@@ -441,7 +441,10 @@ const LEGEND_STEPS = [
   { label: '0', color: '#d94841' },
 ]
 
-const SELECTED_AREA_ZOOM = 14
+const SELECTED_AREA_MAX_ZOOM = 14
+const SELECTED_AREA_FOCUS_PADDING: L.PointExpression = [56, 56]
+const DATA_FOCUS_PADDING: L.PointExpression = [18, 18]
+const DEFAULT_MAP_CENTER: L.LatLngExpression = [19.4326, -99.1332]
 
 function stringFrom(value: unknown) {
   if (typeof value === 'string') return value.trim()
@@ -1328,58 +1331,6 @@ function formatTransitComplexity(value?: string) {
   return value || 'n/a'
 }
 
-function areaFocusCenter(feature: AreaFeature): LatLngExpression | null {
-  const lat = feature.properties.centroid_lat
-  const lon = feature.properties.centroid_lon
-  if (
-    typeof lat === 'number' &&
-    Number.isFinite(lat) &&
-    typeof lon === 'number' &&
-    Number.isFinite(lon)
-  ) {
-    return [lat, lon]
-  }
-
-  const bounds = L.geoJSON(feature).getBounds()
-  return bounds.isValid() ? bounds.getCenter() : null
-}
-
-function FitToData({ data }: { data: AreaFeatureCollection }) {
-  const map = useMap()
-
-  useEffect(() => {
-    const bounds = L.geoJSON(data).getBounds()
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [18, 18] })
-    }
-  }, [data, map])
-
-  return null
-}
-
-function ZoomToSelected({
-  focusRequest,
-}: {
-  focusRequest: AreaFocusRequest | null
-}) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (!focusRequest) return
-    const center = areaFocusCenter(focusRequest.feature)
-    if (!center) return
-
-    const animationFrame = window.requestAnimationFrame(() => {
-      map.invalidateSize({ pan: false })
-      map.setView(center, SELECTED_AREA_ZOOM)
-    })
-
-    return () => window.cancelAnimationFrame(animationFrame)
-  }, [focusRequest, map])
-
-  return null
-}
-
 function App() {
   const [selectedAreaUnit, setSelectedAreaUnit] =
     useState<AreaUnit>('postal_code')
@@ -1655,8 +1606,25 @@ function App() {
   ])
 
   const mapKey = `${selectedMetric}-${Object.values(weights).join('-')}-${
-    selected?.properties.area_id ?? 'none'
-  }-${workModel?.areaId ?? 'sample-work'}-${selectedAreaUnit}-${workMode}-${supermarketMode}-${gymMode}-${selectedStores.join('.')}-${selectedTransitAccess.join('.')}`
+    workModel?.areaId ?? 'sample-work'
+  }-${selectedAreaUnit}-${workMode}-${supermarketMode}-${gymMode}-${selectedStores.join('.')}-${selectedTransitAccess.join('.')}`
+  const mapInstanceKey = `${selectedAreaUnit}-${
+    selectedFocus?.requestId ?? 'all'
+  }`
+  const mapBounds = useMemo(() => {
+    const focusTarget = selectedFocus?.feature ?? data
+    if (!focusTarget) return null
+
+    const bounds = L.geoJSON(focusTarget).getBounds()
+    return bounds.isValid() ? bounds : null
+  }, [data, selectedFocus])
+  const mapBoundsOptions = selectedFocus
+    ? {
+        animate: false,
+        maxZoom: SELECTED_AREA_MAX_ZOOM,
+        padding: SELECTED_AREA_FOCUS_PADDING,
+      }
+    : { animate: false, padding: DATA_FOCUS_PADDING }
 
   const areaStyle = (feature?: Feature<Geometry, AreaProperties>) => {
     const properties = feature?.properties
@@ -2399,18 +2367,18 @@ function App() {
           <div className="map-message">{loadError}</div>
         ) : data ? (
           <MapContainer
-            center={[19.4326, -99.1332]}
             className="leaflet-map"
+            key={mapInstanceKey}
             maxZoom={16}
             minZoom={9}
-            zoom={11}
+            {...(mapBounds
+              ? { bounds: mapBounds, boundsOptions: mapBoundsOptions }
+              : { center: DEFAULT_MAP_CENTER, zoom: 11 })}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <FitToData data={data} />
-            <ZoomToSelected focusRequest={selectedFocus} />
             <GeoJSON
               data={data}
               key={mapKey}
