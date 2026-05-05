@@ -1,4 +1,4 @@
-name: Build & Deploy to GitHub Pages
+name: Build, Deploy & Sync Website Embed
 
 on:
   push:
@@ -13,6 +13,12 @@ permissions:
 concurrency:
   group: "pages"
   cancel-in-progress: false
+
+env:
+  WEBSITE_REPO: ignacio-ireta/ignacio-ireta.github.io
+  WEBSITE_BRANCH: master
+  WEBSITE_PATH: projects/cdmx-map
+  WEBSITE_REPO_DEPLOY_KEY: ${{ secrets.WEBSITE_REPO_DEPLOY_KEY }}
 
 jobs:
   build:
@@ -38,6 +44,40 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist
+
+      - name: Checkout personal website repo
+        if: env.WEBSITE_REPO_DEPLOY_KEY != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEBSITE_REPO }}
+          ref: ${{ env.WEBSITE_BRANCH }}
+          path: website
+          ssh-key: ${{ env.WEBSITE_REPO_DEPLOY_KEY }}
+
+      - name: Sync built app into website repo
+        if: env.WEBSITE_REPO_DEPLOY_KEY != ''
+        run: scripts/sync_website_embed.sh "website/${WEBSITE_PATH}"
+
+      - name: Commit website embed update
+        if: env.WEBSITE_REPO_DEPLOY_KEY != ''
+        run: |
+          cd website
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A "${WEBSITE_PATH}"
+          if git diff --cached --quiet; then
+            echo "No website embed changes to commit."
+          else
+            short_sha="${GITHUB_SHA::7}"
+            git commit -m "Update CDMX map embed from ${short_sha}"
+            git push origin "HEAD:${WEBSITE_BRANCH}"
+          fi
+
+      - name: Website sync not configured
+        if: env.WEBSITE_REPO_DEPLOY_KEY == ''
+        run: |
+          echo "Skipping website repo sync because WEBSITE_REPO_DEPLOY_KEY is not configured."
+          echo "The app was still built and uploaded as this repository's Pages artifact."
 
   deploy:
     needs: build
