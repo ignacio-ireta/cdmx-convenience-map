@@ -4,20 +4,19 @@ Working prototype for evaluating where to start an apartment search in Mexico Ci
 
 ## Quick Start
 
+The Python pipeline is managed with [uv](https://docs.astral.sh/uv/); the
+frontend with npm.
+
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+# 1. Python environment (creates .venv, installs the pinned geospatial stack)
+uv sync
 
-.venv/bin/python scripts/fetch_postal_codes.py
-.venv/bin/python scripts/fetch_colonias.py
-.venv/bin/python scripts/fetch_transit.py
-.venv/bin/python scripts/fetch_supermarkets.py
-.venv/bin/python scripts/fetch_gyms.py
-.venv/bin/python scripts/fetch_crime.py
-.venv/bin/python scripts/build_scores.py --area-unit postal_code
-.venv/bin/python scripts/build_scores.py --area-unit colonia
-.venv/bin/python scripts/validate_processed.py
+# 2. Fetch sources, score every area unit, validate the output
+uv run python scripts/run_city.py --city cdmx --area-unit postal_code
+uv run python scripts/build_scores.py --area-unit colonia
+uv run python scripts/validate_processed.py
 
+# 3. Frontend
 cd frontend
 npm install
 npm run dev -- --host 127.0.0.1 --port 5174
@@ -25,23 +24,25 @@ npm run dev -- --host 127.0.0.1 --port 5174
 
 Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 
+`run_city.py` orchestrates the per-source fetchers (postal codes, colonias,
+transit, supermarkets, gyms, crime) and then builds scores; pass `--skip-fetch`
+to rebuild scores from already-downloaded data. City profiles live in
+`data/cities/<city_id>/city.json` (for example `cdmx` and `stavanger`); only the
+OSM amenity fetchers are city-aware today. A unified `cdmxmap` CLI is being
+introduced (see `docs/engineering-standards.md` §E).
 
-### City profile aware fetchers
+## Development
 
-You can now run the OSM amenity fetchers with a city profile:
+- **Contributing & workflow:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- **Engineering standards (A–S):** [`docs/engineering-standards.md`](docs/engineering-standards.md)
+- **Architecture:** [`docs/architecture.md`](docs/architecture.md)
+- **Data contract:** [`docs/data-contract.md`](docs/data-contract.md)
+- **Testing:** [`docs/testing.md`](docs/testing.md) · **Troubleshooting:** [`docs/troubleshooting.md`](docs/troubleshooting.md)
 
 ```bash
-.venv/bin/python scripts/fetch_supermarkets.py --city cdmx
-.venv/bin/python scripts/fetch_gyms.py --city cdmx
+uv run ruff check . && uv run mypy && uv run pytest   # Python gates
+cd frontend && npm run lint && npm run typecheck && npm run build   # frontend gates
 ```
-
-A new orchestration helper is available:
-
-```bash
-.venv/bin/python scripts/run_city.py --city cdmx --area-unit postal_code
-```
-
-City profiles live in `data/cities/<city_id>/city.json` (for example `cdmx` and `stavanger`).
 
 ## What Is Included
 
