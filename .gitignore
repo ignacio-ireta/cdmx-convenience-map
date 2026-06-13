@@ -29,3 +29,12 @@ data/processed/*.json
 !data/seeds/*.csv
 !data/archive/README.md
 .venv-routing/
+
+# Python tooling caches & pipeline run artifacts
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+runs/

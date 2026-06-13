@@ -1,0 +1,31 @@
+# Fast local gates. Install with: uv run pre-commit install
+# Full lint/type/test gates run in CI (.github/workflows/ci.yml).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^frontend/public/data/
+      - id: end-of-file-fixer
+        exclude: ^frontend/public/data/
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        # We intentionally version the built score GeoJSON (see standards §Q).
+        args: ["--maxkb=10000"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.17
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: prettier-frontend
+        name: prettier (frontend)
+        entry: bash -c 'cd frontend && npx prettier --check .'
+        language: system
+        files: ^frontend/
+        pass_filenames: false

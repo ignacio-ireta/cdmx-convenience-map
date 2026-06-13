@@ -489,8 +489,7 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     (areaUnit === 'postal_code' ? postalLabel || postalCode : coloniaName) ||
     areaId
   const displayName =
-    optionalString(raw.display_name) ||
-    (areaUnit === 'postal_code' ? `CP ${areaId}` : areaName)
+    optionalString(raw.display_name) || (areaUnit === 'postal_code' ? `CP ${areaId}` : areaName)
 
   return {
     ...(raw as Partial<AreaProperties>),
@@ -535,12 +534,8 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     transit_origin_system: optionalString(raw.transit_origin_system),
     transit_origin_line: optionalString(raw.transit_origin_line),
     transit_origin_walk_m: numberFrom(raw.transit_origin_walk_m),
-    transit_destination_stop_name: optionalString(
-      raw.transit_destination_stop_name,
-    ),
-    transit_destination_system: optionalString(
-      raw.transit_destination_system,
-    ),
+    transit_destination_stop_name: optionalString(raw.transit_destination_stop_name),
+    transit_destination_system: optionalString(raw.transit_destination_system),
     transit_destination_line: optionalString(raw.transit_destination_line),
     transit_destination_walk_m: numberFrom(raw.transit_destination_walk_m),
     transit_transfer_penalty_min: numberFrom(raw.transit_transfer_penalty_min),
@@ -568,16 +563,10 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     nearest_core_transit_name: optionalString(raw.nearest_core_transit_name),
     nearest_surface_transit_name: optionalString(raw.nearest_surface_transit_name),
     nearest_metro_transit_name: optionalString(raw.nearest_metro_transit_name),
-    nearest_metrobus_transit_name: optionalString(
-      raw.nearest_metrobus_transit_name,
-    ),
+    nearest_metrobus_transit_name: optionalString(raw.nearest_metrobus_transit_name),
     nearest_rtp_transit_name: optionalString(raw.nearest_rtp_transit_name),
-    nearest_trolebus_transit_name: optionalString(
-      raw.nearest_trolebus_transit_name,
-    ),
-    nearest_corredor_transit_name: optionalString(
-      raw.nearest_corredor_transit_name,
-    ),
+    nearest_trolebus_transit_name: optionalString(raw.nearest_trolebus_transit_name),
+    nearest_corredor_transit_name: optionalString(raw.nearest_corredor_transit_name),
     nearest_supermarket_name: optionalString(raw.nearest_supermarket_name),
     nearest_costco_name: optionalString(raw.nearest_costco_name),
     nearest_walmart_name: optionalString(raw.nearest_walmart_name),
@@ -588,16 +577,10 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     nearest_core_transit_source: optionalString(raw.nearest_core_transit_source),
     nearest_surface_transit_source: optionalString(raw.nearest_surface_transit_source),
     nearest_metro_transit_source: optionalString(raw.nearest_metro_transit_source),
-    nearest_metrobus_transit_source: optionalString(
-      raw.nearest_metrobus_transit_source,
-    ),
+    nearest_metrobus_transit_source: optionalString(raw.nearest_metrobus_transit_source),
     nearest_rtp_transit_source: optionalString(raw.nearest_rtp_transit_source),
-    nearest_trolebus_transit_source: optionalString(
-      raw.nearest_trolebus_transit_source,
-    ),
-    nearest_corredor_transit_source: optionalString(
-      raw.nearest_corredor_transit_source,
-    ),
+    nearest_trolebus_transit_source: optionalString(raw.nearest_trolebus_transit_source),
+    nearest_corredor_transit_source: optionalString(raw.nearest_corredor_transit_source),
     nearest_supermarket_source: optionalString(raw.nearest_supermarket_source),
     nearest_costco_source: optionalString(raw.nearest_costco_source),
     nearest_walmart_source: optionalString(raw.nearest_walmart_source),
@@ -606,19 +589,13 @@ function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
     transit_route_summary: optionalString(raw.transit_route_summary),
     crime_incidents_total: numberFrom(raw.crime_incidents_total),
     crime_incidents_recent_12m: numberFrom(raw.crime_incidents_recent_12m),
-    crime_density_recent_12m_per_km2: numberFrom(
-      raw.crime_density_recent_12m_per_km2,
-    ),
-    crime_top_category_recent_12m: optionalString(
-      raw.crime_top_category_recent_12m,
-    ),
+    crime_density_recent_12m_per_km2: numberFrom(raw.crime_density_recent_12m_per_km2),
+    crime_top_category_recent_12m: optionalString(raw.crime_top_category_recent_12m),
     crime_source: optionalString(raw.crime_source),
   }
 }
 
-function normalizeAreaCollection(
-  payload: RawAreaFeatureCollection,
-): AreaFeatureCollection {
+function normalizeAreaCollection(payload: RawAreaFeatureCollection): AreaFeatureCollection {
   return {
     ...payload,
     features: payload.features.map((feature) => ({
@@ -648,9 +625,7 @@ function areaResultLabel(properties: AreaProperties) {
     properties.area_unit === 'postal_code'
       ? `CP ${properties.postal_code ?? properties.area_id}`
       : properties.colonia_name || properties.area_name || properties.display_name
-  return properties.alcaldia
-    ? `${primary} \u2014 ${properties.alcaldia}`
-    : primary
+  return properties.alcaldia ? `${primary} \u2014 ${properties.alcaldia}` : primary
 }
 
 function normalizeSearchText(value: string) {
@@ -673,8 +648,7 @@ function areaSearchFields(properties: AreaProperties) {
     properties.postal_label,
     properties.colonia_name,
     properties.alcaldia,
-  ]
-    .filter((value): value is string => Boolean(value))
+  ].filter((value): value is string => Boolean(value))
 }
 
 function areaSearchText(properties: AreaProperties) {
@@ -700,21 +674,14 @@ function getAreaSearchRank(
   if (!normalizedQuery) return null
   if (fields.some((field) => field === normalizedQuery)) return 1
   if (fields.some((field) => field.startsWith(normalizedQuery))) return 2
-  if (
-    fields.some((field) =>
-      field.split(' ').some((token) => token.startsWith(normalizedQuery)),
-    )
-  ) {
+  if (fields.some((field) => field.split(' ').some((token) => token.startsWith(normalizedQuery)))) {
     return 3
   }
   if (haystack.includes(normalizedQuery)) return 4
   return null
 }
 
-function toggleRequiredSelection<Key extends string>(
-  current: Key[],
-  key: Key,
-): Key[] {
+function toggleRequiredSelection<Key extends string>(current: Key[], key: Key): Key[] {
   if (current.includes(key)) {
     return current.length === 1 ? current : current.filter((item) => item !== key)
   }
@@ -737,20 +704,11 @@ function getScore(
     if (metric === 'work') return getWorkScore(properties, workModel, workMode)
     if (metric === 'transitCommute') return properties.score_work_transit ?? 0
     if (metric === 'supermarkets') {
-      return getSupermarketScore(
-        properties,
-        supermarketMode,
-        preferenceScoreModel,
-        selectedStores,
-      )
+      return getSupermarketScore(properties, supermarketMode, preferenceScoreModel, selectedStores)
     }
     if (metric === 'gyms') return getGymScore(properties, gymMode)
     if (metric === 'transit') {
-      return getTransitAccessScore(
-        properties,
-        preferenceScoreModel,
-        selectedTransitAccess,
-      )
+      return getTransitAccessScore(properties, preferenceScoreModel, selectedTransitAccess)
     }
     return Number(properties[SCORE_FIELDS[metric]]) || 0
   }
@@ -765,20 +723,11 @@ function getScore(
       key === 'work'
         ? getWorkScore(properties, workModel, workMode)
         : key === 'supermarkets'
-          ? getSupermarketScore(
-              properties,
-              supermarketMode,
-              preferenceScoreModel,
-              selectedStores,
-            )
+          ? getSupermarketScore(properties, supermarketMode, preferenceScoreModel, selectedStores)
           : key === 'gyms'
             ? getGymScore(properties, gymMode)
             : key === 'transit'
-              ? getTransitAccessScore(
-                  properties,
-                  preferenceScoreModel,
-                  selectedTransitAccess,
-                )
+              ? getTransitAccessScore(properties, preferenceScoreModel, selectedTransitAccess)
               : Number(properties[SCORE_FIELDS[key as WeightKey]]) || 0
     return sum + score * (weight / total)
   }, 0)
@@ -789,21 +738,14 @@ function normalizePostalCode(value: string) {
   return digits ? digits.padStart(5, '0').slice(0, 5) : ''
 }
 
-function haversineMeters(
-  fromLat: number,
-  fromLon: number,
-  toLat: number,
-  toLon: number,
-) {
+function haversineMeters(fromLat: number, fromLon: number, toLat: number, toLon: number) {
   const earthRadiusMeters = 6371008.8
   const toRadians = Math.PI / 180
   const dLat = (toLat - fromLat) * toRadians
   const dLon = (toLon - fromLon) * toRadians
   const lat1 = fromLat * toRadians
   const lat2 = toLat * toRadians
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
   return 2 * earthRadiusMeters * Math.asin(Math.sqrt(a))
 }
 
@@ -811,10 +753,7 @@ function percentile(values: number[], fraction: number) {
   const finiteValues = values.filter(Number.isFinite)
   if (!finiteValues.length) return 1
   const sorted = [...finiteValues].sort((a, b) => a - b)
-  const index = Math.min(
-    sorted.length - 1,
-    Math.max(0, Math.floor((sorted.length - 1) * fraction)),
-  )
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * fraction)))
   return sorted[index] || 1
 }
 
@@ -844,9 +783,7 @@ function buildCloserScoreMap(
   const scores = new Map<string, number>()
   for (const { areaId, value } of entries) {
     const score =
-      Number.isFinite(value) && value >= 0
-        ? 100 * (1 - Math.min(value, safeCap) / safeCap)
-        : 0
+      Number.isFinite(value) && value >= 0 ? 100 * (1 - Math.min(value, safeCap) / safeCap) : 0
     scores.set(areaId, Math.max(0, Math.min(100, score)))
   }
   return { hasValues: true, scores }
@@ -857,10 +794,7 @@ function buildScoreRecord<Key extends string>(
   options: { key: Key; field: keyof AreaProperties }[],
 ): Record<Key, FieldScoreMap> {
   return Object.fromEntries(
-    options.map((option) => [
-      option.key,
-      buildCloserScoreMap(data, option.field),
-    ]),
+    options.map((option) => [option.key, buildCloserScoreMap(data, option.field)]),
   ) as Record<Key, FieldScoreMap>
 }
 
@@ -912,10 +846,7 @@ function estimateTravelMinutes(distanceMeters: number, mode: TravelWorkMode) {
   return (distanceMeters * detourFactor) / ((speedKmh * 1000) / 60)
 }
 
-function buildWorkModel(
-  data: AreaFeatureCollection,
-  workFeature: AreaFeature,
-): WorkModel {
+function buildWorkModel(data: AreaFeatureCollection, workFeature: AreaFeature): WorkModel {
   const distances = new Map<string, number>()
   const workLat = workFeature.properties.centroid_lat
   const workLon = workFeature.properties.centroid_lon
@@ -954,9 +885,7 @@ function buildWorkModel(
     for (const [areaId, minutes] of travelTimes[mode]) {
       travelScores[mode].set(
         areaId,
-        Number.isFinite(minutes)
-          ? 100 * (1 - Math.min(minutes, timeCap) / timeCap)
-          : 0,
+        Number.isFinite(minutes) ? 100 * (1 - Math.min(minutes, timeCap) / timeCap) : 0,
       )
     }
   }
@@ -971,18 +900,11 @@ function buildWorkModel(
   }
 }
 
-function getWorkDistance(
-  properties: AreaProperties,
-  workModel: WorkModel | null,
-) {
+function getWorkDistance(properties: AreaProperties, workModel: WorkModel | null) {
   return workModel?.distances.get(properties.area_id) ?? properties.dist_work_m
 }
 
-function getWorkTime(
-  properties: AreaProperties,
-  workModel: WorkModel | null,
-  workMode: WorkMode,
-) {
+function getWorkTime(properties: AreaProperties, workModel: WorkModel | null, workMode: WorkMode) {
   if (workMode === 'distance') return undefined
   return (
     workModel?.travelTimes[workMode].get(properties.area_id) ??
@@ -990,11 +912,7 @@ function getWorkTime(
   )
 }
 
-function getWorkScore(
-  properties: AreaProperties,
-  workModel: WorkModel | null,
-  workMode: WorkMode,
-) {
+function getWorkScore(properties: AreaProperties, workModel: WorkModel | null, workMode: WorkMode) {
   if (workMode === 'distance') {
     return workModel?.scores.get(properties.area_id) ?? properties.score_work ?? 0
   }
@@ -1061,9 +979,7 @@ function getTransitAccessScore(
     : undefined
   if (typeof selectedScore === 'number') return selectedScore
   if (selectedTransitAccess.length === 1) {
-    const option = TRANSIT_ACCESS_OPTIONS.find(
-      (item) => item.key === selectedTransitAccess[0],
-    )
+    const option = TRANSIT_ACCESS_OPTIONS.find((item) => item.key === selectedTransitAccess[0])
     const score = option ? Number(properties[option.scoreField]) : Number.NaN
     if (Number.isFinite(score)) return score
   }
@@ -1076,14 +992,8 @@ function getGymScore(properties: AreaProperties, gymMode: AmenityMode) {
     : (properties.score_gyms ?? 0)
 }
 
-function getAmenitySource(
-  properties: AreaProperties,
-  mode: AmenityMode,
-  distanceSource?: string,
-) {
-  return mode === 'time'
-    ? properties.amenity_travel_time_source || distanceSource
-    : distanceSource
+function getAmenitySource(properties: AreaProperties, mode: AmenityMode, distanceSource?: string) {
+  return mode === 'time' ? properties.amenity_travel_time_source || distanceSource : distanceSource
 }
 
 function selectedOptionLabels<Key extends string>(
@@ -1101,10 +1011,7 @@ function selectedStoreLabel(selectedStores: StorePreferenceKey[]) {
 }
 
 function selectedTransitLabel(selectedTransitAccess: TransitAccessKey[]) {
-  return (
-    selectedOptionLabels(TRANSIT_ACCESS_OPTIONS, selectedTransitAccess) ||
-    'No transit'
-  )
+  return selectedOptionLabels(TRANSIT_ACCESS_OPTIONS, selectedTransitAccess) || 'No transit'
 }
 
 function getSingleStoreOption(selectedStores: StorePreferenceKey[]) {
@@ -1114,9 +1021,7 @@ function getSingleStoreOption(selectedStores: StorePreferenceKey[]) {
 
 function getSingleTransitAccessOption(selectedTransitAccess: TransitAccessKey[]) {
   if (selectedTransitAccess.length !== 1) return undefined
-  return TRANSIT_ACCESS_OPTIONS.find(
-    (option) => option.key === selectedTransitAccess[0],
-  )
+  return TRANSIT_ACCESS_OPTIONS.find((option) => option.key === selectedTransitAccess[0])
 }
 
 function getStoreDetailValue(
@@ -1126,10 +1031,7 @@ function getStoreDetailValue(
 ) {
   const option = getSingleStoreOption(selectedStores)
   if (!option) {
-    return formatDistanceAndTime(
-      properties.dist_supermarket_m,
-      properties.time_supermarket_min,
-    )
+    return formatDistanceAndTime(properties.dist_supermarket_m, properties.time_supermarket_min)
   }
   return supermarketMode === 'time'
     ? formatDistanceAndTime(
@@ -1139,10 +1041,7 @@ function getStoreDetailValue(
     : formatMeters(properties[option.distanceField] as number | undefined)
 }
 
-function getStoreNearestName(
-  properties: AreaProperties,
-  selectedStores: StorePreferenceKey[],
-) {
+function getStoreNearestName(properties: AreaProperties, selectedStores: StorePreferenceKey[]) {
   const option = getSingleStoreOption(selectedStores)
   if (!option) return properties.nearest_supermarket_name
   return properties[option.nearestNameField] as string | undefined
@@ -1268,8 +1167,7 @@ function scoreModeSummary(
   selectedTransitAccess: TransitAccessKey[],
 ) {
   if (selectedMetric === 'work') {
-    const mode =
-      WORK_MODES.find((item) => item.key === workMode)?.label ?? workMode
+    const mode = WORK_MODES.find((item) => item.key === workMode)?.label ?? workMode
     return `Work scored by ${mode.toLocaleLowerCase()}`
   }
   if (selectedMetric === 'supermarkets') {
@@ -1332,43 +1230,35 @@ function formatTransitComplexity(value?: string) {
 }
 
 function App() {
-  const [selectedAreaUnit, setSelectedAreaUnit] =
-    useState<AreaUnit>('postal_code')
+  const [selectedAreaUnit, setSelectedAreaUnit] = useState<AreaUnit>('postal_code')
   const [datasets, setDatasets] = useState<AreaDatasets>({})
   const [metadata, setMetadata] = useState<ScoreMetadata | null>(null)
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>('combined')
   const [workMode, setWorkMode] = useState<WorkMode>('distance')
-  const [supermarketMode, setSupermarketMode] =
-    useState<AmenityMode>('distance')
+  const [supermarketMode, setSupermarketMode] = useState<AmenityMode>('distance')
   const [gymMode, setGymMode] = useState<AmenityMode>('distance')
-  const [selectedStores, setSelectedStores] = useState<StorePreferenceKey[]>([
-    'costco',
-    'walmart',
+  const [selectedStores, setSelectedStores] = useState<StorePreferenceKey[]>(['costco', 'walmart'])
+  const [selectedTransitAccess, setSelectedTransitAccess] = useState<TransitAccessKey[]>([
+    'metro',
+    'metrobus',
+    'rtp',
+    'trolebus',
+    'corredor',
   ])
-  const [selectedTransitAccess, setSelectedTransitAccess] = useState<
-    TransitAccessKey[]
-  >(['metro', 'metrobus', 'rtp', 'trolebus', 'corredor'])
-  const [weights, setWeights] =
-    useState<Record<WeightKey, number>>(DEFAULT_WEIGHTS)
+  const [weights, setWeights] = useState<Record<WeightKey, number>>(DEFAULT_WEIGHTS)
   const [selected, setSelected] = useState<AreaFeature | null>(null)
-  const [selectedFocus, setSelectedFocus] = useState<AreaFocusRequest | null>(
-    null,
-  )
+  const [selectedFocus, setSelectedFocus] = useState<AreaFocusRequest | null>(null)
   const [query, setQuery] = useState('')
   const [workCodeDraft, setWorkCodeDraft] = useState('')
   const [workPostalCode, setWorkPostalCode] = useState('')
   const [workCodeError, setWorkCodeError] = useState('')
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(
-    'idle',
-  )
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [loadError, setLoadError] = useState('')
   const data = datasets[selectedAreaUnit] ?? null
   const postalData = datasets.postal_code ?? null
   const selectedGeography =
-    GEOGRAPHIES.find((geography) => geography.unit === selectedAreaUnit) ??
-    GEOGRAPHIES[0]
-  const selectedWorkMode =
-    WORK_MODES.find((mode) => mode.key === workMode) ?? WORK_MODES[0]
+    GEOGRAPHIES.find((geography) => geography.unit === selectedAreaUnit) ?? GEOGRAPHIES[0]
+  const selectedWorkMode = WORK_MODES.find((mode) => mode.key === workMode) ?? WORK_MODES[0]
 
   useEffect(() => {
     const cached = datasets[selectedAreaUnit]
@@ -1402,9 +1292,7 @@ function App() {
 
   useEffect(() => {
     fetch(DATA_ASSETS.metadata[selectedAreaUnit])
-      .then((response) =>
-        response.ok ? response.json() : fetch(DATA_ASSETS.scoreMetadata),
-      )
+      .then((response) => (response.ok ? response.json() : fetch(DATA_ASSETS.scoreMetadata)))
       .then((payloadOrResponse: ScoreMetadata | Response | null) =>
         payloadOrResponse instanceof Response
           ? payloadOrResponse.ok
@@ -1510,11 +1398,7 @@ function App() {
 
     return data.features
       .map((feature) => {
-        const rank = getAreaSearchRank(
-          feature.properties,
-          normalizedQuery,
-          postalQuery,
-        )
+        const rank = getAreaSearchRank(feature.properties, normalizedQuery, postalQuery)
         return rank == null ? null : { feature, rank }
       })
       .filter((match): match is SearchMatch => Boolean(match))
@@ -1531,8 +1415,7 @@ function App() {
 
   const topListCopyText = useMemo(() => {
     const metricLabel =
-      METRICS.find((metric) => metric.key === selectedMetric)?.label ??
-      selectedMetric
+      METRICS.find((metric) => metric.key === selectedMetric)?.label ?? selectedMetric
     const workplaceLabel =
       workModel?.displayName ||
       (metadata?.workplace?.postal_code
@@ -1608,9 +1491,7 @@ function App() {
   const mapKey = `${selectedMetric}-${Object.values(weights).join('-')}-${
     workModel?.areaId ?? 'sample-work'
   }-${selectedAreaUnit}-${workMode}-${supermarketMode}-${gymMode}-${selectedStores.join('.')}-${selectedTransitAccess.join('.')}`
-  const mapInstanceKey = `${selectedAreaUnit}-${
-    selectedFocus?.requestId ?? 'all'
-  }`
+  const mapInstanceKey = `${selectedAreaUnit}-${selectedFocus?.requestId ?? 'all'}`
   const mapBounds = useMemo(() => {
     const focusTarget = selectedFocus?.feature ?? data
     if (!focusTarget) return null
@@ -1652,10 +1533,7 @@ function App() {
     } satisfies PathOptions
   }
 
-  const onEachArea = (
-    feature: Feature<Geometry, AreaProperties>,
-    layer: Layer,
-  ) => {
+  const onEachArea = (feature: Feature<Geometry, AreaProperties>, layer: Layer) => {
     const score = getScore(
       feature.properties,
       selectedMetric,
@@ -1671,10 +1549,9 @@ function App() {
     layer.on({
       click: () => focusAreaFeature(feature),
       mouseover: () => {
-        layer.bindTooltip(
-          `${areaFullLabel(feature.properties)} · ${scoreText(score)}`,
-          { sticky: true },
-        )
+        layer.bindTooltip(`${areaFullLabel(feature.properties)} · ${scoreText(score)}`, {
+          sticky: true,
+        })
       },
     })
   }
@@ -2075,10 +1952,7 @@ function App() {
             </div>
             <div>
               <dt>Crime</dt>
-              <dd>
-                FGJ CDMX · {metadata?.crime?.records_recent_12m ?? 'n/a'} recent
-                records
-              </dd>
+              <dd>FGJ CDMX · {metadata?.crime?.records_recent_12m ?? 'n/a'} recent records</dd>
             </div>
           </dl>
         </section>
@@ -2098,9 +1972,7 @@ function App() {
                 step="1"
                 value={weights[key]}
                 onChange={(event) => updateWeight(key, Number(event.target.value))}
-                onInput={(event) =>
-                  updateWeight(key, Number(event.currentTarget.value))
-                }
+                onInput={(event) => updateWeight(key, Number(event.currentTarget.value))}
               />
               <strong>{weights[key]}</strong>
             </label>
@@ -2137,9 +2009,7 @@ function App() {
                   value={
                     workMode === 'distance'
                       ? undefined
-                      : formatMinutes(
-                          getWorkTime(selected.properties, workModel, workMode),
-                        )
+                      : formatMinutes(getWorkTime(selected.properties, workModel, workMode))
                   }
                   nearest={getWorkName(selected.properties, workModel)}
                   source={getWorkSource(selected.properties, workModel, workMode)}
@@ -2151,18 +2021,9 @@ function App() {
                     preferenceScoreModel,
                     selectedTransitAccess,
                   )}
-                  distance={getTransitAccessDistance(
-                    selected.properties,
-                    selectedTransitAccess,
-                  )}
-                  nearest={getTransitAccessNearestName(
-                    selected.properties,
-                    selectedTransitAccess,
-                  )}
-                  source={getTransitAccessSource(
-                    selected.properties,
-                    selectedTransitAccess,
-                  )}
+                  distance={getTransitAccessDistance(selected.properties, selectedTransitAccess)}
+                  nearest={getTransitAccessNearestName(selected.properties, selectedTransitAccess)}
+                  source={getTransitAccessSource(selected.properties, selectedTransitAccess)}
                 />
                 {hasTransitCommute(selected.properties) ? (
                   <MetricRow
@@ -2181,20 +2042,9 @@ function App() {
                     preferenceScoreModel,
                     selectedStores,
                   )}
-                  value={getStoreDetailValue(
-                    selected.properties,
-                    supermarketMode,
-                    selectedStores,
-                  )}
-                  nearest={getStoreNearestName(
-                    selected.properties,
-                    selectedStores,
-                  )}
-                  source={getStoreSource(
-                    selected.properties,
-                    supermarketMode,
-                    selectedStores,
-                  )}
+                  value={getStoreDetailValue(selected.properties, supermarketMode, selectedStores)}
+                  nearest={getStoreNearestName(selected.properties, selectedStores)}
+                  source={getStoreSource(selected.properties, supermarketMode, selectedStores)}
                 />
                 <MetricRow
                   label={`Gyms (${gymMode === 'time' ? 'Time' : 'Distance'})`}
@@ -2215,8 +2065,7 @@ function App() {
                   score={selected.properties.score_safety}
                   value={`${selected.properties.crime_incidents_recent_12m ?? 0} recent incidents`}
                   nearest={
-                    selected.properties.crime_top_category_recent_12m ||
-                    'No recent category'
+                    selected.properties.crime_top_category_recent_12m || 'No recent category'
                   }
                   source={selected.properties.crime_source}
                 />
@@ -2256,9 +2105,7 @@ function App() {
                     <dt>{option.label}</dt>
                     <dd>
                       {formatMeters(
-                        selected.properties[
-                          option.distanceField
-                        ] as number | undefined,
+                        selected.properties[option.distanceField] as number | undefined,
                       )}
                     </dd>
                   </div>
@@ -2287,54 +2134,36 @@ function App() {
                     </div>
                     <div>
                       <dt>Walk to origin stop</dt>
-                      <dd>
-                        {formatMeters(selected.properties.transit_origin_walk_m)}
-                      </dd>
+                      <dd>{formatMeters(selected.properties.transit_origin_walk_m)}</dd>
                     </div>
                     <div>
                       <dt>Destination walk</dt>
-                      <dd>
-                        {formatMeters(
-                          selected.properties.transit_destination_walk_m,
-                        )}
-                      </dd>
+                      <dd>{formatMeters(selected.properties.transit_destination_walk_m)}</dd>
                     </div>
                     <div>
                       <dt>Transfer penalty</dt>
-                      <dd>
-                        {formatMinutes(
-                          selected.properties.transit_transfer_penalty_min,
-                        )}
-                      </dd>
+                      <dd>{formatMinutes(selected.properties.transit_transfer_penalty_min)}</dd>
                     </div>
                     <div>
                       <dt>Route complexity</dt>
                       <dd>
-                        {formatTransitComplexity(
-                          selected.properties.transit_route_complexity,
-                        )}
+                        {formatTransitComplexity(selected.properties.transit_route_complexity)}
                       </dd>
                     </div>
                     <div className="raw-note">
                       <dt>Transit source</dt>
-                      <dd>
-                        {formatSource(selected.properties.transit_commute_source)}
-                      </dd>
+                      <dd>{formatSource(selected.properties.transit_commute_source)}</dd>
                     </div>
                     <div className="raw-note">
                       <dt>Transit note</dt>
-                      <dd>
-                        {selected.properties.transit_commute_notes || 'n/a'}
-                      </dd>
+                      <dd>{selected.properties.transit_commute_notes || 'n/a'}</dd>
                     </div>
                   </>
                 ) : null}
                 <div>
                   <dt>Crime density</dt>
                   <dd>
-                    {(
-                      selected.properties.crime_density_recent_12m_per_km2 ?? 0
-                    ).toFixed(1)}
+                    {(selected.properties.crime_density_recent_12m_per_km2 ?? 0).toFixed(1)}
                     /km2
                   </dd>
                 </div>
@@ -2379,12 +2208,7 @@ function App() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <GeoJSON
-              data={data}
-              key={mapKey}
-              onEachFeature={onEachArea}
-              style={areaStyle}
-            />
+            <GeoJSON data={data} key={mapKey} onEachFeature={onEachArea} style={areaStyle} />
           </MapContainer>
         ) : (
           <div className="map-message">
@@ -2419,11 +2243,7 @@ function App() {
                   <ClipboardCopy aria-hidden="true" />
                 )}
                 <span>
-                  {copyStatus === 'copied'
-                    ? 'Copied'
-                    : copyStatus === 'failed'
-                      ? 'Failed'
-                      : 'Copy'}
+                  {copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Failed' : 'Copy'}
                 </span>
               </button>
             </div>
@@ -2478,9 +2298,7 @@ function MetricRow({
   value?: string
 }) {
   const boundedScore =
-    typeof score === 'number' && Number.isFinite(score)
-      ? Math.max(0, Math.min(100, score))
-      : 0
+    typeof score === 'number' && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0
 
   return (
     <div className="metric-row">
