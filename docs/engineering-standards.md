@@ -133,9 +133,10 @@ cdmxmap validate
 cdmxmap run   --city cdmx --resume --fail-fast --log-level debug
 ```
 
-**Status:** 🟡 unified `cdmxmap` CLI (`fetch`/`score`/`validate`/`run`) with
-`--resume`/`--fail-fast`/`--log-level` landed; pydantic validation of `city.json`
-/ `places.json` is the remaining item.
+**Status:** ✅ unified `cdmxmap` CLI (`fetch`/`score`/`validate`/`run`) with
+`--resume`/`--fail-fast`/`--log-level`; `city.json` and `places.json` are
+validated by pydantic models (`schema.py`) on load, failing fast with a
+`ConfigError`.
 
 ## F. Architecture and modularity
 
@@ -283,10 +284,11 @@ refinement.)
 - **Frontend:** Vitest unit tests for the pure scoring/normalize/search helpers
   and component smoke tests (mocked fetch).
 
-**Status:** 🟡 Frontend Vitest (46 tests over the extracted logic) and Python
-pytest (26 tests: common helpers, the validator's data-contract invariants,
-scoring-math property tests) have landed. Integration / e2e / golden suites
-remain (they depend on the Phase 2 fixture city).
+**Status:** ✅ Frontend Vitest (46) + Python pytest (47): unit suites plus
+**integration / golden / e2e** over a synthetic fixture city
+(`tests/fixtures/fixture_city/`) that exercises the full scoring path — crime,
+transit commute, the writer, the manifest, and the CLI — fully offline. (Property/
+fuzz tests remain an optional later addition.)
 
 ## L. Testing documentation
 
@@ -434,7 +436,8 @@ property family is tagged with its `*_source`.)
 
 | Area | A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Status | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Status | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-✅ done · 🟡 in progress · ⬜ planned. The phased roadmap to full compliance is
-tracked in the project plan; this table is updated as phases land.
+✅ done · 🟡 in progress · ⬜ planned. **All 19 sections are compliant.** Remaining
+work is refinement, not gaps: hash-based *reprocess-changed* for builds (§J),
+optional property/fuzz tests (§K), and dependency scanning / Dependabot (§M/§P).

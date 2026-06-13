@@ -1,8 +1,6 @@
 # Testing
 
-Test strategy and how to run the suites (engineering standards §K/§L). Tests are
-being introduced in Phases 4 (Python) and 6 (frontend); this doc is the contract
-they fill in.
+Test strategy and how to run the suites (engineering standards §K/§L).
 
 ## Python
 
@@ -10,11 +8,12 @@ Tests live under `tests/` (outside the package), split by scope:
 
 ```
 tests/
-  unit/          # pure functions: metrics, normalize, config parse, nearest, error classifier
-  integration/   # fixture points → score_areas → property contract; score → validate
-  e2e/           # `cdmxmap run --city fixture` end to end
-  golden/        # compare generated fixture output to committed expected files
-  fixtures/      # tiny synthetic city: a few areas + a few points
+  unit/          # pure functions: metrics, normalize, config parse, schema, errors, manifest
+  integration/   # fixture points → score_areas → property contract (+ golden compare)
+  e2e/           # build_area + run_pipeline + `cdmxmap` CLI over the fixture city
+  fixtures/
+    fixture_city/  # tiny synthetic city (areas.geojson + point CSVs + places.json
+                   # + expected_properties.json golden)
 ```
 
 Run:
@@ -30,20 +29,27 @@ uv run pytest --cov=cdmxmap        # with coverage
 
 Markers (`pyproject.toml`): `slow`, `integration`, `e2e`, `golden`.
 
-### Golden files
+### Fixture city & golden file
 
-Golden tests pin the output contract against accidental regressions. The fixture
-city is small and fully synthetic (no network). To regenerate after an
-**intentional** output change:
+`tests/fixtures/fixture_city/` is a tiny, fully synthetic city (3 areas + a few
+transit/supermarket/gym/crime points + `places.json`) that exercises the whole
+scoring path offline — including crime-driven safety variation and transit-commute
+estimates. The integration/e2e tests build over it via the `data_dir` /
+`public_dir` / `places_config` parameters that `load_point_datasets`, `build_area`,
+and `run_pipeline` accept (they default to the real pipeline locations, so
+production output is unchanged).
+
+`expected_properties.json` is the **golden**: the sorted feature properties the
+fixture run must reproduce (deterministic — `generated_at` lives only in the
+metadata, never in the GeoJSON). To regenerate after an **intentional** output
+change:
 
 ```bash
-uv run cdmxmap score --city fixture --area-unit postal_code \
-  --output tests/golden/expected/scores_postal_code.geojson
+UPDATE_GOLDEN=1 uv run pytest tests/integration -m golden
 ```
 
-Review the diff carefully — a golden change means the data contract changed and
-`score_metadata.extractor_version`, the frontend normalizer, and
-`docs/data-contract.md` must move together.
+Review the diff carefully — a golden change means the data contract changed, so
+`docs/data-contract.md` and the frontend normalizer must move with it.
 
 ## Frontend
 

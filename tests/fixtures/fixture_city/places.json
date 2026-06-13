@@ -1,0 +1,19 @@
+{
+  "workplace": {
+    "name": "Fixture Office",
+    "postal_code": "00000",
+    "latitude": 19.41,
+    "longitude": -99.14,
+    "source": "places_config"
+  },
+  "travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "speeds_kmh": { "driving": 24, "walking": 4.8, "biking": 14 },
+    "detour_factors": { "driving": 1.35, "walking": 1.15, "biking": 1.25 }
+  },
+  "amenity_travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "mode": "walking",
+    "candidate_count": 5
+  }
+}

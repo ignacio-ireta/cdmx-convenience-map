@@ -9,6 +9,13 @@ published.
 
 ### Added
 
+- Config validation: `src/cdmxmap/schema.py` pydantic models validate `city.json`
+  and `places.json` on load, failing fast with a `ConfigError`.
+- Test suites completed: integration + golden + e2e over a synthetic fixture city
+  (`tests/fixtures/fixture_city/`), runnable fully offline. `load_point_datasets`,
+  `build_area`, and `run_pipeline` gained optional `data_dir`/`public_dir`/
+  `places_config` parameters (defaults unchanged) so tests can drive a fixture
+  build. **All 19 engineering-standards sections are now compliant.**
 - `pyproject.toml` + `uv.lock`: Python project migrated to `uv` with runtime,
   dev, and optional `transit` dependency groups; Python pinned to `>=3.11,<3.13`.
 - Quality-gate configuration: `ruff`, `mypy`, and `pytest` settings in

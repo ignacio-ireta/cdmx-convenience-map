@@ -188,12 +188,12 @@ def amenity_route_candidates(
     )
 
 
-def load_point_datasets(places_config: dict) -> PointDatasets:
-    transit = read_points(DATA_PROCESSED / "transit_stops.csv")
-    supermarkets = read_points(DATA_PROCESSED / "supermarkets.csv")
-    gyms = read_points(DATA_PROCESSED / "gyms.csv")
+def load_point_datasets(places_config: dict, *, data_dir: Path = DATA_PROCESSED) -> PointDatasets:
+    transit = read_points(data_dir / "transit_stops.csv")
+    supermarkets = read_points(data_dir / "supermarkets.csv")
+    gyms = read_points(data_dir / "gyms.csv")
     workplaces = load_workplaces(places_config)
-    crimes = read_crimes(DATA_PROCESSED / "crime_points.csv")
+    crimes = read_crimes(data_dir / "crime_points.csv")
 
     supermarket_brand = (
         supermarkets["brand"].fillna("").astype(str).str.lower()

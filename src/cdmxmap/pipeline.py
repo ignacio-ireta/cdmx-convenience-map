@@ -69,16 +69,30 @@ def build_area(
     output_path: Path | None = None,
     skip_legacy: bool = False,
     transit_router: str = TRANSIT_ROUTER_APIMETRO,
+    places_config: dict | None = None,
+    data_dir: Path | None = None,
+    public_dir: Path | None = None,
 ) -> Path:
-    """Score one area unit and write its GeoJSON + metadata. Returns the output path."""
+    """Score one area unit and write its GeoJSON + metadata. Returns the output path.
+
+    ``data_dir`` / ``public_dir`` / ``places_config`` default to the real pipeline
+    locations; they exist so tests can drive the build over a fixture. All defaults
+    leave production behavior (and the byte-for-byte output) unchanged.
+    """
     ensure_dirs()
+    resolved_data_dir = data_dir or DATA_PROCESSED
+    resolved_public_dir = public_dir or FRONTEND_PUBLIC_DATA
+    resolved_data_dir.mkdir(parents=True, exist_ok=True)
+    resolved_public_dir.mkdir(parents=True, exist_ok=True)
+
     config = AREA_CONFIGS[area_unit]
     resolved_input = input_path or config.default_input_path
-    resolved_output = output_path or DATA_PROCESSED / config.output_name
-    public_output_path = FRONTEND_PUBLIC_DATA / resolved_output.name
+    resolved_output = output_path or resolved_data_dir / config.output_name
+    public_output_path = resolved_public_dir / resolved_output.name
 
-    places_config = load_places_config()
-    point_datasets = load_point_datasets(places_config)
+    if places_config is None:
+        places_config = load_places_config()
+    point_datasets = load_point_datasets(places_config, data_dir=resolved_data_dir)
     scored = score_areas(
         config=config,
         input_path=resolved_input,
@@ -95,8 +109,8 @@ def build_area(
     public_legacy_output_paths: list[Path] = []
     if not skip_legacy:
         for legacy_name in config.legacy_output_names:
-            legacy_path = DATA_PROCESSED / legacy_name
-            public_legacy_path = FRONTEND_PUBLIC_DATA / legacy_name
+            legacy_path = resolved_data_dir / legacy_name
+            public_legacy_path = resolved_public_dir / legacy_name
             shutil.copyfile(resolved_output, legacy_path)
             shutil.copyfile(resolved_output, public_legacy_path)
             legacy_output_paths.append(legacy_path)
@@ -114,13 +128,13 @@ def build_area(
         score_metadata=scored.metadata,
         places_config=places_config,
     )
-    metadata_path = DATA_PROCESSED / f"score_metadata_{config.area_unit}.json"
-    public_metadata_path = FRONTEND_PUBLIC_DATA / metadata_path.name
+    metadata_path = resolved_data_dir / f"score_metadata_{config.area_unit}.json"
+    public_metadata_path = resolved_public_dir / metadata_path.name
     _atomic_write_text(metadata_path, json.dumps(metadata, indent=2))
     shutil.copyfile(metadata_path, public_metadata_path)
 
-    legacy_metadata_path = DATA_PROCESSED / "score_metadata.json"
-    legacy_public_metadata_path = FRONTEND_PUBLIC_DATA / "score_metadata.json"
+    legacy_metadata_path = resolved_data_dir / "score_metadata.json"
+    legacy_public_metadata_path = resolved_public_dir / "score_metadata.json"
     shutil.copyfile(metadata_path, legacy_metadata_path)
     shutil.copyfile(metadata_path, legacy_public_metadata_path)
 
@@ -175,13 +189,26 @@ def _fetch_one(
 
 
 def _build_one(
-    area_unit: str, manifest: RunManifest, *, transit_router: str, fail_fast: bool
+    area_unit: str,
+    manifest: RunManifest,
+    *,
+    transit_router: str,
+    fail_fast: bool,
+    places_config: dict | None = None,
+    data_dir: Path | None = None,
+    public_dir: Path | None = None,
 ) -> None:
     entry = manifest.entry(area_unit, "area")
     entry.status = RUNNING
     entry.started_at = _now_iso()
     try:
-        output = build_area(area_unit, transit_router=transit_router)
+        output = build_area(
+            area_unit,
+            transit_router=transit_router,
+            places_config=places_config,
+            data_dir=data_dir,
+            public_dir=public_dir,
+        )
         entry.status = SUCCESS
         entry.output = repo_relative(output)
         entry.sha256 = sha256_file(output)
@@ -223,10 +250,15 @@ def run_pipeline(
     resume: bool = False,
     log_level: str | None = None,
     run_id: str | None = None,
+    places_config: dict | None = None,
+    data_dir: Path | None = None,
+    public_dir: Path | None = None,
 ) -> int:
     """Fetch sources (unless skipped) and build the requested area units.
 
     Returns a process exit code (0 ok, 1 partial, 3 no output, 130 interrupted).
+    ``places_config`` / ``data_dir`` / ``public_dir`` default to the real pipeline
+    locations and exist so an offline test can drive a full run over a fixture.
     """
     units = area_units or []
     resolved_run_id = run_id or datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
@@ -251,7 +283,15 @@ def run_pipeline(
             for module in FETCH_SEQUENCE:
                 _fetch_one(module, city, manifest, resume=resume, fail_fast=fail_fast)
         for area_unit in units:
-            _build_one(area_unit, manifest, transit_router=transit_router, fail_fast=fail_fast)
+            _build_one(
+                area_unit,
+                manifest,
+                transit_router=transit_router,
+                fail_fast=fail_fast,
+                places_config=places_config,
+                data_dir=data_dir,
+                public_dir=public_dir,
+            )
         manifest.status = (
             "success" if not any(e.status == FAILED for e in manifest.entries) else "partial"
         )

@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "area_id": "C001", "area_name": "Centro Uno", "alcaldia": "Cuauhtemoc" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-99.155, 19.395], [-99.145, 19.395], [-99.145, 19.405], [-99.155, 19.405], [-99.155, 19.395]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "area_id": "C002", "area_name": "Centro Dos", "alcaldia": "Cuauhtemoc" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-99.135, 19.415], [-99.125, 19.415], [-99.125, 19.425], [-99.135, 19.425], [-99.135, 19.415]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "area_id": "C003", "area_name": "Centro Tres", "alcaldia": "Miguel Hidalgo" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-99.185, 19.435], [-99.175, 19.435], [-99.175, 19.445], [-99.185, 19.445], [-99.185, 19.435]]]
+      }
+    }
+  ]
+}
