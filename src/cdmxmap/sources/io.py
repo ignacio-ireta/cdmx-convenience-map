@@ -42,11 +42,14 @@ def ensure_dirs() -> None:
 
 
 def load_city_profile(city: str = "cdmx") -> dict:
+    from cdmxmap.schema import validate_city_profile
+
     profile_path = DATA_CITIES / city / "city.json"
     if not profile_path.exists():
         raise FileNotFoundError(f"Missing city profile: {profile_path}")
     with profile_path.open(encoding="utf-8") as handle:
-        return json.load(handle)
+        data = json.load(handle)
+    return validate_city_profile(data, city=city)
 
 
 def city_bbox(city: str = "cdmx") -> dict[str, float]:

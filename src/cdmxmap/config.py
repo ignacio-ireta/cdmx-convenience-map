@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from cdmxmap.schema import validate_places_config
 from cdmxmap.sources.io import DATA_CONFIG
 from cdmxmap.transit_commute import OUTPUT_COLUMNS as TRANSIT_COMMUTE_COLUMNS
 from cdmxmap.transit_commute import TransitCommuteConfig
@@ -118,7 +119,7 @@ def load_places_config() -> dict:
             "workplace": {},
             "travel_time": DEFAULT_TRAVEL_TIME_CONFIG,
         }
-    return json.loads(path.read_text(encoding="utf-8"))
+    return validate_places_config(json.loads(path.read_text(encoding="utf-8")))
 
 
 def merged_travel_time_config(places_config: dict) -> dict:
