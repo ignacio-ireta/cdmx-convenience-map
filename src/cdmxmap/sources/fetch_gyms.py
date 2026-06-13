@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from common import DATA_PROCESSED, city_bbox, copy_seed, element_center, retry_overpass, write_csv
+from .io import DATA_PROCESSED, city_bbox, copy_seed, element_center, retry_overpass, write_csv
 
 
 def build_query(city: str) -> str:

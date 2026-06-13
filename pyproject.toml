@@ -33,10 +33,8 @@ transit = ["r5py>=0.1.0"]
 [project.urls]
 Homepage = "https://github.com/ignacio-ireta/cdmx-convenience-map"
 
-# NOTE: the `cdmxmap` console entry point is added in Phase 2, once
-# src/cdmxmap/cli.py exists:
-#   [project.scripts]
-#   cdmxmap = "cdmxmap.cli:main"
+[project.scripts]
+cdmxmap = "cdmxmap.cli:main"
 
 [dependency-groups]
 dev = [
@@ -75,11 +73,12 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/experiments/*" = ["E501"] # experimental spikes: don't gate on line length
-# These two modules hold long human-readable note/limitation strings that feed
-# metadata output verbatim; rewrapping them would change emitted text. E501 is
-# relaxed here until the modules are decomposed into src/cdmxmap (Phase 2).
-"scripts/build_scores.py" = ["E501"]
-"scripts/transit_commute/approximate.py" = ["E501"]
+# These modules hold long human-readable note/limitation strings (and a long
+# source URL) that feed metadata output verbatim; rewrapping them would change
+# emitted text, so E501 is relaxed for them only.
+"src/cdmxmap/scoring/engine.py" = ["E501"]
+"src/cdmxmap/output/metadata.py" = ["E501"]
+"src/cdmxmap/transit_commute/approximate.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import re
 
-from common import (
+from .io import (
     DATA_PROCESSED,
     city_bbox,
     copy_seed,

@@ -1,7 +1,7 @@
-"""Property tests for the numeric scoring helpers in scripts/build_scores.py.
+"""Property tests for the numeric scoring helpers (cdmxmap.scoring.metrics).
 
 These assert invariants (range, monotonicity, shape) rather than exact formulas,
-so they stay valid through the Phase 2 refactor while still guarding behavior.
+so they remain valid as long as the scoring contract holds.
 """
 
 from __future__ import annotations
@@ -9,13 +9,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import build_scores as bs
+from cdmxmap.scoring import metrics as bs
 
 
-def test_module_imports_cleanly() -> None:
-    # Smoke test: the whole pipeline module (and its geopandas/transit imports) loads.
-    assert hasattr(bs, "score_areas")
-    assert hasattr(bs, "main")
+def test_pipeline_entry_points_exist() -> None:
+    # Smoke test: the package graph (geopandas/transit imports included) loads.
+    import cdmxmap.pipeline
+    import cdmxmap.scoring
+
+    assert hasattr(cdmxmap.scoring, "score_areas")
+    assert hasattr(cdmxmap.pipeline, "build_area")
 
 
 class TestDistanceScore:

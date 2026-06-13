@@ -1,10 +1,10 @@
-"""Unit tests for shared pipeline helpers (scripts/common.py)."""
+"""Unit tests for shared IO/config helpers (cdmxmap.sources.io)."""
 
 from __future__ import annotations
 
 import pytest
 
-import common
+from cdmxmap.sources import io as common
 
 
 class TestElementCenter:

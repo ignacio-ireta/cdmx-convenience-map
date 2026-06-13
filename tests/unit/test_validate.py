@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-import validate_processed as vp
+from cdmxmap import validate as vp
 
 
 def make_props() -> dict:

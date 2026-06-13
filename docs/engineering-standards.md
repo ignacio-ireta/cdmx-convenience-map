@@ -60,7 +60,9 @@ guidance); tests live outside the package; the frontend is self-contained under
 `frontend/`. Experimental spikes stay in `scripts/experiments/` and legacy code
 in `scripts/archive/`, explicitly fenced off from the quality gates.
 
-**Status:** 🟡 `src/cdmxmap/` package created; pipeline moves in during Phase 2.
+**Status:** ✅ src-layout package realized: the pipeline lives in `src/cdmxmap/`
+(`sources/`, `scoring/`, `output/`, `pipeline`, `cli`); `experiments/` and
+`archive/` stay under `scripts/`, fenced off from the gates.
 
 ## C. Version control
 
@@ -131,8 +133,9 @@ cdmxmap validate
 cdmxmap run   --city cdmx --resume --fail-fast --log-level debug
 ```
 
-**Status:** 🟡 file config + argparse flags exist today; pydantic validation and
-the unified `cdmxmap` CLI land in Phase 2, resume/fail-fast in Phase 3.
+**Status:** 🟡 unified `cdmxmap` CLI (`fetch`/`score`/`validate`/`run`) landed;
+pydantic config validation and the `--resume`/`--fail-fast`/`--log-level` flags
+remain (Phase 3).
 
 ## F. Architecture and modularity
 
@@ -162,8 +165,10 @@ Keeping fetch / score / render separable means a crime-aggregation bug can't be
 a Markdown/GeoJSON-rendering bug, each block keeps source provenance (§S), and a
 future JSON or vector-tile writer is an additive change.
 
-**Status:** 🟡 separation exists logically inside `build_scores.py`; Phase 2
-splits it into `sources/`, `scoring/`, `output/`, `pipeline/`.
+**Status:** ✅ decomposed into `sources/` → `scoring/{areas,points,metrics,crime,
+transit,engine}` → `output/` → `pipeline`, over the frozen-dataclass intermediate
+model. The decomposition was verified **byte-identical** to the pre-refactor
+output on real CDMX data.
 
 ## G. Input/output contracts
 
@@ -421,7 +426,7 @@ provenance in Phase 3.
 
 | Area | A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Status | ✅ | 🟡 | ✅ | ✅ | 🟡 | 🟡 | ✅ | 🟡 | ⬜ | ⬜ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ | 🟡 |
+| Status | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | 🟡 | ⬜ | ⬜ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ | 🟡 |
 
 ✅ done · 🟡 in progress · ⬜ planned. The phased roadmap to full compliance is
 tracked in the project plan; this table is updated as phases land.

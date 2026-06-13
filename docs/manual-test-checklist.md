@@ -20,9 +20,9 @@ cd frontend && npm run lint && npm run typecheck && npm run test && npm run buil
 ## Data regeneration (run locally; needs network sources)
 
 ```bash
-uv run python scripts/run_city.py --city cdmx --area-unit postal_code
-uv run python scripts/build_scores.py --area-unit colonia
-uv run python scripts/validate_processed.py
+uv run cdmxmap run --city cdmx --area-unit postal_code
+uv run cdmxmap score --area-unit colonia
+uv run cdmxmap validate
 ```
 
 Confirm:

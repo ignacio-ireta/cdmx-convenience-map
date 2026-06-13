@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from common import DATA_RAW, download
+from .io import DATA_RAW, download
 
 POSTAL_GEOJSON_URL = (
     "https://datos.cdmx.gob.mx/dataset/7abff432-81a0-4956-8691-0865e2722423/"

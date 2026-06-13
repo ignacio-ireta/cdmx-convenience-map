@@ -22,8 +22,17 @@ published.
   for the pipeline helpers, the output-validator data contract, and scoring math.
 - CI: `.github/workflows/ci.yml` runs lint/type-check/test/build for both stacks
   (Python matrix 3.11/3.12) on PRs and pushes to `master`.
+- Pipeline refactored into the importable `src/cdmxmap/` package
+  (`sources/`, `scoring/{areas,points,metrics,crime,transit,engine}`, `output/`,
+  `pipeline`, `models`, `config`) with a unified **`cdmxmap` CLI**
+  (`fetch`/`score`/`validate`/`run`). Verified byte-identical to the previous
+  output on real CDMX data.
 
 ### Changed
+
+- The standalone `scripts/build_scores.py`, `run_city.py`,
+  `validate_processed.py`, `common.py`, the `fetch_*` scripts, and the
+  `transit_commute` package moved into `src/cdmxmap/`; use the `cdmxmap` CLI.
 
 - Frontend gains `typecheck`, `format`, and `test` npm scripts; full TypeScript
   `strict` mode enabled.

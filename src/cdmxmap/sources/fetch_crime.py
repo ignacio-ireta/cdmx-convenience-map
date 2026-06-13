@@ -5,7 +5,7 @@ import csv
 
 import pandas as pd
 
-from common import DATA_PROCESSED, DATA_RAW, download, write_csv
+from .io import DATA_PROCESSED, DATA_RAW, download, write_csv
 
 CRIME_CSV_URL = "https://archivo.datos.cdmx.gob.mx/FGJ/victimas/victimasFGJ_acumulado_2024_09.csv"
 

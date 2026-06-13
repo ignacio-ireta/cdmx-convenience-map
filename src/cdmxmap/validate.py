@@ -1,15 +1,17 @@
+"""Validate processed scored GeoJSON against the data contract (standards §G)."""
+
 from __future__ import annotations
 
-import argparse
 import json
 import math
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+from cdmxmap.sources.io import DATA_PROCESSED
+
 DEFAULT_GEOJSON_PATHS = [
-    ROOT / "data" / "processed" / "scores_postal_code.geojson",
-    ROOT / "data" / "processed" / "scores_colonia.geojson",
-    ROOT / "data" / "processed" / "cdmx_postal_scores.geojson",
+    DATA_PROCESSED / "scores_postal_code.geojson",
+    DATA_PROCESSED / "scores_colonia.geojson",
+    DATA_PROCESSED / "cdmx_postal_scores.geojson",
 ]
 
 GENERIC_FIELDS = [
@@ -147,22 +149,9 @@ def validate_geojson(path: Path) -> int:
     return len(features)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate processed scored GeoJSON.")
-    parser.add_argument(
-        "--path",
-        action="append",
-        type=Path,
-        help="GeoJSON path to validate. Can be provided more than once.",
-    )
-    args = parser.parse_args()
-
-    paths = args.path or [path for path in DEFAULT_GEOJSON_PATHS if path.exists()]
-    if not paths:
+def validate(paths: list[Path] | None = None) -> None:
+    selected = paths or [path for path in DEFAULT_GEOJSON_PATHS if path.exists()]
+    if not selected:
         raise FileNotFoundError("No processed GeoJSON files were found to validate")
-    for path in paths:
+    for path in selected:
         validate_geojson(path)
-
-
-if __name__ == "__main__":
-    main()

@@ -4,7 +4,7 @@ import argparse
 import json
 import urllib.request
 
-from common import DATA_RAW, USER_AGENT, ensure_dirs
+from .io import DATA_RAW, USER_AGENT, ensure_dirs
 
 COLONIAS_GEOJSON_URL = (
     "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/"
