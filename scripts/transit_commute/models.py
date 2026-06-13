@@ -21,18 +21,13 @@ class TransitCommuteConfig:
     source: str = "apimetro_stop_pair_approximation"
 
     @classmethod
-    def from_mapping(cls, values: dict[str, Any] | None) -> "TransitCommuteConfig":
+    def from_mapping(cls, values: dict[str, Any] | None) -> TransitCommuteConfig:
         if not values:
             return cls()
 
         defaults = asdict(cls())
-        merged = {
-            key: values.get(key, default_value)
-            for key, default_value in defaults.items()
-        }
-        merged["candidate_stop_count"] = max(
-            1, min(int(merged["candidate_stop_count"]), 25)
-        )
+        merged = {key: values.get(key, default_value) for key, default_value in defaults.items()}
+        merged["candidate_stop_count"] = max(1, min(int(merged["candidate_stop_count"]), 25))
         for key in defaults:
             if key in {"source", "candidate_stop_count"}:
                 continue

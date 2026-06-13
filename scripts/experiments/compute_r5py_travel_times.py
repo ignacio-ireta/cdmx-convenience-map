@@ -19,7 +19,6 @@ from typing import Any
 import geopandas as gpd
 import pandas as pd
 
-
 ROOT = Path(__file__).resolve().parents[2]
 DATA_CONFIG = ROOT / "data" / "config"
 DATA_PROCESSED = ROOT / "data" / "processed"
@@ -248,18 +247,17 @@ def sanitize_gtfs_for_r5py(gtfs_zip: Path) -> tuple[Path, dict[str, Any]]:
     source_sha1 = sha1(gtfs_zip)
     DATA_PROCESSED_R5PY.mkdir(parents=True, exist_ok=True)
     replacements: dict[str, dict[str, int]] = {}
-    with zipfile.ZipFile(gtfs_zip) as source, zipfile.ZipFile(
-        output_path, "w", compression=zipfile.ZIP_DEFLATED
-    ) as target:
+    with (
+        zipfile.ZipFile(gtfs_zip) as source,
+        zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as target,
+    ):
         missing_agencies = missing_route_agencies(source)
         for item in source.infolist():
             if item.filename == "agency.txt":
                 text = source.read(item.filename).decode("utf-8-sig")
                 text, agency_count = append_missing_agencies(text, missing_agencies)
                 if agency_count:
-                    replacements[item.filename] = {
-                        "missing_route_agencies_added": agency_count
-                    }
+                    replacements[item.filename] = {"missing_route_agencies_added": agency_count}
                 target.writestr(item, text)
                 continue
 
@@ -388,7 +386,9 @@ def import_r5py() -> tuple[Any, Any, Any]:
         getattr(r5py, "TravelTimeMatrix", None),
     )
     if travel_time_matrix is None:
-        raise ImportError("This r5py install exposes neither TravelTimeMatrixComputer nor TravelTimeMatrix")
+        raise ImportError(
+            "This r5py install exposes neither TravelTimeMatrixComputer nor TravelTimeMatrix"
+        )
     return r5py, TransportMode, TransportNetwork
 
 
@@ -444,9 +444,7 @@ def matrix_times_by_origin(
             f"Columns: {', '.join(frame.columns)}"
         )
 
-    median_column = (
-        "travel_time_p50" if "travel_time_p50" in frame.columns else "travel_time"
-    )
+    median_column = "travel_time_p50" if "travel_time_p50" in frame.columns else "travel_time"
     if median_column not in frame.columns:
         raise ValueError(
             "r5py matrix output did not include a travel time column. "
@@ -497,7 +495,9 @@ def print_summary(rows: list[dict[str, Any]]) -> None:
     frame = pd.DataFrame(rows)
     routed = frame[frame["routed_successfully"] == True]  # noqa: E712
     failed = len(frame) - len(routed)
-    median_time = value_or_none(routed["time_work_transit_min"].median()) if not routed.empty else None
+    median_time = (
+        value_or_none(routed["time_work_transit_min"].median()) if not routed.empty else None
+    )
     mean_time = value_or_none(routed["time_work_transit_min"].mean()) if not routed.empty else None
     print(f"Total origins: {len(frame)}")
     print(f"Successfully routed: {len(routed)}")
@@ -535,7 +535,7 @@ def main() -> None:
         travel_time_matrix = getattr(
             r5py,
             "TravelTimeMatrixComputer",
-            getattr(r5py, "TravelTimeMatrix"),
+            r5py.TravelTimeMatrix,
         )
 
         print(f"Building r5py transport network from {args.osm_pbf} and {routing_gtfs_zip}")
@@ -608,7 +608,9 @@ def main() -> None:
         "routed_count": routed_count,
         "failed_count": failed_count,
         "coverage_percent": round((routed_count / len(rows)) * 100, 1) if rows else 0.0,
-        "median_time_min": value_or_none(pd.Series(routed_times).median()) if routed_times else None,
+        "median_time_min": value_or_none(pd.Series(routed_times).median())
+        if routed_times
+        else None,
         "mean_time_min": value_or_none(pd.Series(routed_times).mean()) if routed_times else None,
         "runtime_seconds": elapsed_seconds,
         "global_error": global_error,

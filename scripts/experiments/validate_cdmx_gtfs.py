@@ -11,7 +11,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ZIP_PATH = ROOT / "data" / "archive" / "gtfs_legacy" / "gtfs.zip"
 DEFAULT_DOWNLOAD_PATH = ROOT / "data" / "raw" / "gtfs" / "cdmx_gtfs.zip"
@@ -139,9 +138,7 @@ def validate(path: Path, as_of: dt.date) -> dict[str, Any]:
         missing_required = [name for name in REQUIRED_FILES if name not in names]
         has_service_calendar = "calendar.txt" in names or "calendar_dates.txt" in names
         coverage = date_coverage(names, rows_by_file)
-        coverage_end = (
-            dt.date.fromisoformat(coverage["end"]) if coverage.get("end") else None
-        )
+        coverage_end = dt.date.fromisoformat(coverage["end"]) if coverage.get("end") else None
 
         route_type_counts = Counter(
             row.get("route_type", "") for row in rows_by_file.get("routes.txt", [])
@@ -163,9 +160,7 @@ def validate(path: Path, as_of: dt.date) -> dict[str, Any]:
         "files": file_summaries,
         "date_coverage": coverage,
         "as_of": as_of.isoformat(),
-        "covers_as_of_date": bool(
-            coverage_end is not None and coverage_end >= as_of
-        ),
+        "covers_as_of_date": bool(coverage_end is not None and coverage_end >= as_of),
         "agencies": agencies,
         "route_type_counts": dict(sorted(route_type_counts.items())),
         "route_agency_counts": dict(route_agency_counts.most_common()),

@@ -13,17 +13,13 @@ from common import (
     write_csv,
 )
 
-
 BRAND_PATTERN = re.compile(r"(costco|walmart)", re.IGNORECASE)
 ALLOWED_SHOPS = {"supermarket", "wholesale", "department_store"}
 
 
 def build_query(city: str) -> str:
     bbox_data = city_bbox(city)
-    bbox = (
-        f'{bbox_data["south"]},{bbox_data["west"]},'
-        f'{bbox_data["north"]},{bbox_data["east"]}'
-    )
+    bbox = f"{bbox_data['south']},{bbox_data['west']},{bbox_data['north']},{bbox_data['east']}"
     return f"""
 [out:json][timeout:45];
 (
@@ -36,9 +32,7 @@ out tags center;
 
 
 def infer_brand(tags: dict) -> str:
-    haystack = " ".join(
-        str(tags.get(key, "")) for key in ["brand", "operator", "name"]
-    )
+    haystack = " ".join(str(tags.get(key, "")) for key in ["brand", "operator", "name"])
     match = BRAND_PATTERN.search(haystack)
     return match.group(1).title() if match else "Unknown"
 
@@ -50,15 +44,15 @@ def is_store(tags: dict) -> bool:
         return True
     if "costco" in name:
         return True
-    if "walmart" in name and not any(
-        blocked in name for blocked in ["banco", "farmacia"]
-    ):
+    if "walmart" in name and not any(blocked in name for blocked in ["banco", "farmacia"]):
         return True
     return False
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch supermarket points from OSM by city profile.")
+    parser = argparse.ArgumentParser(
+        description="Fetch supermarket points from OSM by city profile."
+    )
     parser.add_argument("--city", default="cdmx", help="City profile id (default: cdmx).")
     parser.add_argument("--seed-only", action="store_true", help="Skip Overpass and use seed CSV.")
     args = parser.parse_args()
@@ -70,7 +64,12 @@ def main() -> None:
 
     try:
         profile = load_city_profile(args.city)
-        brands = {brand.lower() for brand in profile.get("amenity_brands", {}).get("supermarkets", ["costco", "walmart"])}
+        brands = {
+            brand.lower()
+            for brand in profile.get("amenity_brands", {}).get(
+                "supermarkets", ["costco", "walmart"]
+            )
+        }
         payload = retry_overpass(build_query(args.city), attempts=2, timeout=75)
         rows: list[dict] = []
         seen: set[tuple[str, str]] = set()

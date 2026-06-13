@@ -7,10 +7,7 @@ from common import DATA_PROCESSED, city_bbox, copy_seed, element_center, retry_o
 
 def build_query(city: str) -> str:
     bbox_data = city_bbox(city)
-    bbox = (
-        f'{bbox_data["south"]},{bbox_data["west"]},'
-        f'{bbox_data["north"]},{bbox_data["east"]}'
-    )
+    bbox = f"{bbox_data['south']},{bbox_data['west']},{bbox_data['north']},{bbox_data['east']}"
     return f"""
 [out:json][timeout:45];
 (

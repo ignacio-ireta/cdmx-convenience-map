@@ -70,10 +70,16 @@ extend-exclude = ["scripts/archive", "data", "frontend", "runs"]
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = [
     "B008", # function call in default arg — typer uses this idiom
+    "B905", # zip() without strict= — stylistic; the zipped series are same-length
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/experiments/*" = ["E501"] # experimental spikes: don't gate on line length
+# These two modules hold long human-readable note/limitation strings that feed
+# metadata output verbatim; rewrapping them would change emitted text. E501 is
+# relaxed here until the modules are decomposed into src/cdmxmap (Phase 2).
+"scripts/build_scores.py" = ["E501"]
+"scripts/transit_commute/approximate.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

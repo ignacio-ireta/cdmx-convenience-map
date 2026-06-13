@@ -5,7 +5,6 @@ import json
 import math
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GEOJSON_PATHS = [
     ROOT / "data" / "processed" / "scores_postal_code.geojson",
@@ -130,13 +129,9 @@ def validate_geojson(path: Path) -> int:
                 raise AssertionError(f"Feature is missing {field}")
         if not props.get("transit_commute_source"):
             raise AssertionError("Feature has empty transit_commute_source")
-        if assert_optional_number(
-            props.get("time_work_transit_min"), minimum=0
-        ):
+        if assert_optional_number(props.get("time_work_transit_min"), minimum=0):
             transit_estimate_count += 1
-        assert_optional_number(
-            props.get("score_work_transit"), minimum=0, maximum=100
-        )
+        assert_optional_number(props.get("score_work_transit"), minimum=0, maximum=100)
         assert_optional_number(props.get("time_work_transit_p75_min"), minimum=0)
         assert_optional_number(props.get("transit_origin_walk_m"), minimum=0)
         assert_optional_number(props.get("transit_destination_walk_m"), minimum=0)

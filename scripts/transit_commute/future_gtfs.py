@@ -14,4 +14,3 @@ def estimate_gtfs_transit_commute_to_work(*_args, **_kwargs):
         "OpenTripPlanner offline during preprocessing, then emit the same static "
         "transit commute fields."
     )
-

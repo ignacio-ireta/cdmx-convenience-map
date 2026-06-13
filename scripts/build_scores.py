@@ -5,7 +5,7 @@ import json
 import math
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import geopandas as gpd
@@ -22,12 +22,13 @@ from common import (
 )
 from transit_commute import (
     OUTPUT_COLUMNS as TRANSIT_COMMUTE_COLUMNS,
+)
+from transit_commute import (
     TransitCommuteConfig,
     estimate_transit_commute_to_work,
     score_transit_commute_minutes,
     transit_commute_metadata,
 )
-
 
 WGS84_CRS = "EPSG:4326"
 METRIC_CRS = "EPSG:32614"
@@ -195,8 +196,7 @@ AREA_CONFIGS = {
         name_fields=COLONIA_NAME_FIELDS,
         source_url_key="colonias",
         source_url=(
-            "https://public.opendatasoft.com/explore/dataset/"
-            "georef-mexico-colonia/export/"
+            "https://public.opendatasoft.com/explore/dataset/georef-mexico-colonia/export/"
         ),
     ),
 }
@@ -222,9 +222,7 @@ def normalize_text_series(series: pd.Series) -> pd.Series:
     return series.fillna("").astype(str).str.strip()
 
 
-def field_text(
-    frame: gpd.GeoDataFrame, fields: list[str], *, default: str = ""
-) -> pd.Series:
+def field_text(frame: gpd.GeoDataFrame, fields: list[str], *, default: str = "") -> pd.Series:
     field = first_existing(list(frame.columns), fields)
     if field is None:
         return pd.Series([default] * len(frame), index=frame.index, dtype="object")
@@ -252,9 +250,7 @@ def load_area_geometries(path: Path) -> gpd.GeoDataFrame:
     return areas
 
 
-def prepare_area_properties(
-    areas: gpd.GeoDataFrame, config: AreaConfig
-) -> gpd.GeoDataFrame:
+def prepare_area_properties(areas: gpd.GeoDataFrame, config: AreaConfig) -> gpd.GeoDataFrame:
     prepared = areas.copy()
     id_field = first_existing(list(prepared.columns), config.id_fields)
     if id_field is None:
@@ -282,9 +278,7 @@ def prepare_area_properties(
     prepared["area_unit"] = config.area_unit
     prepared["area_id"] = area_ids
     prepared["area_name"] = area_names
-    prepared["display_name"] = (
-        "CP " + area_ids if config.area_unit == "postal_code" else area_names
-    )
+    prepared["display_name"] = "CP " + area_ids if config.area_unit == "postal_code" else area_names
     prepared["alcaldia"] = alcaldias
 
     if config.area_unit == "postal_code":
@@ -343,9 +337,7 @@ def merged_travel_time_config(places_config: dict) -> dict:
     return {
         "source": configured.get("source", DEFAULT_TRAVEL_TIME_CONFIG["source"]),
         "speeds_kmh": {mode: float(speeds[mode]) for mode in WORK_TRAVEL_MODES},
-        "detour_factors": {
-            mode: float(detour_factors[mode]) for mode in WORK_TRAVEL_MODES
-        },
+        "detour_factors": {mode: float(detour_factors[mode]) for mode in WORK_TRAVEL_MODES},
     }
 
 
@@ -417,9 +409,7 @@ def nearest(reference_points: gpd.GeoSeries, points: gpd.GeoDataFrame) -> Neares
     names: list[str] = []
     sources: list[str] = []
     for reference_point in reference_points:
-        squared = np.square(point_x - reference_point.x) + np.square(
-            point_y - reference_point.y
-        )
+        squared = np.square(point_x - reference_point.x) + np.square(point_y - reference_point.y)
         index = int(np.argmin(squared))
         distances.append(float(math.sqrt(float(squared[index]))))
         names.append(str(point_names[index]))
@@ -467,9 +457,7 @@ def amenity_route_candidates(
     estimated_pairs = 0
 
     for reference_point in reference_points:
-        squared = np.square(point_x - reference_point.x) + np.square(
-            point_y - reference_point.y
-        )
+        squared = np.square(point_x - reference_point.x) + np.square(point_y - reference_point.y)
         if limit == len(points):
             candidate_indexes = np.argsort(squared)
         else:
@@ -569,7 +557,9 @@ def nullable_number(value: object) -> float | None:
     return numeric if math.isfinite(numeric) else None
 
 
-def workplace_coordinates(places_config: dict, workplaces: gpd.GeoDataFrame) -> tuple[float, float] | None:
+def workplace_coordinates(
+    places_config: dict, workplaces: gpd.GeoDataFrame
+) -> tuple[float, float] | None:
     configured = places_config.get("workplace", {})
     latitude = nullable_number(configured.get("latitude"))
     longitude = nullable_number(configured.get("longitude"))
@@ -733,9 +723,7 @@ def apply_r5py_transit_commute(
     if area_unit == "postal_code":
         r5py["area_id"] = r5py["area_id"].str.zfill(5)
     r5py["routed_successfully"] = r5py["routed_successfully"].map(normalize_bool)
-    r5py["time_work_transit_min"] = pd.to_numeric(
-        r5py["time_work_transit_min"], errors="coerce"
-    )
+    r5py["time_work_transit_min"] = pd.to_numeric(r5py["time_work_transit_min"], errors="coerce")
     if "time_work_transit_p75_min" not in r5py.columns:
         r5py["time_work_transit_p75_min"] = np.nan
     r5py["time_work_transit_p75_min"] = pd.to_numeric(
@@ -754,8 +742,7 @@ def apply_r5py_transit_commute(
         result.loc[matched_area_ids, "time_work_transit_min"] = median_values.round(1).to_numpy()
         result.loc[matched_area_ids, "time_work_transit_p75_min"] = p75_values.round(1).to_numpy()
         result.loc[matched_area_ids, "score_work_transit"] = [
-            nullable_round(score_transit_commute_minutes(value), 1)
-            for value in median_values
+            nullable_round(score_transit_commute_minutes(value), 1) for value in median_values
         ]
         result.loc[matched_area_ids, "transit_commute_source"] = R5PY_TRANSIT_COMMUTE_SOURCE
         result.loc[matched_area_ids, "transit_commute_notes"] = (
@@ -771,9 +758,7 @@ def apply_r5py_transit_commute(
     )
     if metadata:
         router_info["prototype_metadata"] = {
-            key: value
-            for key, value in metadata.items()
-            if key not in {"global_traceback"}
+            key: value for key, value in metadata.items() if key not in {"global_traceback"}
         }
     return result, router_info
 
@@ -913,9 +898,7 @@ def aggregate_crime(
         .merge(recent_counts, on="area_id", how="left")
         .merge(top_categories, on="area_id", how="left")
     )
-    aggregated["crime_incidents_total"] = (
-        aggregated["crime_incidents_total"].fillna(0).astype(int)
-    )
+    aggregated["crime_incidents_total"] = aggregated["crime_incidents_total"].fillna(0).astype(int)
     aggregated["crime_incidents_recent_12m"] = (
         aggregated["crime_incidents_recent_12m"].fillna(0).astype(int)
     )
@@ -965,10 +948,7 @@ def load_point_datasets(places_config: dict) -> PointDatasets:
         empty_transit = gpd.GeoDataFrame(
             transit.iloc[0:0].copy(), geometry="geometry", crs=transit.crs
         )
-        transit_by_system = {
-            system: empty_transit.copy()
-            for system in TRANSIT_SYSTEM_FIELD_SLUGS
-        }
+        transit_by_system = {system: empty_transit.copy() for system in TRANSIT_SYSTEM_FIELD_SLUGS}
 
     return PointDatasets(
         transit=transit,
@@ -1022,9 +1002,7 @@ def score_areas(
     nearest_supermarket = nearest(reference_points, point_datasets.supermarkets)
     nearest_costco = nearest(
         reference_points,
-        point_datasets.costcos
-        if not point_datasets.costcos.empty
-        else point_datasets.supermarkets,
+        point_datasets.costcos if not point_datasets.costcos.empty else point_datasets.supermarkets,
     )
     nearest_walmart = nearest(
         reference_points,
@@ -1043,9 +1021,7 @@ def score_areas(
     )
     routed_costco = amenity_route_candidates(
         reference_points,
-        point_datasets.costcos
-        if not point_datasets.costcos.empty
-        else point_datasets.supermarkets,
+        point_datasets.costcos if not point_datasets.costcos.empty else point_datasets.supermarkets,
         candidate_count=amenity_time_config["candidate_count"],
         mode=amenity_time_config["mode"],
         route_source=amenity_time_config["source"],
@@ -1079,7 +1055,9 @@ def score_areas(
         "engine": TRANSIT_ROUTER_APIMETRO,
         "source": work_transit_config.source,
         "routed_count": int(transit_commute["time_work_transit_min"].notna().sum()),
-        "failed_count": int(len(transit_commute) - transit_commute["time_work_transit_min"].notna().sum()),
+        "failed_count": int(
+            len(transit_commute) - transit_commute["time_work_transit_min"].notna().sum()
+        ),
     }
     if transit_router == TRANSIT_ROUTER_R5PY:
         transit_commute, transit_router_info = apply_r5py_transit_commute(
@@ -1098,9 +1076,7 @@ def score_areas(
         )
         for mode in WORK_TRAVEL_MODES
     }
-    score_work_times = {
-        mode: distance_score(minutes) for mode, minutes in work_times.items()
-    }
+    score_work_times = {mode: distance_score(minutes) for mode, minutes in work_times.items()}
     score_core_transit = distance_score(nearest_core_transit.distances)
     score_surface_transit = distance_score(nearest_surface_transit.distances)
     score_transit_by_system = {
@@ -1112,9 +1088,7 @@ def score_areas(
     score_gyms = distance_score(nearest_gym.distances)
     score_supermarkets_time = distance_score(routed_supermarket.times)
     score_gyms_time = distance_score(routed_gym.times)
-    crime_aggregation, crime_metadata = aggregate_crime(
-        areas_metric, point_datasets.crimes
-    )
+    crime_aggregation, crime_metadata = aggregate_crime(areas_metric, point_datasets.crimes)
     crime_aggregation = crime_aggregation.set_index("area_id").reindex(areas["area_id"])
     score_safety = inverse_density_score(
         crime_aggregation["crime_density_recent_12m_per_km2"].to_numpy(dtype=float)
@@ -1177,9 +1151,7 @@ def score_areas(
     areas["nearest_core_transit_source"] = nearest_core_transit.sources
     areas["nearest_surface_transit_source"] = nearest_surface_transit.sources
     for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
-        areas[f"nearest_{slug}_transit_source"] = nearest_transit_by_system[
-            system
-        ].sources
+        areas[f"nearest_{slug}_transit_source"] = nearest_transit_by_system[system].sources
     areas["nearest_supermarket_source"] = nearest_supermarket.sources
     areas["nearest_costco_source"] = nearest_costco.sources
     areas["nearest_walmart_source"] = nearest_walmart.sources
@@ -1216,27 +1188,19 @@ def score_areas(
     areas["crime_incidents_recent_12m"] = (
         crime_aggregation["crime_incidents_recent_12m"].fillna(0).astype(int).tolist()
     )
-    areas["crime_density_recent_12m_per_km2"] = (
-        np.round(
-            crime_aggregation["crime_density_recent_12m_per_km2"]
-            .fillna(0)
-            .to_numpy(dtype=float),
-            1,
-        ).tolist()
-    )
+    areas["crime_density_recent_12m_per_km2"] = np.round(
+        crime_aggregation["crime_density_recent_12m_per_km2"].fillna(0).to_numpy(dtype=float),
+        1,
+    ).tolist()
     areas["crime_top_category_recent_12m"] = (
         crime_aggregation["crime_top_category_recent_12m"].fillna("").astype(str).tolist()
     )
-    areas["crime_source"] = (
-        crime_aggregation["crime_source"].fillna("").astype(str).tolist()
-    )
+    areas["crime_source"] = crime_aggregation["crime_source"].fillna("").astype(str).tolist()
 
     output = areas.to_crs(WGS84_CRS)
-    output["geometry"] = (
-        areas_metric.geometry.simplify(8, preserve_topology=True).to_crs(WGS84_CRS)
-    )
+    output["geometry"] = areas_metric.geometry.simplify(8, preserve_topology=True).to_crs(WGS84_CRS)
 
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     transit_estimated = int(transit_commute["time_work_transit_min"].notna().sum())
     transit_sources = (
         transit_commute["transit_commute_source"].fillna("unknown").value_counts().to_dict()
@@ -1367,9 +1331,7 @@ def build_metadata(
         "workplace": score_metadata["workplace"],
         "travel_time": score_metadata["travel_time"],
         "amenity_travel_time": score_metadata["amenity_travel_time"],
-        "transit_commute_source": score_metadata["transit_commute"][
-            "transit_commute_source"
-        ],
+        "transit_commute_source": score_metadata["transit_commute"]["transit_commute_source"],
         "transit_commute": score_metadata["transit_commute"],
         "source_urls": source_urls,
         "sources": {

@@ -7,11 +7,7 @@ import pandas as pd
 
 from common import DATA_PROCESSED, DATA_RAW, download, write_csv
 
-
-CRIME_CSV_URL = (
-    "https://archivo.datos.cdmx.gob.mx/FGJ/victimas/"
-    "victimasFGJ_acumulado_2024_09.csv"
-)
+CRIME_CSV_URL = "https://archivo.datos.cdmx.gob.mx/FGJ/victimas/victimasFGJ_acumulado_2024_09.csv"
 
 
 def main() -> None:
@@ -44,8 +40,7 @@ def main() -> None:
     crimes["date"] = pd.to_datetime(crimes["fecha_inicio"], errors="coerce")
     crimes = crimes.dropna(subset=["latitude", "longitude", "date"]).copy()
     crimes = crimes[
-        crimes["latitude"].between(19.04, 19.60)
-        & crimes["longitude"].between(-99.38, -98.90)
+        crimes["latitude"].between(19.04, 19.60) & crimes["longitude"].between(-99.38, -98.90)
     ].copy()
 
     crimes["category"] = crimes["categoria_delito"].fillna("Sin categoria")
@@ -79,4 +74,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

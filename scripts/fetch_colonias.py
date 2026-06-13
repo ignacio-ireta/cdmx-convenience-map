@@ -6,7 +6,6 @@ import urllib.request
 
 from common import DATA_RAW, USER_AGENT, ensure_dirs
 
-
 COLONIAS_GEOJSON_URL = (
     "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/"
     "georef-mexico-colonia/exports/geojson"
@@ -29,9 +28,7 @@ def normalized_feature(feature: dict) -> dict:
     municipality_name = first_value(properties.get("mun_name"))
     colonia_code = first_value(properties.get("col_code"))
     colonia_name = first_value(properties.get("col_name"))
-    area_id = "-".join(
-        part for part in [state_code, municipality_code, colonia_code] if part
-    )
+    area_id = "-".join(part for part in [state_code, municipality_code, colonia_code] if part)
 
     return {
         "type": "Feature",

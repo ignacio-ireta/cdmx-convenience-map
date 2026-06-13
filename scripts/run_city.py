@@ -4,7 +4,6 @@ import argparse
 import subprocess
 import sys
 
-
 FETCH_SEQUENCE = [
     "fetch_postal_codes.py",
     "fetch_colonias.py",
@@ -21,10 +20,14 @@ def run(cmd: list[str]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run city pipeline with shared --city propagation.")
+    parser = argparse.ArgumentParser(
+        description="Run city pipeline with shared --city propagation."
+    )
     parser.add_argument("--city", default="cdmx", help="City profile id (default: cdmx)")
     parser.add_argument("--area-unit", default="postal_code", help="Area unit for build_scores")
-    parser.add_argument("--skip-fetch", action="store_true", help="Skip fetch scripts and only build scores")
+    parser.add_argument(
+        "--skip-fetch", action="store_true", help="Skip fetch scripts and only build scores"
+    )
     args = parser.parse_args()
 
     if args.city != "cdmx":

@@ -6,7 +6,6 @@ import urllib.request
 
 from common import DATA_PROCESSED, DATA_RAW, USER_AGENT, ensure_dirs, write_csv
 
-
 APIMETRO_SYSTEMS = ["METRO", "MB", "RTP", "TROLE", "CC"]
 APIMETRO_STATIONS_URL = (
     "https://apimetro.dev/movilidad/mapas/geojsonEstacion"

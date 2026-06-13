@@ -10,7 +10,6 @@ import pandas as pd
 
 from .models import TransitCommuteConfig
 
-
 WGS84_CRS = "EPSG:4326"
 METRIC_CRS = "EPSG:32614"
 TRANSIT_COMMUTE_SOURCE = "apimetro_stop_pair_approximation"
@@ -319,9 +318,7 @@ def _estimate_pair(
     speed_kmh = _pair_speed_kmh(origin_system, destination_system, config)
     in_vehicle_min = _minutes_for_distance(stop_distance_m, speed_kmh)
     origin_walk_min = _minutes_for_distance(origin.walk_m, config.walking_speed_kmh)
-    destination_walk_min = _minutes_for_distance(
-        destination.walk_m, config.walking_speed_kmh
-    )
+    destination_walk_min = _minutes_for_distance(destination.walk_m, config.walking_speed_kmh)
     origin_walk_penalty = _excess_walk_penalty(
         origin.walk_m, config.max_origin_walk_m, config.walking_speed_kmh
     )
@@ -345,9 +342,7 @@ def _estimate_pair(
     if origin.walk_m > config.max_origin_walk_m:
         notes.append("Origin stop exceeds configured max walk distance; penalty applied.")
     if destination.walk_m > config.max_destination_walk_m:
-        notes.append(
-            "Destination stop exceeds configured max walk distance; penalty applied."
-        )
+        notes.append("Destination stop exceeds configured max walk distance; penalty applied.")
     if route_complexity == "different_system":
         notes.append("Different-system pair uses fixed transfer/complexity penalty.")
     elif route_complexity == "same_system_unknown_line":
@@ -358,9 +353,7 @@ def _estimate_pair(
         origin=origin,
         destination=destination,
         in_vehicle_min=in_vehicle_min,
-        transfer_penalty_min=transfer_penalty
-        + origin_walk_penalty
-        + destination_walk_penalty,
+        transfer_penalty_min=transfer_penalty + origin_walk_penalty + destination_walk_penalty,
         route_complexity=route_complexity,
         notes=notes,
     )
@@ -420,19 +413,11 @@ def _row_from_estimate(
         "transit_origin_system": _nullable_string(stops.systems[estimate.origin.index]),
         "transit_origin_line": _nullable_string(stops.lines[estimate.origin.index]),
         "transit_origin_walk_m": _round_float(estimate.origin.walk_m, 0),
-        "transit_destination_stop_name": _nullable_string(
-            stops.names[estimate.destination.index]
-        ),
-        "transit_destination_system": _nullable_string(
-            stops.systems[estimate.destination.index]
-        ),
-        "transit_destination_line": _nullable_string(
-            stops.lines[estimate.destination.index]
-        ),
+        "transit_destination_stop_name": _nullable_string(stops.names[estimate.destination.index]),
+        "transit_destination_system": _nullable_string(stops.systems[estimate.destination.index]),
+        "transit_destination_line": _nullable_string(stops.lines[estimate.destination.index]),
         "transit_destination_walk_m": _round_float(estimate.destination.walk_m, 0),
-        "transit_transfer_penalty_min": _round_float(
-            estimate.transfer_penalty_min, 1
-        ),
+        "transit_transfer_penalty_min": _round_float(estimate.transfer_penalty_min, 1),
         "transit_route_complexity": estimate.route_complexity,
         "transit_commute_notes": " ".join(estimate.notes),
     }

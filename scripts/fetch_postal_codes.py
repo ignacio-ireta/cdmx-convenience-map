@@ -5,7 +5,6 @@ import json
 
 from common import DATA_RAW, download
 
-
 POSTAL_GEOJSON_URL = (
     "https://datos.cdmx.gob.mx/dataset/7abff432-81a0-4956-8691-0865e2722423/"
     "resource/95482697-af9d-440a-a65b-4d289e5fcd5c/download/correos-postales.json"
@@ -29,4 +28,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
