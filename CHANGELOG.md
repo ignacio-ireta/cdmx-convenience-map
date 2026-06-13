@@ -12,12 +12,23 @@ published.
 - `pyproject.toml` + `uv.lock`: Python project migrated to `uv` with runtime,
   dev, and optional `transit` dependency groups; Python pinned to `>=3.11,<3.13`.
 - Quality-gate configuration: `ruff`, `mypy`, and `pytest` settings in
-  `pyproject.toml`; Prettier for the frontend.
-- `docs/engineering-standards.md` — project-specific engineering standards (A–S).
-- `CONTRIBUTING.md`, `.env.example`, and this changelog.
+  `pyproject.toml`; Prettier for the frontend; `.pre-commit-config.yaml`.
+- Documentation: `docs/engineering-standards.md` (project-specific A–S),
+  `docs/data-contract.md`, `docs/architecture.md`, `docs/testing.md`,
+  `docs/troubleshooting.md`; plus `CONTRIBUTING.md`, `.env.example`, this changelog.
+- Frontend logic modules extracted from `App.tsx` (`types`, `constants`,
+  `lib/{format,normalize,search,score-math,work,scoring}`).
+- Tests: Vitest suite (46 tests) for the frontend logic; pytest suite (26 tests)
+  for the pipeline helpers, the output-validator data contract, and scoring math.
+- CI: `.github/workflows/ci.yml` runs lint/type-check/test/build for both stacks
+  (Python matrix 3.11/3.12) on PRs and pushes to `master`.
 
 ### Changed
 
-- Frontend gains `typecheck` and `format` npm scripts.
+- Frontend gains `typecheck`, `format`, and `test` npm scripts; full TypeScript
+  `strict` mode enabled.
+- `deploy.yml` now runs the frontend quality gate (lint/type-check/test) before
+  building, so a broken build is never published.
+- README quickstart switched to `uv`; manual test checklist updated.
 
 [Unreleased]: https://github.com/ignacio-ireta/cdmx-convenience-map/commits/master

@@ -273,8 +273,10 @@ Running the same command twice produces the same outputs and no duplicates.
 - **Frontend:** Vitest unit tests for the pure scoring/normalize/search helpers
   and component smoke tests (mocked fetch).
 
-**Status:** ⬜ Phases 4 (Python) and 6 (frontend). Today: zero automated tests;
-`validate_processed.py` is a post-run check, not a test suite.
+**Status:** 🟡 Frontend Vitest (46 tests over the extracted logic) and Python
+pytest (26 tests: common helpers, the validator's data-contract invariants,
+scoring-math property tests) have landed. Integration / e2e / golden suites
+remain (they depend on the Phase 2 fixture city).
 
 ## L. Testing documentation
 
@@ -284,7 +286,7 @@ organized, **how to regenerate golden files**, what external deps are needed
 (JDK for `transit`), what runs in CI, and what is intentionally skipped locally
 (network fetchers, r5py).
 
-**Status:** 🟡 written in Phase 1, expanded as suites land.
+**Status:** ✅ `docs/testing.md` written; expanded as the suites grow.
 
 ## M. Code quality gates
 
@@ -300,8 +302,9 @@ organized, **how to regenerate golden files**, what external deps are needed
 All gates run locally (`CONTRIBUTING.md`) and in CI (§N). The frontend uses **full
 TypeScript `strict`** (enabled in Phase 5).
 
-**Status:** ✅ Python gates configured (Phase 0); 🟡 frontend strict + Vitest in
-Phases 5–6; gates enforced in CI in Phase 7.
+**Status:** ✅ both stacks gated — Python `ruff`/`mypy`/`pytest`, frontend
+`eslint`/`tsc` (strict)/`prettier`/`vitest` — and enforced in CI. Dependency
+scanning (pip-audit/Dependabot) remains to be wired.
 
 ## N. CI/CD
 
@@ -315,7 +318,9 @@ Phases 5–6; gates enforced in CI in Phase 7.
 gated on CI being green. **CI-first**: there is no PyPI/Docker publish target;
 the only "CD" is the static Pages deploy + embed sync.
 
-**Status:** ⬜ Phase 7 (`deploy.yml` exists today; no CI gate yet).
+**Status:** ✅ `ci.yml` runs both stacks on PR + push to `master`; `deploy.yml`
+is gated on the same frontend checks. Enabling branch protection (require the CI
+checks) is a one-time GitHub settings step.
 
 ## O. Documentation
 
@@ -333,8 +338,9 @@ The existing roadmap docs (`multi-city-roadmap.md`, `transit-*`, `travel-time-*`
 `r5py-*`, `website-embed-sync.md`, `current-state.md`, `data-pipeline.md`) are
 kept and cross-linked from `architecture.md`.
 
-**Status:** 🟡 standards + data-contract + architecture + testing +
-troubleshooting added in Phase 1; meta files added in Phase 0.
+**Status:** ✅ standards, data-contract, architecture, testing, and
+troubleshooting docs present, plus `CHANGELOG.md`, `CONTRIBUTING.md`, and
+`.env.example`.
 
 ## P. Security and privacy
 
@@ -415,7 +421,7 @@ provenance in Phase 3.
 
 | Area | A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Status | ✅ | 🟡 | ✅ | ✅ | 🟡 | 🟡 | ✅ | 🟡 | ⬜ | ⬜ | ⬜ | 🟡 | ✅ | ⬜ | 🟡 | ✅ | ✅ | ⬜ | 🟡 |
+| Status | ✅ | 🟡 | ✅ | ✅ | 🟡 | 🟡 | ✅ | 🟡 | ⬜ | ⬜ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ | 🟡 |
 
 ✅ done · 🟡 in progress · ⬜ planned. The phased roadmap to full compliance is
 tracked in the project plan; this table is updated as phases land.

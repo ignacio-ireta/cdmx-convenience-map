@@ -36,6 +36,15 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Gate the deploy on the same quality checks CI runs, so a broken build is
+      # never published. See .github/workflows/ci.yml and docs/engineering-standards.md §N.
+      - name: Quality gate
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test
+
       - name: Build
         working-directory: frontend
         run: npm run build

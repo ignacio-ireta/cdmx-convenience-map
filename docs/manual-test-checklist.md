@@ -1,16 +1,28 @@
 # Manual Test Checklist
 
-Use this before deploying or after changing scoring/data files.
+Use this before deploying or after changing scoring/data files. The automated
+gates (lint, type-check, unit tests, build) now run in CI
+(`.github/workflows/ci.yml`) and in the deploy quality gate; the checks below are
+the data-regeneration steps CI cannot run (they need network sources) plus the
+browser smoke test.
 
-## CLI Checks
+## Automated gates (also run in CI)
 
 ```bash
-cd frontend && npm run build
-cd frontend && npm run lint
-python3 -m py_compile scripts/*.py
-.venv/bin/python scripts/build_scores.py --area-unit postal_code
-.venv/bin/python scripts/build_scores.py --area-unit colonia
-.venv/bin/python scripts/validate_processed.py
+# Python
+uv run ruff check . && uv run ruff format --check src scripts tests
+uv run mypy && uv run pytest
+
+# Frontend
+cd frontend && npm run lint && npm run typecheck && npm run test && npm run build
+```
+
+## Data regeneration (run locally; needs network sources)
+
+```bash
+uv run python scripts/run_city.py --city cdmx --area-unit postal_code
+uv run python scripts/build_scores.py --area-unit colonia
+uv run python scripts/validate_processed.py
 ```
 
 Confirm:
