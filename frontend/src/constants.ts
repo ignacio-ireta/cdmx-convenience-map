@@ -7,7 +7,7 @@ import {
   ShoppingCart,
   TrainFront,
 } from 'lucide-react'
-import L from 'leaflet'
+import type * as L from 'leaflet'
 import type {
   AmenityMode,
   AreaProperties,
