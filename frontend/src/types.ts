@@ -1,0 +1,240 @@
+import type { LucideIcon } from 'lucide-react'
+import type { Feature, FeatureCollection, Geometry } from 'geojson'
+
+export type MetricKey =
+  | 'combined'
+  | 'work'
+  | 'transit'
+  | 'transitCommute'
+  | 'supermarkets'
+  | 'gyms'
+  | 'safety'
+export type WeightKey = Exclude<MetricKey, 'combined' | 'transitCommute'>
+
+export type AreaUnit = 'postal_code' | 'colonia'
+export type WorkMode = 'distance' | 'driving' | 'walking' | 'biking'
+export type TravelWorkMode = Exclude<WorkMode, 'distance'>
+export type AmenityMode = 'distance' | 'time'
+export type StorePreferenceKey = 'costco' | 'walmart'
+export type TransitAccessKey = 'metro' | 'metrobus' | 'rtp' | 'trolebus' | 'corredor'
+
+export type AreaProperties = {
+  area_unit: AreaUnit
+  area_id: string
+  area_name: string
+  display_name: string
+  alcaldia?: string
+  d_cp?: string
+  postal_code?: string
+  postal_label?: string
+  colonia_name?: string
+  centroid_lat?: number
+  centroid_lon?: number
+  dist_work_m?: number
+  dist_transit_m?: number
+  dist_core_transit_m?: number
+  dist_surface_transit_m?: number
+  dist_metro_transit_m?: number
+  dist_metrobus_transit_m?: number
+  dist_rtp_transit_m?: number
+  dist_trolebus_transit_m?: number
+  dist_corredor_transit_m?: number
+  dist_supermarket_m?: number
+  dist_costco_m?: number
+  dist_walmart_m?: number
+  dist_gym_m?: number
+  time_work_driving_min?: number
+  time_work_walking_min?: number
+  time_work_biking_min?: number
+  time_supermarket_min?: number
+  time_costco_min?: number
+  time_walmart_min?: number
+  time_gym_min?: number
+  time_work_transit_min?: number
+  time_work_transit_p75_min?: number
+  transfers_work_transit?: number
+  walk_to_origin_stop_m?: number
+  destination_walk_m?: number
+  transit_commute_source?: string
+  transit_origin_stop_name?: string
+  transit_origin_system?: string
+  transit_origin_line?: string
+  transit_origin_walk_m?: number
+  transit_destination_stop_name?: string
+  transit_destination_system?: string
+  transit_destination_line?: string
+  transit_destination_walk_m?: number
+  transit_transfer_penalty_min?: number
+  transit_route_complexity?: string
+  transit_commute_notes?: string
+  score_work?: number
+  score_work_driving?: number
+  score_work_walking?: number
+  score_work_biking?: number
+  score_work_transit?: number
+  score_transit?: number
+  score_transit_metro?: number
+  score_transit_metrobus?: number
+  score_transit_rtp?: number
+  score_transit_trolebus?: number
+  score_transit_corredor?: number
+  score_supermarkets?: number
+  score_supermarkets_time?: number
+  score_gyms?: number
+  score_gyms_time?: number
+  score_safety?: number
+  score_combined_default?: number
+  nearest_work_name?: string
+  nearest_transit_name?: string
+  nearest_core_transit_name?: string
+  nearest_surface_transit_name?: string
+  nearest_metro_transit_name?: string
+  nearest_metrobus_transit_name?: string
+  nearest_rtp_transit_name?: string
+  nearest_trolebus_transit_name?: string
+  nearest_corredor_transit_name?: string
+  nearest_supermarket_name?: string
+  nearest_costco_name?: string
+  nearest_walmart_name?: string
+  nearest_gym_name?: string
+  nearest_work_source?: string
+  work_travel_time_source?: string
+  nearest_transit_source?: string
+  nearest_core_transit_source?: string
+  nearest_surface_transit_source?: string
+  nearest_metro_transit_source?: string
+  nearest_metrobus_transit_source?: string
+  nearest_rtp_transit_source?: string
+  nearest_trolebus_transit_source?: string
+  nearest_corredor_transit_source?: string
+  nearest_supermarket_source?: string
+  nearest_costco_source?: string
+  nearest_walmart_source?: string
+  nearest_gym_source?: string
+  amenity_travel_time_source?: string
+  transit_route_summary?: string
+  crime_incidents_total?: number
+  crime_incidents_recent_12m?: number
+  crime_density_recent_12m_per_km2?: number
+  crime_top_category_recent_12m?: string
+  crime_source?: string
+}
+
+export type RawAreaProperties = Record<string, unknown>
+export type RawAreaFeatureCollection = FeatureCollection<Geometry, RawAreaProperties>
+export type AreaFeature = Feature<Geometry, AreaProperties>
+export type AreaFeatureCollection = FeatureCollection<Geometry, AreaProperties>
+
+export type WorkModel = {
+  areaId: string
+  areaUnit: AreaUnit
+  displayName: string
+  distances: Map<string, number>
+  scores: Map<string, number>
+  travelTimes: Record<TravelWorkMode, Map<string, number>>
+  travelScores: Record<TravelWorkMode, Map<string, number>>
+}
+export type FieldScoreMap = {
+  hasValues: boolean
+  scores: Map<string, number>
+}
+export type PreferenceScoreModel = {
+  storeDistanceScores: Record<StorePreferenceKey, FieldScoreMap>
+  storeTimeScores: Record<StorePreferenceKey, FieldScoreMap>
+  transitAccessScores: Record<TransitAccessKey, FieldScoreMap>
+}
+export type ScoreMetadata = {
+  feature_count?: number
+  point_counts?: {
+    transit_stops?: number
+    transit_core_points?: number
+    transit_surface_points?: number
+    transit_system_points?: Partial<Record<TransitAccessKey, number>>
+    supermarkets?: number
+    gyms?: number
+    workplaces?: number
+    crime_records?: number
+  }
+  crime?: {
+    records_total?: number
+    records_recent_12m?: number
+    latest_date?: string
+    recent_start_date?: string
+  }
+  workplace?: {
+    name?: string
+    postal_code?: string
+    source?: string
+  }
+  travel_time?: {
+    source?: string
+    modes?: string[]
+    speeds_kmh?: Record<string, number>
+    detour_factors?: Record<string, number>
+  }
+  amenity_travel_time?: {
+    source?: string
+    mode?: string
+    candidate_count?: number
+    candidate_pairs?: Record<string, number>
+    estimated_pairs?: Record<string, number>
+  }
+  transit_commute?: {
+    source?: string
+    transit_commute_source?: string
+    generated_at?: string
+    candidate_stop_count?: number
+    walking_speed_kmh?: number
+    speeds_kmh?: Record<string, number>
+    penalties_min?: Record<string, number>
+    max_walk_m?: Record<string, number>
+    estimated_areas?: number
+    failed_areas?: number
+    known_limitations?: string[]
+  }
+  transit_commute_source?: string
+  source_urls?: Record<string, string>
+}
+
+export type MetricConfig = {
+  key: MetricKey
+  label: string
+  shortLabel: string
+  icon: LucideIcon
+}
+
+export type GeographyConfig = {
+  unit: AreaUnit
+  label: string
+  pluralLabel: string
+  sourceLabel: string
+}
+
+export type AreaDatasets = Partial<Record<AreaUnit, AreaFeatureCollection>>
+export type SearchMatch = {
+  feature: AreaFeature
+  rank: number
+}
+export type AreaFocusRequest = {
+  feature: AreaFeature
+  requestId: number
+}
+
+export type StoreOption = {
+  key: StorePreferenceKey
+  label: string
+  distanceField: keyof AreaProperties
+  timeField: keyof AreaProperties
+  nearestNameField: keyof AreaProperties
+  nearestSourceField: keyof AreaProperties
+}
+
+export type TransitAccessOption = {
+  key: TransitAccessKey
+  label: string
+  shortLabel: string
+  distanceField: keyof AreaProperties
+  scoreField: keyof AreaProperties
+  nearestNameField: keyof AreaProperties
+  nearestSourceField: keyof AreaProperties
+}
