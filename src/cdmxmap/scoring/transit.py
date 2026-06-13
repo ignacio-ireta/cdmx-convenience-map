@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import geopandas as gpd
@@ -27,6 +28,8 @@ from cdmxmap.transit_commute import (
     estimate_transit_commute_to_work,
     score_transit_commute_minutes,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def repo_relative(path: Path) -> str:
@@ -81,7 +84,7 @@ def build_transit_commute_frame(
 ) -> pd.DataFrame:
     coordinates = workplace_coordinates(places_config, point_datasets.workplaces)
     if coordinates is None:
-        print("WARNING: Transit commute skipped because no workplace coordinates exist.")
+        logger.warning("Transit commute skipped because no workplace coordinates exist.")
         return failed_transit_commute_frame(
             areas,
             TRANSIT_COMMUTE_NOT_CONFIGURED_SOURCE,
@@ -99,7 +102,7 @@ def build_transit_commute_frame(
             )
         )
     except Exception as exc:  # noqa: BLE001 - keep score generation robust.
-        print(f"WARNING: Transit commute estimation failed: {exc}")
+        logger.warning("Transit commute estimation failed: %s", exc)
         return failed_transit_commute_frame(
             areas,
             TRANSIT_COMMUTE_FAILED_SOURCE,
@@ -122,7 +125,7 @@ def load_r5py_metadata(csv_path: Path) -> dict:
     try:
         return json.loads(metadata_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        print(f"WARNING: Could not parse r5py metadata {metadata_path}: {exc}")
+        logger.warning("Could not parse r5py metadata %s: %s", metadata_path, exc)
         return {"metadata_error": str(exc)}
 
 
@@ -151,7 +154,7 @@ def apply_r5py_transit_commute(
     }
 
     if not csv_path.exists():
-        print(f"WARNING: r5py transit CSV missing at {csv_path}; using Apimetro fallback.")
+        logger.warning("r5py transit CSV missing at %s; using Apimetro fallback.", csv_path)
         router_info["status"] = "missing_csv"
         return result, router_info
 
@@ -174,7 +177,7 @@ def apply_r5py_transit_commute(
     try:
         r5py = pd.read_csv(csv_path, dtype={"area_id": str})
     except Exception as exc:  # noqa: BLE001 - keep opt-in fallback robust.
-        print(f"WARNING: Could not read r5py transit CSV {csv_path}: {exc}")
+        logger.warning("Could not read r5py transit CSV %s: %s", csv_path, exc)
         router_info["status"] = "read_failed"
         router_info["error"] = str(exc)
         return result, router_info
@@ -187,9 +190,9 @@ def apply_r5py_transit_commute(
     }
     missing = sorted(required - set(r5py.columns))
     if missing:
-        print(
-            "WARNING: r5py transit CSV is missing required columns "
-            f"{', '.join(missing)}; using Apimetro fallback."
+        logger.warning(
+            "r5py transit CSV is missing required columns %s; using Apimetro fallback.",
+            ", ".join(missing),
         )
         router_info["status"] = "invalid_csv"
         router_info["missing_columns"] = missing

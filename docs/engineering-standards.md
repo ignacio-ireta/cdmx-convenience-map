@@ -133,9 +133,9 @@ cdmxmap validate
 cdmxmap run   --city cdmx --resume --fail-fast --log-level debug
 ```
 
-**Status:** 🟡 unified `cdmxmap` CLI (`fetch`/`score`/`validate`/`run`) landed;
-pydantic config validation and the `--resume`/`--fail-fast`/`--log-level` flags
-remain (Phase 3).
+**Status:** 🟡 unified `cdmxmap` CLI (`fetch`/`score`/`validate`/`run`) with
+`--resume`/`--fail-fast`/`--log-level` landed; pydantic validation of `city.json`
+/ `places.json` is the remaining item.
 
 ## F. Architecture and modularity
 
@@ -221,8 +221,9 @@ WARNING  supermarkets degraded to seed (Overpass timeout)
 FAILED   crime: download 503 from datos.cdmx.gob.mx
 ```
 
-**Status:** 🟡 seed fallback exists; typed exceptions, fail-fast, exit codes,
-error report land in Phase 3.
+**Status:** ✅ domain exceptions (`errors.py`), per-source isolation, `--fail-fast`,
+meaningful exit codes (0 ok / 1 partial / 3 no output / 130 interrupted), and a
+per-run `errors.json`.
 
 ## I. Logging and observability
 
@@ -244,7 +245,8 @@ WARNING source supermarkets degraded reason=overpass_timeout fallback=seed
 INFO  run done success_sources=5 degraded=1 failed=0 areas=1215 duration=00:02:11
 ```
 
-**Status:** ⬜ Phase 3.
+**Status:** ✅ stdlib `logging` + rich (`logging_config.py`), `--log-level` /
+`CDMXMAP_LOG_LEVEL`, and a per-run `runs/<run_id>/run.log` alongside the manifest.
 
 ## J. Resumability and idempotency
 
@@ -261,7 +263,10 @@ and output path. From it the pipeline can:
 
 Running the same command twice produces the same outputs and no duplicates.
 
-**Status:** ⬜ Phase 3 (atomic writes + manifest + `--resume`).
+**Status:** ✅ atomic GeoJSON/metadata writes (temp + `os.replace`),
+`runs/<id>/manifest.json` with per-source SHA256, and `--resume` to skip
+already-fetched sources. (Hash-based *reprocess-changed* for builds is a planned
+refinement.)
 
 ## K. Testing strategy
 
@@ -393,11 +398,12 @@ continues with `--resume`.
 
 ```
 Interrupted by user.
-Sources: 5 done, 1 interrupted, 0 pending
-Resume with: cdmxmap run --city cdmx --resume
+run done run_id=… success=5 interrupted=1
+Resume with: cdmxmap run --city cdmx --area-unit postal_code --resume
 ```
 
-**Status:** ⬜ Phase 3.
+**Status:** ✅ `Ctrl+C` marks the in-progress entry `interrupted` in the manifest,
+writes it, logs a resume hint, and exits `130`.
 
 ## S. Traceability
 
@@ -417,8 +423,10 @@ and the transit engine; Phase 3 adds source SHAs, pipeline steps, and per-area
 warnings so any output field is traceable to its origin — valuable for answering
 "where did this area's score come from?".
 
-**Status:** 🟡 metadata partially implemented in `build_metadata()`; full
-provenance in Phase 3.
+**Status:** ✅ the manifest records run id/command/city, and per source/area the
+status + SHA256 + output path + timings; `score_metadata` carries source URLs and
+provenance. (Per-Markdown-block-style content traceability is inherent: each
+property family is tagged with its `*_source`.)
 
 ---
 
@@ -426,7 +434,7 @@ provenance in Phase 3.
 
 | Area | A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Status | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | 🟡 | ⬜ | ⬜ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ | 🟡 |
+| Status | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ✅ done · 🟡 in progress · ⬜ planned. The phased roadmap to full compliance is
 tracked in the project plan; this table is updated as phases land.

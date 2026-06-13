@@ -22,6 +22,12 @@ published.
   for the pipeline helpers, the output-validator data contract, and scoring math.
 - CI: `.github/workflows/ci.yml` runs lint/type-check/test/build for both stacks
   (Python matrix 3.11/3.12) on PRs and pushes to `master`.
+- Pipeline resilience: domain exceptions (`errors.py`); structured logging
+  (`logging_config.py`, `--log-level` / `CDMXMAP_LOG_LEVEL`); per-run artifacts
+  under `runs/<run_id>/` (`run.log`, `manifest.json`, `errors.json`); atomic
+  GeoJSON/metadata writes; per-source failure isolation with `--fail-fast`;
+  `--resume` (skip already-fetched sources); meaningful exit codes; and `Ctrl+C`
+  interruption that marks the in-progress entry and prints a resume hint.
 - Pipeline refactored into the importable `src/cdmxmap/` package
   (`sources/`, `scoring/{areas,points,metrics,crime,transit,engine}`, `output/`,
   `pipeline`, `models`, `config`) with a unified **`cdmxmap` CLI**
