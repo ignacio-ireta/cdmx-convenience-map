@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from cdmxmap.config import WORK_TRAVEL_MODES
+from cdmxmap.errors import ConfigError
+from cdmxmap.routing import get_road_router
 from cdmxmap.routing.base import ROUTING_MODES, RouteMatrix, Router
 from cdmxmap.routing.cache import RouteCacheKey, RoutingCache
 from cdmxmap.routing.matrix_codec import (
@@ -23,6 +26,23 @@ from cdmxmap.routing.matrix_codec import (
 def test_routing_modes_match_config() -> None:
     # base.py duplicates the mode triple to avoid an import cycle; keep them equal.
     assert ROUTING_MODES == WORK_TRAVEL_MODES
+
+
+class TestRouterFactory:
+    def test_none_returns_no_router(self) -> None:
+        assert get_road_router(None) is None
+        assert get_road_router("none") is None
+        assert get_road_router("") is None
+
+    def test_unknown_engine_raises(self) -> None:
+        with pytest.raises(ConfigError):
+            get_road_router("graphhopper")
+
+    def test_valhalla_without_extra_or_tiles_raises_actionable_error(self) -> None:
+        # Whether pyvalhalla is absent (ImportError) or present without tiles, the
+        # factory must raise an actionable ConfigError, never a cryptic crash.
+        with pytest.raises(ConfigError):
+            get_road_router("valhalla", tiles_dir="/nonexistent/valhalla/tiles")
 
 
 def test_stub_router_satisfies_protocol(stub_router) -> None:
@@ -138,3 +158,55 @@ class TestRoutingCache:
         path.write_text("{not valid json", encoding="utf-8")
         cache = RoutingCache(path=path)
         assert cache.stats()["entries"] == 0
+
+
+FIXTURE_AREAS = Path(__file__).parents[1] / "fixtures" / "fixture_city" / "areas.geojson"
+
+
+class TestMatrixBuild:
+    def test_build_writes_binary_and_index_with_correct_axis(self, stub_router, tmp_path) -> None:
+        from cdmxmap.models import AREA_CONFIGS
+        from cdmxmap.routing.matrix_build import build_area_matrix
+        from cdmxmap.routing.matrix_codec import extract_column
+        from cdmxmap.scoring.areas import area_representative_latlon
+
+        out, pub = tmp_path / "processed", tmp_path / "public"
+        summary = build_area_matrix(
+            config=AREA_CONFIGS["colonia"],
+            input_path=FIXTURE_AREAS,
+            router=stub_router,
+            modes=("driving", "walking"),
+            output_dir=out,
+            public_dir=pub,
+        )
+        assert summary["n"] == 3 and not summary["skipped"]
+
+        index = json.loads((out / "routing_matrix_colonia_index.json").read_text())
+        assert index["n"] == 3
+        assert index["axis0"] == "origin" and index["axis1"] == "destination"
+        assert (pub / "routing_matrix_colonia_index.json").exists()
+
+        # End-to-end axis check: the on-disk destination column must equal a direct
+        # origins -> that-destination route.
+        _, latlon = area_representative_latlon(FIXTURE_AREAS, AREA_CONFIGS["colonia"])
+        expected = stub_router.matrix(latlon, latlon, "driving").minutes
+        data = (pub / index["mode_files"]["driving"]).read_bytes()
+        for dest in range(3):
+            column = extract_column(data, 3, dest)
+            np.testing.assert_allclose(column, expected[:, dest], atol=0.1)
+
+    def test_rebuild_skips_when_current(self, stub_router, tmp_path) -> None:
+        from cdmxmap.models import AREA_CONFIGS
+        from cdmxmap.routing.matrix_build import build_area_matrix
+
+        kwargs = dict(
+            config=AREA_CONFIGS["colonia"],
+            input_path=FIXTURE_AREAS,
+            router=stub_router,
+            modes=("driving",),
+            output_dir=tmp_path / "processed",
+            public_dir=tmp_path / "public",
+        )
+        assert not build_area_matrix(**kwargs)["skipped"]
+        assert build_area_matrix(**kwargs)["skipped"]
+        assert not build_area_matrix(**kwargs, force=True)["skipped"]

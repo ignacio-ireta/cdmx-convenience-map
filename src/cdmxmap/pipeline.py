@@ -32,6 +32,8 @@ from cdmxmap.manifest import (
 )
 from cdmxmap.models import AREA_CONFIGS
 from cdmxmap.output import build_metadata, write_geojson
+from cdmxmap.routing.base import Router
+from cdmxmap.routing.cache import RoutingCache
 from cdmxmap.scoring import score_areas
 from cdmxmap.scoring.points import load_point_datasets
 from cdmxmap.sources.io import DATA_PROCESSED, DATA_RAW, FRONTEND_PUBLIC_DATA, ensure_dirs
@@ -72,6 +74,8 @@ def build_area(
     places_config: dict | None = None,
     data_dir: Path | None = None,
     public_dir: Path | None = None,
+    router: Router | None = None,
+    routing_cache: RoutingCache | None = None,
 ) -> Path:
     """Score one area unit and write its GeoJSON + metadata. Returns the output path.
 
@@ -99,6 +103,8 @@ def build_area(
         point_datasets=point_datasets,
         places_config=places_config,
         transit_router=transit_router,
+        router=router,
+        routing_cache=routing_cache,
     )
 
     write_geojson(scored.output, resolved_output)
@@ -197,6 +203,8 @@ def _build_one(
     places_config: dict | None = None,
     data_dir: Path | None = None,
     public_dir: Path | None = None,
+    router: Router | None = None,
+    routing_cache: RoutingCache | None = None,
 ) -> None:
     entry = manifest.entry(area_unit, "area")
     entry.status = RUNNING
@@ -208,6 +216,8 @@ def _build_one(
             places_config=places_config,
             data_dir=data_dir,
             public_dir=public_dir,
+            router=router,
+            routing_cache=routing_cache,
         )
         entry.status = SUCCESS
         entry.output = repo_relative(output)
@@ -253,6 +263,8 @@ def run_pipeline(
     places_config: dict | None = None,
     data_dir: Path | None = None,
     public_dir: Path | None = None,
+    router: Router | None = None,
+    routing_cache: RoutingCache | None = None,
 ) -> int:
     """Fetch sources (unless skipped) and build the requested area units.
 
@@ -291,6 +303,8 @@ def run_pipeline(
                 places_config=places_config,
                 data_dir=data_dir,
                 public_dir=public_dir,
+                router=router,
+                routing_cache=routing_cache,
             )
         manifest.status = (
             "success" if not any(e.status == FAILED for e in manifest.entries) else "partial"
@@ -305,6 +319,8 @@ def run_pipeline(
         manifest.status = "failed"
         logger.error("Aborting (fail-fast): %s", exc)
     finally:
+        if routing_cache is not None:
+            routing_cache.save()
         manifest.finished_at = _now_iso()
         manifest.write()
         manifest.write_errors()

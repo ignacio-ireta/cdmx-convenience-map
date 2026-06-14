@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
 
 from cdmxmap import validate as validate_mod
-from cdmxmap.config import TRANSIT_ROUTER_APIMETRO, TRANSIT_ROUTER_R5PY
-from cdmxmap.errors import CdmxmapError
+from cdmxmap.config import (
+    ROAD_ROUTER_NONE,
+    ROAD_ROUTER_VALHALLA,
+    TRANSIT_ROUTER_APIMETRO,
+    TRANSIT_ROUTER_R5PY,
+    load_places_config,
+    road_routing_config,
+)
+from cdmxmap.errors import CdmxmapError, ConfigError
 from cdmxmap.logging_config import setup_logging
 from cdmxmap.models import AREA_CONFIGS
 from cdmxmap.pipeline import build_area, run_pipeline
+from cdmxmap.routing import Router, RoutingCache, get_road_router
+from cdmxmap.sources.io import DATA_PROCESSED, FRONTEND_PUBLIC_DATA, ensure_dirs
 
 app = typer.Typer(
     help="CDMX convenience map pipeline: fetch open data, score areas, validate.",
@@ -21,6 +31,7 @@ app = typer.Typer(
 
 AREA_UNITS = sorted(AREA_CONFIGS)
 ROUTERS = [TRANSIT_ROUTER_APIMETRO, TRANSIT_ROUTER_R5PY]
+ROAD_ROUTERS = [ROAD_ROUTER_NONE, ROAD_ROUTER_VALHALLA]
 LOG_LEVEL_OPTION = typer.Option(
     None, "--log-level", help="debug|info|warning|error (or CDMXMAP_LOG_LEVEL)."
 )
@@ -36,6 +47,23 @@ def _validate_router(value: str) -> str:
     if value not in ROUTERS:
         raise typer.BadParameter(f"must be one of {ROUTERS}")
     return value
+
+
+def _validate_road_router(value: str) -> str:
+    if value not in ROAD_ROUTERS:
+        raise typer.BadParameter(f"must be one of {ROAD_ROUTERS}")
+    return value
+
+
+def _road_router(travel_router: str) -> tuple[Router | None, RoutingCache | None]:
+    """Build the road router + cache for a CLI run (``none`` -> no routing)."""
+    if travel_router == ROAD_ROUTER_NONE:
+        return None, None
+    config = road_routing_config(load_places_config())
+    router = get_road_router(travel_router, tiles_dir=config["tiles_dir"])
+    ensure_dirs()
+    cache = RoutingCache(DATA_PROCESSED / "routing_cache" / "routes.json")
+    return router, cache
 
 
 @app.command()
@@ -65,6 +93,11 @@ def score(
     transit_router: str = typer.Option(
         TRANSIT_ROUTER_APIMETRO, callback=_validate_router, help=f"Transit router ({ROUTERS})."
     ),
+    travel_router: str = typer.Option(
+        ROAD_ROUTER_NONE,
+        callback=_validate_road_router,
+        help=f"Road router for work/amenity times ({ROAD_ROUTERS}).",
+    ),
     input_area_geojson: Path | None = typer.Option(None, help="Override the area GeoJSON input."),
     output: Path | None = typer.Option(None, help="Override the processed output path."),
     skip_legacy: bool = typer.Option(False, help="Do not write legacy output aliases."),
@@ -73,13 +106,18 @@ def score(
     """Score one area unit into scores_<unit>.geojson + score_metadata."""
     setup_logging(log_level)
     try:
+        router, routing_cache = _road_router(travel_router)
         build_area(
             area_unit,
             input_path=input_area_geojson,
             output_path=output,
             skip_legacy=skip_legacy,
             transit_router=transit_router,
+            router=router,
+            routing_cache=routing_cache,
         )
+        if routing_cache is not None:
+            routing_cache.save()
     except CdmxmapError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(exc.exit_code) from exc
@@ -107,11 +145,21 @@ def run(
     transit_router: str = typer.Option(
         TRANSIT_ROUTER_APIMETRO, callback=_validate_router, help=f"Transit router ({ROUTERS})."
     ),
+    travel_router: str = typer.Option(
+        ROAD_ROUTER_NONE,
+        callback=_validate_road_router,
+        help=f"Road router for work/amenity times ({ROAD_ROUTERS}).",
+    ),
     fail_fast: bool = typer.Option(False, help="Stop at the first source/area failure."),
     resume: bool = typer.Option(False, help="Skip sources whose output already exists."),
     log_level: str = LOG_LEVEL_OPTION,
 ) -> None:
     """Fetch sources (unless skipped) and build scores for one area unit."""
+    try:
+        router, routing_cache = _road_router(travel_router)
+    except CdmxmapError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(exc.exit_code) from exc
     code = run_pipeline(
         city,
         area_units=[area_unit],
@@ -120,8 +168,72 @@ def run(
         fail_fast=fail_fast,
         resume=resume,
         log_level=log_level,
+        router=router,
+        routing_cache=routing_cache,
     )
     raise typer.Exit(code)
+
+
+@app.command("build-matrix")
+def build_matrix(
+    area_unit: str = typer.Option(
+        "postal_code", callback=_validate_area_unit, help=f"Area unit ({AREA_UNITS})."
+    ),
+    travel_router: str = typer.Option(
+        ROAD_ROUTER_VALHALLA,
+        callback=_validate_road_router,
+        help=f"Road router ({ROAD_ROUTERS}); must not be 'none'.",
+    ),
+    input_area_geojson: Path | None = typer.Option(None, help="Override the area GeoJSON input."),
+    force: bool = typer.Option(False, help="Rebuild even if an up-to-date matrix exists."),
+    log_level: str = LOG_LEVEL_OPTION,
+) -> None:
+    """Build the dynamic-workplace area-to-area routed matrix (binary + index)."""
+    setup_logging(log_level)
+    from cdmxmap.routing.matrix_build import build_area_matrix
+
+    try:
+        if travel_router == ROAD_ROUTER_NONE:
+            raise ConfigError("build-matrix needs a router; pass --travel-router valhalla.")
+        router, _ = _road_router(travel_router)
+        assert router is not None
+        config = AREA_CONFIGS[area_unit]
+        rr_config = road_routing_config(load_places_config())
+        ensure_dirs()
+        summary = build_area_matrix(
+            config=config,
+            input_path=input_area_geojson or config.default_input_path,
+            router=router,
+            modes=rr_config["modes"],
+            output_dir=DATA_PROCESSED,
+            public_dir=FRONTEND_PUBLIC_DATA,
+            osm_source=rr_config.get("osm_source"),
+            force=force,
+        )
+        typer.echo(json.dumps(summary, indent=2))
+    except CdmxmapError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(exc.exit_code) from exc
+
+
+@app.command("build-tiles")
+def build_tiles_command(
+    pbf: Path = typer.Option(..., help="OSM PBF extract to build Valhalla tiles from."),
+    tiles_dir: Path = typer.Option(
+        DATA_PROCESSED / "valhalla", help="Output directory for the Valhalla tileset."
+    ),
+    log_level: str = LOG_LEVEL_OPTION,
+) -> None:
+    """Build a local Valhalla tileset from an OSM PBF (one-time offline setup)."""
+    setup_logging(log_level)
+    from cdmxmap.routing.valhalla import build_tiles
+
+    try:
+        out = build_tiles(pbf, tiles_dir)
+        typer.echo(f"Built Valhalla tiles in {out}")
+    except CdmxmapError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(exc.exit_code) from exc
 
 
 def main() -> None:
