@@ -31,37 +31,74 @@ from cdmxmap.routing.base import (
 DEFAULT_CHUNK_SIZE = 64
 
 
-def _load_actor(config_path: Path | None, tiles_dir: Path):
-    """Import pyvalhalla lazily and build an Actor, with actionable errors."""
+def _require_valhalla():
+    """Import the pyvalhalla bindings lazily, with an actionable error."""
     try:
-        from valhalla import Actor, get_config
+        import valhalla
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
         raise ConfigError(
             "Valhalla routing requires the optional 'routing' extra. Install it with "
             "`uv sync --extra routing` (pulls the pyvalhalla wheel), then build tiles "
             "(see docs/road-routing.md)."
         ) from exc
+    return valhalla
+
+
+def _valhalla_config(*, tile_dir: Path | None = None, tile_extract: Path | None = None) -> dict:
+    """Build a sanitized Valhalla config dict pointing at a tile dir or tar extract.
+
+    Bypasses pyvalhalla's ``get_config`` (broken in 3.7.0: it strict-resolves both
+    paths and then KeyErrors on a missing ``logging`` key). We deep-copy the
+    bundled default config, strip ``Optional`` sentinels, and set the tile source.
+    """
+    import copy
+
+    from valhalla.valhalla_build_config import Optional
+    from valhalla.valhalla_build_config import config as default_config
+
+    def sanitize(node: dict) -> dict:
+        for key in list(node):
+            value = node[key]
+            if isinstance(value, Optional):
+                del node[key]
+            elif isinstance(value, dict):
+                sanitize(value)
+        return node
+
+    config = sanitize(copy.deepcopy(default_config))
+    mjolnir = config.setdefault("mjolnir", {})
+    mjolnir["tile_dir"] = str(tile_dir.resolve()) if tile_dir is not None else ""
+    mjolnir["tile_extract"] = str(tile_extract.resolve()) if tile_extract is not None else ""
+    mjolnir.setdefault("logging", {"type": ""})
+    # Raise matrix limits so a large sources×targets chunk is accepted. Valhalla
+    # caps `max_matrix_location_pairs` (default 2500) and `max_matrix_distance`.
+    limits = config.setdefault("service_limits", {})
+    for costing in DEFAULT_PROFILES.values():
+        costing_limits = limits.setdefault(costing, {})
+        costing_limits["max_matrix_location_pairs"] = 10_000_000
+        costing_limits["max_matrix_distance"] = 5_000_000
+    return config
+
+
+def _load_actor(config_path: Path | None, tiles_dir: Path):
+    """Build a Valhalla Actor from a config file or a built tileset/tar."""
+    valhalla = _require_valhalla()
 
     if config_path is not None and config_path.exists():
         config = json.loads(config_path.read_text(encoding="utf-8"))
     else:
         tile_extract = tiles_dir / "valhalla_tiles.tar"
+        has_tiles = tiles_dir.exists() and any(tiles_dir.iterdir())
         if tile_extract.exists():
-            config = get_config(tile_extract=str(tile_extract))
-        elif tiles_dir.exists():
-            config = get_config(tile_dir=str(tiles_dir))
+            config = _valhalla_config(tile_extract=tile_extract)
+        elif has_tiles:
+            config = _valhalla_config(tile_dir=tiles_dir)
         else:
             raise ConfigError(
                 f"Valhalla tiles not found at {tiles_dir}. Build them from an OSM PBF "
-                "first (see docs/road-routing.md: `cdmxmap routing build-tiles`)."
+                "first (see docs/road-routing.md: `cdmxmap build-tiles --pbf <osm.pbf>`)."
             )
-        # Raise matrix limits so a full area-to-area chunk is accepted.
-        limits = config.setdefault("service_limits", {})
-        for costing in DEFAULT_PROFILES.values():
-            costing_limits = limits.setdefault(costing, {})
-            costing_limits["max_matrix_locations"] = 100000
-            costing_limits["max_matrix_distance"] = 5000000
-    return Actor(config)
+    return valhalla.Actor(config)
 
 
 class ValhallaRouter:
@@ -154,11 +191,12 @@ def _find_binary(name: str) -> str:
 
 
 def build_tiles(pbf_path: str | Path, tiles_dir: str | Path) -> Path:
-    """Build a Valhalla tileset + tar extract from an OSM PBF (one-time setup).
+    """Build a Valhalla tileset from an OSM PBF (one-time offline setup).
 
-    Shells out to the pyvalhalla-bundled ``valhalla_build_config`` /
-    ``valhalla_build_tiles`` / ``valhalla_build_extract`` binaries. Heavy and run
-    offline; outputs are gitignored. See docs/road-routing.md.
+    Writes a routing config whose tile dir is ``tiles_dir`` itself, then runs the
+    bundled ``valhalla_build_tiles`` binary. The graph tiles land directly in
+    ``tiles_dir`` so ``ValhallaRouter`` reads them via the same config. Heavy;
+    outputs are gitignored.
     """
     import subprocess
 
@@ -167,28 +205,12 @@ def build_tiles(pbf_path: str | Path, tiles_dir: str | Path) -> Path:
     if not pbf.exists():
         raise ConfigError(f"OSM PBF not found: {pbf}")
     tiles.mkdir(parents=True, exist_ok=True)
+    _require_valhalla()
+
+    config = _valhalla_config(tile_dir=tiles)
     config_path = tiles / "valhalla.json"
-    tile_dir = tiles / "valhalla_tiles"
-    tile_extract = tiles / "valhalla_tiles.tar"
-
-    config_json = subprocess.run(  # noqa: S603
-        [
-            _find_binary("valhalla_build_config"),
-            "--mjolnir-tile-dir",
-            str(tile_dir),
-            "--mjolnir-tile-extract",
-            str(tile_extract),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    config_path.write_text(config_json, encoding="utf-8")
-
+    config_path.write_text(json.dumps(config), encoding="utf-8")
     subprocess.run(  # noqa: S603
         [_find_binary("valhalla_build_tiles"), "-c", str(config_path), str(pbf)], check=True
-    )
-    subprocess.run(  # noqa: S603
-        [_find_binary("valhalla_build_extract"), "-c", str(config_path), "-v"], check=True
     )
     return tiles

@@ -191,16 +191,16 @@ def route_work(
     """Route every representative point to the workplace for each mode.
 
     Times are routed where the point snaps to the network, else the straight-line
-    estimate (so the field is always populated). Routed distance comes from the
-    primary mode (driving when requested). A row's source is the engine label only
-    when it routed for *all* requested modes, else the fallback label.
+    estimate (so each per-mode field is always populated). The row's routed
+    distance and source key on the *primary* mode (driving when requested), so a
+    row's source is the engine label exactly when ``dist_work_routed_m`` is present.
     """
     count = len(reference_latlon)
     times: dict[str, np.ndarray] = {}
     routed_count: dict[str, int] = {}
     fallback_count: dict[str, int] = {}
-    fully_routed = np.ones(count, dtype=bool)
     primary_mode = "driving" if "driving" in modes else modes[0]
+    primary_routed = np.zeros(count, dtype=bool)
     routed_distances = np.full(count, np.nan)
 
     for mode in modes:
@@ -246,12 +246,12 @@ def route_work(
         times[mode] = np.where(routed_mask, routed_minutes, estimate)
         routed_count[mode] = int(routed_mask.sum())
         fallback_count[mode] = int(count - routed_mask.sum())
-        fully_routed &= routed_mask
         if mode == primary_mode:
-            routed_distances = np.where(np.isfinite(routed_meters), routed_meters, np.nan)
+            primary_routed = routed_mask
+            routed_distances = np.where(routed_mask, routed_meters, np.nan)
 
     sources = [
-        router.source if fully_routed[i] else FALLBACK_STRAIGHT_LINE_SOURCE for i in range(count)
+        router.source if primary_routed[i] else FALLBACK_STRAIGHT_LINE_SOURCE for i in range(count)
     ]
     return RoutedWorkResult(
         times=times,
@@ -259,7 +259,7 @@ def route_work(
         sources=sources,
         routed_count=routed_count,
         fallback_count=fallback_count,
-        error_count=int((~fully_routed).sum()),
+        error_count=int((~primary_routed).sum()),
     )
 
 
