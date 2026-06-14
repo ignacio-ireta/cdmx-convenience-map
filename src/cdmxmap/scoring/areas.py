@@ -7,7 +7,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from cdmxmap.config import ALCALDIA_FIELDS, WGS84_CRS
+from cdmxmap.config import ALCALDIA_FIELDS, METRIC_CRS, WGS84_CRS
 from cdmxmap.models import AreaConfig
 
 
@@ -96,3 +96,21 @@ def prepare_area_properties(areas: gpd.GeoDataFrame, config: AreaConfig) -> gpd.
         prepared["colonia_name"] = area_names
 
     return prepared
+
+
+def area_representative_latlon(
+    input_path: Path, config: AreaConfig
+) -> tuple[list[str], list[tuple[float, float]]]:
+    """Area ids and their ``(lat, lon)`` representative points.
+
+    Uses the exact computation the scoring engine uses (``score_areas``) so the
+    area-to-area matrix build produces routed cells aligned with the scored output.
+    """
+    areas = prepare_area_properties(load_area_geometries(input_path), config)
+    areas_metric = areas.to_crs(METRIC_CRS)
+    areas_metric["geometry"] = areas_metric.geometry.make_valid()
+    reference_points = areas_metric.geometry.representative_point()
+    reference_wgs84 = gpd.GeoSeries(reference_points, crs=METRIC_CRS).to_crs(WGS84_CRS)
+    area_ids = areas["area_id"].tolist()
+    latlon = list(zip(reference_wgs84.y.tolist(), reference_wgs84.x.tolist()))
+    return area_ids, latlon

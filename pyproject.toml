@@ -29,6 +29,10 @@ dependencies = [
 # Schedule-aware transit routing overlay. Requires a Java 21+ runtime on PATH.
 # Off by default; the pipeline falls back to the Apimetro approximation engine.
 transit = ["r5py>=0.1.0"]
+# Offline road routing for work/amenity travel times (driving/walking/biking).
+# pyvalhalla ships prebuilt Valhalla binaries — no Docker/Java. Off by default;
+# the pipeline falls back to the straight-line estimate. See docs/road-routing.md.
+routing = ["pyvalhalla>=3.1.0"]
 
 [project.urls]
 Homepage = "https://github.com/ignacio-ireta/cdmx-convenience-map"
