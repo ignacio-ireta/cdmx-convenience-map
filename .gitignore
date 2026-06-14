@@ -30,6 +30,15 @@ data/processed/*.json
 !data/archive/README.md
 .venv-routing/
 
+# Offline road-routing build artifacts (regenerated; never committed). The
+# data/processed/ rule above already covers these; listed explicitly as guards.
+# The published matrix assets live under frontend/public/data/ and ARE committed.
+data/processed/routing_cache/
+data/processed/valhalla/
+*.pbf
+valhalla_tiles/
+valhalla_tiles.tar
+
 # Python tooling caches & pipeline run artifacts
 .pytest_cache/
 .ruff_cache/

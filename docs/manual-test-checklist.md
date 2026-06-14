@@ -32,6 +32,26 @@ Confirm:
 - `frontend/public/data/score_metadata.json` exists.
 - `.gitignore` still excludes `.venv/`, `frontend/node_modules/`, `frontend/dist/`, raw crime CSVs, and `data/processed/`.
 
+## Road routing regeneration (optional; needs the `routing` extra + tiles)
+
+```bash
+uv sync --extra routing
+uv run cdmxmap build-tiles --pbf data/raw/osm/mexico-city.osm.pbf
+uv run cdmxmap run --area-unit postal_code --travel-router valhalla
+uv run cdmxmap run --area-unit colonia   --travel-router valhalla
+uv run cdmxmap build-matrix --area-unit postal_code --travel-router valhalla
+uv run cdmxmap build-matrix --area-unit colonia   --travel-router valhalla
+uv run cdmxmap validate
+```
+
+Confirm:
+
+- `score_metadata_*.json` has a `road_routing` block with non-zero routed counts.
+- A spot-checked feature has `work_travel_time_source: valhalla_free_flow` and a
+  `dist_work_routed_m` value; fallback rows show `fallback_straight_line_estimate`.
+- `frontend/public/data/routing_matrix_*_index.json` + `*.bin` exist; the PBF,
+  `data/processed/valhalla/`, and `data/processed/routing_cache/` are NOT committed.
+
 ## Browser Checks
 
 Start local dev:
@@ -48,6 +68,9 @@ Then verify:
 - Metric buttons update the legend for Overall, Work, Transit, Stores, Gyms, and Safety.
 - Stores/Gyms can switch between Distance and Time when time fields are present.
 - Work can switch between Distance, Drive, Walk, and Bike.
+- On a routed build, Drive/Walk/Bike metric rows show a green `routed` badge
+  (`Valhalla (free-flow)`); a custom workplace shows `routed` where the matrix
+  covers it and an amber `estimate` badge otherwise.
 - Weight sliders update the combined ranking/coloring without breaking the map.
 - Search `06700` finds and opens `CP 06700`.
 - Search `roma` on the colonia layer finds and opens Roma results.

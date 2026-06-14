@@ -9,6 +9,25 @@ published.
 
 ### Added
 
+- Offline road routing (opt-in) replacing the straight-line travel-time
+  placeholder for work and amenity (supermarket/Costco/Walmart/gym) times:
+  - New `src/cdmxmap/routing/` package — a `Router` Protocol, an in-process
+    **Valhalla** adapter (`pyvalhalla`, no Docker/Java), a keyed `RoutingCache`,
+    and the area-to-area matrix codec/builder. OSRM documented as a drop-in
+    alternative; decision recorded in `docs/road-routing.md`.
+  - `score_areas(router=...)` routes work + amenity candidates with per-row
+    straight-line fallback; routed distance stored separately (`*_routed_m`); per
+    feature scalar source labels (`valhalla_free_flow` vs
+    `fallback_straight_line_estimate`). Default (no router) output is unchanged.
+  - CLI: `--travel-router none|valhalla` on `score`/`run`, plus `build-matrix` and
+    `build-tiles`. Optional `routing` dependency extra (`pyvalhalla`).
+  - Dynamic workplace: precomputed area-to-area routed matrix served as a
+    destination-major `uint16` binary + JSON index; the frontend Range-fetches one
+    column and distinguishes routed vs estimate with a UI badge, falling back to a
+    labeled estimate when the matrix is absent.
+  - Metadata gains a `road_routing` block (engine/version, profiles, OSM source,
+    routed/fallback counts, cache stats); contract updated in
+    `docs/data-contract.md`; `docs/travel-time-roadmap.md` marked implemented.
 - Config validation: `src/cdmxmap/schema.py` pydantic models validate `city.json`
   and `places.json` on load, failing fast with a `ConfigError`.
 - Test suites completed: integration + golden + e2e over a synthetic fixture city
