@@ -16,7 +16,14 @@ from cdmxmap.config import (
     TRANSIT_SYSTEM_FIELD_SLUGS,
     WGS84_CRS,
 )
-from cdmxmap.models import AmenityRouteResult, NearestResult, PointDatasets
+from cdmxmap.models import (
+    AmenityRouteResult,
+    NearestResult,
+    PointDatasets,
+    RoutedWorkResult,
+)
+from cdmxmap.routing.base import FALLBACK_STRAIGHT_LINE_SOURCE, LatLon, Router
+from cdmxmap.routing.cache import RouteCacheKey, RoutingCache
 from cdmxmap.scoring.crime import read_crimes
 from cdmxmap.scoring.metrics import estimate_travel_minutes, nullable_number
 from cdmxmap.sources.io import DATA_PROCESSED, DATA_RAW
@@ -117,14 +124,158 @@ def nearest(reference_points: gpd.GeoSeries, points: gpd.GeoDataFrame) -> Neares
     return NearestResult(distances=np.array(distances), names=names, sources=sources)
 
 
+def _route_targets_cached(
+    router: Router,
+    cache: RoutingCache | None,
+    *,
+    origin: LatLon,
+    targets: list[LatLon],
+    mode: str,
+    area_unit: str,
+    area_id: str,
+    inputs_hash: str,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Route one origin to k targets, reusing cached results. NaN = unreachable.
+
+    Only finite results are cached; unreachable cells are recomputed on resume.
+    """
+    profile = router.profile(mode)
+    minutes = np.full(len(targets), np.nan)
+    meters = np.full(len(targets), np.nan)
+    keys = [
+        RouteCacheKey(
+            area_unit=area_unit,
+            area_id=area_id,
+            origin=origin,
+            destination=target,
+            mode=mode,
+            engine=router.engine,
+            version=router.version,
+            profile=profile,
+            inputs_hash=inputs_hash,
+        )
+        for target in targets
+    ]
+    missing: list[int] = []
+    for idx, key in enumerate(keys):
+        cached = cache.get(key) if cache is not None else None
+        if cached is None:
+            missing.append(idx)
+        else:
+            minutes[idx], meters[idx] = cached
+    if missing:
+        result = router.matrix([origin], [targets[idx] for idx in missing], mode)
+        for offset, idx in enumerate(missing):
+            route_minutes = float(result.minutes[0, offset])
+            route_meters = float(result.meters[0, offset])
+            minutes[idx] = route_minutes
+            meters[idx] = route_meters
+            if cache is not None and math.isfinite(route_minutes) and math.isfinite(route_meters):
+                cache.set(keys[idx], route_minutes, route_meters)
+    return minutes, meters
+
+
+def route_work(
+    router: Router,
+    cache: RoutingCache | None,
+    *,
+    reference_latlon: list[LatLon],
+    workplace: LatLon,
+    modes: tuple[str, ...],
+    travel_time_config: dict,
+    straight_line_distances: np.ndarray,
+    area_unit: str,
+    area_ids: list[str],
+    inputs_hash: str,
+) -> RoutedWorkResult:
+    """Route every representative point to the workplace for each mode.
+
+    Times are routed where the point snaps to the network, else the straight-line
+    estimate (so the field is always populated). Routed distance comes from the
+    primary mode (driving when requested). A row's source is the engine label only
+    when it routed for *all* requested modes, else the fallback label.
+    """
+    count = len(reference_latlon)
+    times: dict[str, np.ndarray] = {}
+    routed_count: dict[str, int] = {}
+    fallback_count: dict[str, int] = {}
+    fully_routed = np.ones(count, dtype=bool)
+    primary_mode = "driving" if "driving" in modes else modes[0]
+    routed_distances = np.full(count, np.nan)
+
+    for mode in modes:
+        estimate = estimate_travel_minutes(straight_line_distances, mode, travel_time_config)
+        routed_minutes = np.full(count, np.nan)
+        routed_meters = np.full(count, np.nan)
+        keys = [
+            RouteCacheKey(
+                area_unit=area_unit,
+                area_id=area_ids[i],
+                origin=reference_latlon[i],
+                destination=workplace,
+                mode=mode,
+                engine=router.engine,
+                version=router.version,
+                profile=router.profile(mode),
+                inputs_hash=inputs_hash,
+            )
+            for i in range(count)
+        ]
+        missing: list[int] = []
+        for i, key in enumerate(keys):
+            cached = cache.get(key) if cache is not None else None
+            if cached is None:
+                missing.append(i)
+            else:
+                routed_minutes[i], routed_meters[i] = cached
+        if missing:
+            result = router.matrix([reference_latlon[i] for i in missing], [workplace], mode)
+            for offset, i in enumerate(missing):
+                route_minutes = float(result.minutes[offset, 0])
+                route_meters = float(result.meters[offset, 0])
+                routed_minutes[i] = route_minutes
+                routed_meters[i] = route_meters
+                if (
+                    cache is not None
+                    and math.isfinite(route_minutes)
+                    and math.isfinite(route_meters)
+                ):
+                    cache.set(keys[i], route_minutes, route_meters)
+
+        routed_mask = np.isfinite(routed_minutes)
+        times[mode] = np.where(routed_mask, routed_minutes, estimate)
+        routed_count[mode] = int(routed_mask.sum())
+        fallback_count[mode] = int(count - routed_mask.sum())
+        fully_routed &= routed_mask
+        if mode == primary_mode:
+            routed_distances = np.where(np.isfinite(routed_meters), routed_meters, np.nan)
+
+    sources = [
+        router.source if fully_routed[i] else FALLBACK_STRAIGHT_LINE_SOURCE for i in range(count)
+    ]
+    return RoutedWorkResult(
+        times=times,
+        routed_distances=routed_distances,
+        sources=sources,
+        routed_count=routed_count,
+        fallback_count=fallback_count,
+        error_count=int((~fully_routed).sum()),
+    )
+
+
 def amenity_route_candidates(
     reference_points: gpd.GeoSeries,
     points: gpd.GeoDataFrame,
     *,
     candidate_count: int,
     mode: str,
-    route_source: str,
     travel_time_config: dict,
+    router: Router | None = None,
+    reference_latlon: list[LatLon] | None = None,
+    cache: RoutingCache | None = None,
+    area_unit: str = "",
+    area_ids: list[str] | None = None,
+    inputs_hash: str = "",
 ) -> AmenityRouteResult:
     if points.empty:
         return AmenityRouteResult(
@@ -134,6 +285,8 @@ def amenity_route_candidates(
             sources=[""] * len(reference_points),
             candidate_pairs=0,
             estimated_pairs=0,
+            routed_distances=np.full(len(reference_points), np.nan),
+            routed_mask=np.zeros(len(reference_points), dtype=bool),
         )
 
     point_x = points.geometry.x.to_numpy()
@@ -146,14 +299,27 @@ def amenity_route_candidates(
     )
     limit = min(candidate_count, len(points))
 
+    # Routing needs POI coordinates in WGS84; the straight-line narrowing stays in
+    # the metric CRS. ``routing`` is on only when a router and origin coords exist.
+    routing = router is not None and reference_latlon is not None
+    if routing:
+        points_wgs = points.to_crs(WGS84_CRS)
+        poi_lat = points_wgs.geometry.y.to_numpy()
+        poi_lon = points_wgs.geometry.x.to_numpy()
+    resolved_area_ids = area_ids or [""] * len(reference_points)
+
     distances: list[float] = []
     times: list[float] = []
     names: list[str] = []
     sources: list[str] = []
+    routed_distances: list[float] = []
+    routed_mask: list[bool] = []
     candidate_pairs = 0
     estimated_pairs = 0
+    routed_count = 0
+    fallback_count = 0
 
-    for reference_point in reference_points:
+    for i, reference_point in enumerate(reference_points):
         squared = np.square(point_x - reference_point.x) + np.square(point_y - reference_point.y)
         if limit == len(points):
             candidate_indexes = np.argsort(squared)
@@ -168,13 +334,40 @@ def amenity_route_candidates(
             travel_time_config,
         )
         candidate_pairs += len(candidate_indexes)
-        if route_source == "fallback_straight_line_estimate":
-            estimated_pairs += len(candidate_indexes)
 
-        best_offset = int(np.nanargmin(candidate_times))
-        best_index = int(candidate_indexes[best_offset])
-        distances.append(float(candidate_distances[best_offset]))
-        times.append(float(candidate_times[best_offset]))
+        routed_minutes = None
+        if routing:
+            assert router is not None and reference_latlon is not None
+            targets = [(float(poi_lat[k]), float(poi_lon[k])) for k in candidate_indexes]
+            routed_minutes, routed_meters = _route_targets_cached(
+                router,
+                cache,
+                origin=reference_latlon[i],
+                targets=targets,
+                mode=mode,
+                area_unit=area_unit,
+                area_id=resolved_area_ids[i],
+                inputs_hash=inputs_hash,
+            )
+
+        if routed_minutes is not None and np.isfinite(routed_minutes).any():
+            best_offset = int(np.nanargmin(routed_minutes))
+            best_index = int(candidate_indexes[best_offset])
+            distances.append(float(candidate_distances[best_offset]))
+            times.append(float(routed_minutes[best_offset]))
+            routed_distances.append(float(routed_meters[best_offset]))
+            routed_mask.append(True)
+            routed_count += 1
+        else:
+            estimated_pairs += len(candidate_indexes)
+            best_offset = int(np.nanargmin(candidate_times))
+            best_index = int(candidate_indexes[best_offset])
+            distances.append(float(candidate_distances[best_offset]))
+            times.append(float(candidate_times[best_offset]))
+            routed_distances.append(float("nan"))
+            routed_mask.append(False)
+            if routing:
+                fallback_count += 1
         names.append(str(point_names[best_index]))
         sources.append(str(point_sources[best_index]))
 
@@ -185,6 +378,10 @@ def amenity_route_candidates(
         sources=sources,
         candidate_pairs=candidate_pairs,
         estimated_pairs=estimated_pairs,
+        routed_distances=np.array(routed_distances),
+        routed_mask=np.array(routed_mask, dtype=bool),
+        routed_count=routed_count,
+        fallback_count=fallback_count,
     )
 
 

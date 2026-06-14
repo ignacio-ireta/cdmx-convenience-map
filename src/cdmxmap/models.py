@@ -49,6 +49,32 @@ class AmenityRouteResult:
     sources: list[str]
     candidate_pairs: int
     estimated_pairs: int
+    # Routed distance (meters) of the chosen genuinely-fastest POI; NaN where the
+    # row fell back to the straight-line estimate. ``routed_mask`` is True per row
+    # that routed (all False without a router); ``routed_count``/``fallback_count``
+    # tally per-row outcomes.
+    routed_distances: np.ndarray
+    routed_mask: np.ndarray
+    routed_count: int = 0
+    fallback_count: int = 0
+
+
+@dataclass(frozen=True)
+class RoutedWorkResult:
+    """Per-mode routed work travel times + routed distance, with per-row fallback.
+
+    ``times[mode]`` is always populated (routed where available, else the
+    straight-line estimate). ``routed_distances`` is the routed driving distance in
+    meters where the row routed, else NaN. ``sources`` is one honest label per row
+    (engine source when fully routed, fallback label otherwise).
+    """
+
+    times: dict[str, np.ndarray]
+    routed_distances: np.ndarray
+    sources: list[str]
+    routed_count: dict[str, int]
+    fallback_count: dict[str, int]
+    error_count: int
 
 
 @dataclass(frozen=True)

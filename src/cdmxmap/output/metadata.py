@@ -61,6 +61,7 @@ def build_metadata(
         "crime": score_metadata["crime"],
         "workplace": score_metadata["workplace"],
         "travel_time": score_metadata["travel_time"],
+        "road_routing": score_metadata.get("road_routing"),
         "amenity_travel_time": score_metadata["amenity_travel_time"],
         "transit_commute_source": score_metadata["transit_commute"]["transit_commute_source"],
         "transit_commute": score_metadata["transit_commute"],

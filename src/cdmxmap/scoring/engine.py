@@ -21,20 +21,29 @@ from cdmxmap.config import (
     WORK_TRAVEL_MODES,
     amenity_travel_time_config,
     merged_travel_time_config,
+    road_routing_config,
     transit_commute_config,
 )
 from cdmxmap.models import AreaConfig, PointDatasets, ScoredAreaResult
+from cdmxmap.routing.base import FALLBACK_STRAIGHT_LINE_SOURCE, Router
+from cdmxmap.routing.cache import RoutingCache
 from cdmxmap.scoring.areas import load_area_geometries, prepare_area_properties
 from cdmxmap.scoring.crime import aggregate_crime
 from cdmxmap.scoring.metrics import (
     distance_score,
     estimate_travel_minutes,
     inverse_density_score,
+    nullable_round_distance,
     round_distance,
     round_minutes,
     round_score,
 )
-from cdmxmap.scoring.points import amenity_route_candidates, nearest
+from cdmxmap.scoring.points import (
+    amenity_route_candidates,
+    nearest,
+    route_work,
+    workplace_coordinates,
+)
 from cdmxmap.scoring.transit import (
     apply_r5py_transit_commute,
     build_transit_commute_frame,
@@ -51,6 +60,8 @@ def score_areas(
     point_datasets: PointDatasets,
     places_config: dict,
     transit_router: str = TRANSIT_ROUTER_APIMETRO,
+    router: Router | None = None,
+    routing_cache: RoutingCache | None = None,
 ) -> ScoredAreaResult:
     areas = prepare_area_properties(load_area_geometries(input_path), config)
     areas_metric = areas.to_crs(METRIC_CRS)
@@ -60,6 +71,28 @@ def score_areas(
     travel_time_config = merged_travel_time_config(places_config)
     amenity_time_config = amenity_travel_time_config(places_config, travel_time_config)
     work_transit_config = transit_commute_config(places_config)
+
+    # Road routing (opt-in). When no router is supplied the engine keeps its
+    # deterministic straight-line fallback and byte-identical output.
+    rr_config = road_routing_config(places_config)
+    routing_modes = rr_config["modes"]
+    area_id_list = areas["area_id"].tolist()
+    reference_latlon = list(zip(reference_wgs84.y.tolist(), reference_wgs84.x.tolist()))
+    workplace_latlon = workplace_coordinates(places_config, point_datasets.workplaces)
+    inputs_hash = ""
+    amenity_route_kwargs: dict = {}
+    if router is not None:
+        inputs_hash = "|".join(
+            [router.engine, router.version, str(rr_config.get("osm_source") or "")]
+        )
+        amenity_route_kwargs = {
+            "router": router,
+            "reference_latlon": reference_latlon,
+            "cache": routing_cache,
+            "area_unit": config.area_unit,
+            "area_ids": area_id_list,
+            "inputs_hash": inputs_hash,
+        }
 
     nearest_work = nearest(reference_points, point_datasets.workplaces)
     nearest_transit = nearest(reference_points, point_datasets.transit)
@@ -96,16 +129,16 @@ def score_areas(
         point_datasets.supermarkets,
         candidate_count=amenity_time_config["candidate_count"],
         mode=amenity_time_config["mode"],
-        route_source=amenity_time_config["source"],
         travel_time_config=travel_time_config,
+        **amenity_route_kwargs,
     )
     routed_costco = amenity_route_candidates(
         reference_points,
         point_datasets.costcos if not point_datasets.costcos.empty else point_datasets.supermarkets,
         candidate_count=amenity_time_config["candidate_count"],
         mode=amenity_time_config["mode"],
-        route_source=amenity_time_config["source"],
         travel_time_config=travel_time_config,
+        **amenity_route_kwargs,
     )
     routed_walmart = amenity_route_candidates(
         reference_points,
@@ -114,16 +147,16 @@ def score_areas(
         else point_datasets.supermarkets,
         candidate_count=amenity_time_config["candidate_count"],
         mode=amenity_time_config["mode"],
-        route_source=amenity_time_config["source"],
         travel_time_config=travel_time_config,
+        **amenity_route_kwargs,
     )
     routed_gym = amenity_route_candidates(
         reference_points,
         point_datasets.gyms,
         candidate_count=amenity_time_config["candidate_count"],
         mode=amenity_time_config["mode"],
-        route_source=amenity_time_config["source"],
         travel_time_config=travel_time_config,
+        **amenity_route_kwargs,
     )
     transit_commute = build_transit_commute_frame(
         areas,
@@ -147,15 +180,35 @@ def score_areas(
     transit_commute = ensure_transit_commute_columns(transit_commute)
     transit_commute = transit_commute.set_index("area_id").reindex(areas["area_id"])
 
+    # score_work and the combined score stay straight-line distance based for a
+    # stable headline; only the per-mode work *times* become routed.
     score_work = distance_score(nearest_work.distances)
-    work_times = {
-        mode: estimate_travel_minutes(
-            nearest_work.distances,
-            mode,
-            travel_time_config,
+    routed_work = None
+    if router is not None and workplace_latlon is not None:
+        routed_work = route_work(
+            router,
+            routing_cache,
+            reference_latlon=reference_latlon,
+            workplace=workplace_latlon,
+            modes=routing_modes,
+            travel_time_config=travel_time_config,
+            straight_line_distances=nearest_work.distances,
+            area_unit=config.area_unit,
+            area_ids=area_id_list,
+            inputs_hash=inputs_hash,
         )
-        for mode in WORK_TRAVEL_MODES
-    }
+    if routed_work is not None:
+        work_times = dict(routed_work.times)
+        for mode in WORK_TRAVEL_MODES:
+            if mode not in work_times:
+                work_times[mode] = estimate_travel_minutes(
+                    nearest_work.distances, mode, travel_time_config
+                )
+    else:
+        work_times = {
+            mode: estimate_travel_minutes(nearest_work.distances, mode, travel_time_config)
+            for mode in WORK_TRAVEL_MODES
+        }
     score_work_times = {mode: distance_score(minutes) for mode, minutes in work_times.items()}
     score_core_transit = distance_score(nearest_core_transit.distances)
     score_surface_transit = distance_score(nearest_surface_transit.distances)
@@ -187,6 +240,8 @@ def score_areas(
     areas["centroid_lat"] = np.round(reference_wgs84.y.to_numpy(), 6)
     areas["centroid_lon"] = np.round(reference_wgs84.x.to_numpy(), 6)
     areas["dist_work_m"] = round_distance(nearest_work.distances)
+    if routed_work is not None:
+        areas["dist_work_routed_m"] = nullable_round_distance(routed_work.routed_distances)
     areas["dist_transit_m"] = round_distance(nearest_transit.distances)
     areas["dist_core_transit_m"] = round_distance(nearest_core_transit.distances)
     areas["dist_surface_transit_m"] = round_distance(nearest_surface_transit.distances)
@@ -202,6 +257,13 @@ def score_areas(
     areas["time_costco_min"] = round_minutes(routed_costco.times)
     areas["time_walmart_min"] = round_minutes(routed_walmart.times)
     areas["time_gym_min"] = round_minutes(routed_gym.times)
+    if router is not None:
+        areas["dist_supermarket_routed_m"] = nullable_round_distance(
+            routed_supermarket.routed_distances
+        )
+        areas["dist_costco_routed_m"] = nullable_round_distance(routed_costco.routed_distances)
+        areas["dist_walmart_routed_m"] = nullable_round_distance(routed_walmart.routed_distances)
+        areas["dist_gym_routed_m"] = nullable_round_distance(routed_gym.routed_distances)
     areas["score_work"] = round_score(score_work)
     for mode in WORK_TRAVEL_MODES:
         areas[f"time_work_{mode}_min"] = round_minutes(work_times[mode])
@@ -226,7 +288,9 @@ def score_areas(
     areas["nearest_walmart_name"] = nearest_walmart.names
     areas["nearest_gym_name"] = nearest_gym.names
     areas["nearest_work_source"] = nearest_work.sources
-    areas["work_travel_time_source"] = travel_time_config["source"]
+    areas["work_travel_time_source"] = (
+        routed_work.sources if routed_work is not None else travel_time_config["source"]
+    )
     areas["nearest_transit_source"] = nearest_transit.sources
     areas["nearest_core_transit_source"] = nearest_core_transit.sources
     areas["nearest_surface_transit_source"] = nearest_surface_transit.sources
@@ -236,7 +300,18 @@ def score_areas(
     areas["nearest_costco_source"] = nearest_costco.sources
     areas["nearest_walmart_source"] = nearest_walmart.sources
     areas["nearest_gym_source"] = nearest_gym.sources
-    areas["amenity_travel_time_source"] = amenity_time_config["source"]
+    if router is not None:
+        amenity_routed_row = (
+            routed_supermarket.routed_mask
+            | routed_costco.routed_mask
+            | routed_walmart.routed_mask
+            | routed_gym.routed_mask
+        )
+        areas["amenity_travel_time_source"] = [
+            router.source if flag else FALLBACK_STRAIGHT_LINE_SOURCE for flag in amenity_routed_row
+        ]
+    else:
+        areas["amenity_travel_time_source"] = amenity_time_config["source"]
     for column in TRANSIT_COMMUTE_OUTPUT_COLUMNS:
         if column in {"area_unit", "area_id"}:
             continue
@@ -285,6 +360,42 @@ def score_areas(
     transit_sources = (
         transit_commute["transit_commute_source"].fillna("unknown").value_counts().to_dict()
     )
+    road_routing_meta = None
+    if router is not None:
+        road_routing_meta = {
+            "engine": router.engine,
+            "version": router.version,
+            "source": router.source,
+            "modes": list(routing_modes),
+            "profiles": {mode: router.profile(mode) for mode in routing_modes},
+            "osm_source": rr_config.get("osm_source"),
+            "work": {
+                "routed_count": routed_work.routed_count if routed_work is not None else {},
+                "fallback_count": routed_work.fallback_count if routed_work is not None else {},
+                "error_count": routed_work.error_count if routed_work is not None else len(output),
+                "routed": workplace_latlon is not None,
+            },
+            "amenities": {
+                "supermarkets": {
+                    "routed_count": routed_supermarket.routed_count,
+                    "fallback_count": routed_supermarket.fallback_count,
+                },
+                "costco": {
+                    "routed_count": routed_costco.routed_count,
+                    "fallback_count": routed_costco.fallback_count,
+                },
+                "walmart": {
+                    "routed_count": routed_walmart.routed_count,
+                    "fallback_count": routed_walmart.fallback_count,
+                },
+                "gyms": {
+                    "routed_count": routed_gym.routed_count,
+                    "fallback_count": routed_gym.fallback_count,
+                },
+            },
+            "cache": routing_cache.stats() if routing_cache is not None else None,
+            "generated_at": generated_at,
+        }
     metadata = {
         "generated_at": generated_at,
         "area_unit": config.area_unit,
@@ -296,11 +407,13 @@ def score_areas(
             "source": places_config.get("workplace", {}).get("source"),
         },
         "travel_time": {
-            "source": travel_time_config["source"],
+            "source": (router.source if router is not None else travel_time_config["source"]),
+            "fallback_source": travel_time_config["source"],
             "modes": list(WORK_TRAVEL_MODES),
             "speeds_kmh": travel_time_config["speeds_kmh"],
             "detour_factors": travel_time_config["detour_factors"],
         },
+        "road_routing": road_routing_meta,
         "amenity_travel_time": {
             "source": amenity_time_config["source"],
             "mode": amenity_time_config["mode"],
@@ -336,7 +449,13 @@ def score_areas(
             "Distances are straight-line representative-point-to-point distances in meters.",
             "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
             "Scores are closer-is-better and clipped at the 95th percentile per metric.",
-            "Work travel times are offline fallback estimates unless the travel_time source is replaced with cached routing results.",
+            (
+                f"Work and amenity travel times use offline {router.source} road routing "
+                "(free-flow, not live traffic) where the point routes, with a straight-line "
+                "estimate fallback labeled per feature."
+                if router is not None
+                else "Work travel times are offline fallback estimates unless the travel_time source is replaced with cached routing results."
+            ),
             (
                 "Work transit commute uses opt-in r5py schedule-aware routing where available, "
                 "with Apimetro approximation fallback."
