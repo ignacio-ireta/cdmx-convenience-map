@@ -538,6 +538,27 @@
   text-transform: uppercase;
 }
 
+.source-badge {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.source-badge-routed {
+  background: #d3f9d8;
+  color: #1b5e20;
+}
+
+.source-badge-estimate {
+  background: #fff3bf;
+  color: #8a6d00;
+}
+
 .score-bar {
   height: 7px;
   overflow: hidden;

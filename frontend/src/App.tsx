@@ -35,6 +35,7 @@ import type {
   TransitAccessKey,
   WeightKey,
   WorkMode,
+  WorkModel,
 } from './types'
 import {
   colorForScore,
@@ -45,10 +46,12 @@ import {
   formatSource,
   formatTransitComplexity,
   scoreText,
+  sourceBadge,
   transitStopLabel,
   verdict,
 } from './lib/format'
 import { normalizeAreaCollection, normalizePostalCode } from './lib/normalize'
+import { fetchRoutedWorkTimes, loadMatrixIndex } from './lib/routingMatrix'
 import {
   areaFullLabel,
   areaResultLabel,
@@ -171,7 +174,8 @@ function App() {
     )
   }, [postalData, workPostalCode])
 
-  const workModel = useMemo(() => {
+  // Immediate, synchronous straight-line model for a custom workplace.
+  const haversineWorkModel = useMemo(() => {
     if (!data || !workFeature) return null
     if (
       !Number.isFinite(workFeature.properties.centroid_lat) ||
@@ -181,6 +185,38 @@ function App() {
     }
     return buildWorkModel(data, workFeature)
   }, [data, workFeature])
+
+  // If a precomputed routed matrix covers the selected workplace, overlay real
+  // routed times asynchronously. Absent matrix (or cross-unit workplace) keeps the
+  // labeled straight-line estimate. See lib/routingMatrix.ts.
+  const [routedWork, setRoutedWork] = useState<{ unit: AreaUnit; model: WorkModel } | null>(null)
+  useEffect(() => {
+    if (!data || !workFeature) return
+    let cancelled = false
+    void (async () => {
+      const index = await loadMatrixIndex(selectedAreaUnit)
+      if (cancelled || !index) return
+      const routedTimes = await fetchRoutedWorkTimes(index, workFeature.properties.area_id)
+      if (cancelled || !routedTimes) return
+      setRoutedWork({
+        unit: selectedAreaUnit,
+        model: buildWorkModel(data, workFeature, routedTimes),
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [data, workFeature, selectedAreaUnit])
+
+  // Use the routed model only when it matches the current view + workplace; a stale
+  // routed model (different unit/workplace, or still loading) falls back to haversine.
+  const workModel =
+    routedWork &&
+    workFeature &&
+    routedWork.unit === selectedAreaUnit &&
+    routedWork.model.areaId === workFeature.properties.area_id
+      ? routedWork.model
+      : haversineWorkModel
 
   const preferenceScoreModel = useMemo(() => {
     return data ? buildPreferenceScoreModel(data) : null
@@ -1155,6 +1191,7 @@ function MetricRow({
 }) {
   const boundedScore =
     typeof score === 'number' && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0
+  const badge = sourceBadge(source)
 
   return (
     <div className="metric-row">
@@ -1169,7 +1206,10 @@ function MetricRow({
         <span>{value ?? formatMeters(distance ?? Number.NaN)}</span>
         <span>{nearest || 'n/a'}</span>
       </div>
-      <div className="metric-source">{formatSource(source)}</div>
+      <div className="metric-source">
+        {badge ? <span className={`source-badge source-badge-${badge}`}>{badge}</span> : null}
+        {formatSource(source)}
+      </div>
     </div>
   )
 }

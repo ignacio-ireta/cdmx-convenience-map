@@ -188,6 +188,17 @@ export const DATA_ASSETS = {
     colonia: `${import.meta.env.BASE_URL}data/score_metadata_colonia.json`,
   } satisfies Record<AreaUnit, string>,
   scoreMetadata: `${import.meta.env.BASE_URL}data/score_metadata.json`,
+  // Dynamic-workplace routed matrix sidecars (feature-detected; absent on a
+  // straight-line build, in which case the frontend uses the labeled estimate).
+  matrixIndex: {
+    postal_code: `${import.meta.env.BASE_URL}data/routing_matrix_postal_code_index.json`,
+    colonia: `${import.meta.env.BASE_URL}data/routing_matrix_colonia_index.json`,
+  } satisfies Record<AreaUnit, string>,
+}
+
+/** URL for a matrix binary, resolved against the Pages base path. */
+export function matrixAssetUrl(filename: string) {
+  return `${import.meta.env.BASE_URL}data/${filename}`
 }
 
 export const SCORE_FIELDS: Record<WeightKey, keyof AreaProperties> = {
