@@ -7,18 +7,18 @@ import type {
 } from '../types'
 import { numberFrom, optionalString, stringFrom } from './format'
 
-export function normalizePostalCode(value: string) {
+export function normalizePostalCode(value: string, width = 5) {
   const digits = value.replace(/\D/g, '')
-  return digits ? digits.padStart(5, '0').slice(0, 5) : ''
+  return digits ? digits.padStart(width, '0').slice(0, width) : ''
 }
 
-export function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties {
+export function normalizeAreaProperties(raw: RawAreaProperties, postalWidth = 5): AreaProperties {
   const rawUnit = stringFrom(raw.area_unit)
   const areaUnit: AreaUnit = rawUnit === 'colonia' ? 'colonia' : 'postal_code'
   const postalCode =
-    normalizePostalCode(stringFrom(raw.postal_code)) ||
-    normalizePostalCode(stringFrom(raw.d_cp)) ||
-    normalizePostalCode(stringFrom(raw.d_codigo))
+    normalizePostalCode(stringFrom(raw.postal_code), postalWidth) ||
+    normalizePostalCode(stringFrom(raw.d_cp), postalWidth) ||
+    normalizePostalCode(stringFrom(raw.d_codigo), postalWidth)
   const coloniaName =
     optionalString(raw.colonia_name) ||
     (areaUnit === 'colonia' ? optionalString(raw.area_name) : undefined)
@@ -141,12 +141,15 @@ export function normalizeAreaProperties(raw: RawAreaProperties): AreaProperties 
   }
 }
 
-export function normalizeAreaCollection(payload: RawAreaFeatureCollection): AreaFeatureCollection {
+export function normalizeAreaCollection(
+  payload: RawAreaFeatureCollection,
+  postalWidth = 5,
+): AreaFeatureCollection {
   return {
     ...payload,
     features: payload.features.map((feature) => ({
       ...feature,
-      properties: normalizeAreaProperties(feature.properties ?? {}),
+      properties: normalizeAreaProperties(feature.properties ?? {}, postalWidth),
     })),
   }
 }

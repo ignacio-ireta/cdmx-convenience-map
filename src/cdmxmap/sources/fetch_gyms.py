@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import argparse
 
-from .io import DATA_PROCESSED, city_bbox, copy_seed, element_center, retry_overpass, write_csv
+from .io import (
+    DATA_PROCESSED,
+    city_bbox,
+    city_data_dir,
+    copy_seed,
+    element_center,
+    retry_overpass,
+    write_csv,
+)
 
 
 def build_query(city: str) -> str:
@@ -24,8 +32,11 @@ def main() -> None:
     parser.add_argument("--seed-only", action="store_true", help="Skip Overpass and use seed CSV.")
     args = parser.parse_args()
 
-    target = DATA_PROCESSED / "gyms.csv"
+    target = city_data_dir(DATA_PROCESSED, args.city) / "gyms.csv"
+    target.parent.mkdir(parents=True, exist_ok=True)
     if args.seed_only:
+        if args.city != "cdmx":
+            raise ValueError("Seed data is only valid for CDMX")
         copy_seed("gyms_seed.csv", target)
         return
 
@@ -55,6 +66,8 @@ def main() -> None:
         write_csv(target, rows, ["name", "latitude", "longitude", "source"])
         print(f"Fetched {len(rows)} gyms")
     except Exception as exc:
+        if args.city != "cdmx":
+            raise RuntimeError(f"Could not fetch gyms for {args.city}: {exc}") from exc
         print(f"Falling back to seed gyms because Overpass failed: {exc}")
         copy_seed("gyms_seed.csv", target)
 

@@ -9,14 +9,12 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from cdmxmap.citycontext import CityContext, load_city_context
 from cdmxmap.config import (
-    DEFAULT_WEIGHTS,
-    METRIC_CRS,
     R5PY_TRANSIT_COMMUTE_SOURCE,
     TRANSIT_COMMUTE_OUTPUT_COLUMNS,
     TRANSIT_ROUTER_APIMETRO,
     TRANSIT_ROUTER_R5PY,
-    TRANSIT_SYSTEM_FIELD_SLUGS,
     WGS84_CRS,
     WORK_TRAVEL_MODES,
     amenity_travel_time_config,
@@ -59,15 +57,21 @@ def score_areas(
     input_path: Path,
     point_datasets: PointDatasets,
     places_config: dict,
+    ctx: CityContext | None = None,
     transit_router: str = TRANSIT_ROUTER_APIMETRO,
     router: Router | None = None,
     routing_cache: RoutingCache | None = None,
 ) -> ScoredAreaResult:
+    ctx = ctx or load_city_context()
+    metric_crs = ctx.metric_crs
+    transit_slugs = ctx.transit_slugs
+    store_brands = ctx.store_brands
+    brand_slugs = [brand.slug for brand in store_brands]
     areas = prepare_area_properties(load_area_geometries(input_path), config)
-    areas_metric = areas.to_crs(METRIC_CRS)
+    areas_metric = areas.to_crs(metric_crs)
     areas_metric["geometry"] = areas_metric.geometry.make_valid()
     reference_points = areas_metric.geometry.representative_point()
-    reference_wgs84 = gpd.GeoSeries(reference_points, crs=METRIC_CRS).to_crs(WGS84_CRS)
+    reference_wgs84 = gpd.GeoSeries(reference_points, crs=metric_crs).to_crs(WGS84_CRS)
     travel_time_config = merged_travel_time_config(places_config)
     amenity_time_config = amenity_travel_time_config(places_config, travel_time_config)
     work_transit_config = transit_commute_config(places_config)
@@ -109,20 +113,18 @@ def score_areas(
         else point_datasets.transit,
     )
     nearest_transit_by_system = {
-        system: nearest(reference_points, point_datasets.transit_by_system[system])
-        for system in TRANSIT_SYSTEM_FIELD_SLUGS
+        code: nearest(reference_points, point_datasets.transit_by_system[code])
+        for code in transit_slugs
     }
     nearest_supermarket = nearest(reference_points, point_datasets.supermarkets)
-    nearest_costco = nearest(
-        reference_points,
-        point_datasets.costcos if not point_datasets.costcos.empty else point_datasets.supermarkets,
-    )
-    nearest_walmart = nearest(
-        reference_points,
-        point_datasets.walmarts
-        if not point_datasets.walmarts.empty
-        else point_datasets.supermarkets,
-    )
+
+    def _brand_dataset(slug: str):
+        dataset = point_datasets.supermarkets_by_brand[slug]
+        return dataset if not dataset.empty else point_datasets.supermarkets
+
+    brand_nearest = {
+        slug: nearest(reference_points, _brand_dataset(slug)) for slug in brand_slugs
+    }
     nearest_gym = nearest(reference_points, point_datasets.gyms)
     routed_supermarket = amenity_route_candidates(
         reference_points,
@@ -132,24 +134,17 @@ def score_areas(
         travel_time_config=travel_time_config,
         **amenity_route_kwargs,
     )
-    routed_costco = amenity_route_candidates(
-        reference_points,
-        point_datasets.costcos if not point_datasets.costcos.empty else point_datasets.supermarkets,
-        candidate_count=amenity_time_config["candidate_count"],
-        mode=amenity_time_config["mode"],
-        travel_time_config=travel_time_config,
-        **amenity_route_kwargs,
-    )
-    routed_walmart = amenity_route_candidates(
-        reference_points,
-        point_datasets.walmarts
-        if not point_datasets.walmarts.empty
-        else point_datasets.supermarkets,
-        candidate_count=amenity_time_config["candidate_count"],
-        mode=amenity_time_config["mode"],
-        travel_time_config=travel_time_config,
-        **amenity_route_kwargs,
-    )
+    brand_routed = {
+        slug: amenity_route_candidates(
+            reference_points,
+            _brand_dataset(slug),
+            candidate_count=amenity_time_config["candidate_count"],
+            mode=amenity_time_config["mode"],
+            travel_time_config=travel_time_config,
+            **amenity_route_kwargs,
+        )
+        for slug in brand_slugs
+    }
     routed_gym = amenity_route_candidates(
         reference_points,
         point_datasets.gyms,
@@ -163,6 +158,7 @@ def score_areas(
         point_datasets,
         places_config,
         work_transit_config,
+        metric_crs=metric_crs,
     )
     transit_router_info = {
         "engine": TRANSIT_ROUTER_APIMETRO,
@@ -216,7 +212,9 @@ def score_areas(
         system: distance_score(nearest_result.distances)
         for system, nearest_result in nearest_transit_by_system.items()
     }
-    score_transit = (0.70 * score_core_transit) + (0.30 * score_surface_transit)
+    score_transit = (ctx.core_weight * score_core_transit) + (
+        ctx.surface_weight * score_surface_transit
+    )
     score_supermarkets = distance_score(nearest_supermarket.distances)
     score_gyms = distance_score(nearest_gym.distances)
     score_supermarkets_time = distance_score(routed_supermarket.times)
@@ -226,12 +224,13 @@ def score_areas(
     score_safety = inverse_density_score(
         crime_aggregation["crime_density_recent_12m_per_km2"].to_numpy(dtype=float)
     )
+    weights = ctx.weights
     combined = (
-        DEFAULT_WEIGHTS["work"] * score_work
-        + DEFAULT_WEIGHTS["transit"] * score_transit
-        + DEFAULT_WEIGHTS["supermarkets"] * score_supermarkets
-        + DEFAULT_WEIGHTS["gyms"] * score_gyms
-        + DEFAULT_WEIGHTS["safety"] * score_safety
+        weights["work"] * score_work
+        + weights["transit"] * score_transit
+        + weights["supermarkets"] * score_supermarkets
+        + weights["gyms"] * score_gyms
+        + weights["safety"] * score_safety
     )
 
     # Keep the historical centroid_* field names for frontend compatibility, but
@@ -245,32 +244,34 @@ def score_areas(
     areas["dist_transit_m"] = round_distance(nearest_transit.distances)
     areas["dist_core_transit_m"] = round_distance(nearest_core_transit.distances)
     areas["dist_surface_transit_m"] = round_distance(nearest_surface_transit.distances)
-    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
+    for code, slug in transit_slugs.items():
         areas[f"dist_{slug}_transit_m"] = round_distance(
-            nearest_transit_by_system[system].distances
+            nearest_transit_by_system[code].distances
         )
     areas["dist_supermarket_m"] = round_distance(nearest_supermarket.distances)
-    areas["dist_costco_m"] = round_distance(nearest_costco.distances)
-    areas["dist_walmart_m"] = round_distance(nearest_walmart.distances)
+    for slug in brand_slugs:
+        areas[f"dist_{slug}_m"] = round_distance(brand_nearest[slug].distances)
     areas["dist_gym_m"] = round_distance(nearest_gym.distances)
     areas["time_supermarket_min"] = round_minutes(routed_supermarket.times)
-    areas["time_costco_min"] = round_minutes(routed_costco.times)
-    areas["time_walmart_min"] = round_minutes(routed_walmart.times)
+    for slug in brand_slugs:
+        areas[f"time_{slug}_min"] = round_minutes(brand_routed[slug].times)
     areas["time_gym_min"] = round_minutes(routed_gym.times)
     if router is not None:
         areas["dist_supermarket_routed_m"] = nullable_round_distance(
             routed_supermarket.routed_distances
         )
-        areas["dist_costco_routed_m"] = nullable_round_distance(routed_costco.routed_distances)
-        areas["dist_walmart_routed_m"] = nullable_round_distance(routed_walmart.routed_distances)
+        for slug in brand_slugs:
+            areas[f"dist_{slug}_routed_m"] = nullable_round_distance(
+                brand_routed[slug].routed_distances
+            )
         areas["dist_gym_routed_m"] = nullable_round_distance(routed_gym.routed_distances)
     areas["score_work"] = round_score(score_work)
     for mode in WORK_TRAVEL_MODES:
         areas[f"time_work_{mode}_min"] = round_minutes(work_times[mode])
         areas[f"score_work_{mode}"] = round_score(score_work_times[mode])
     areas["score_transit"] = round_score(score_transit)
-    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
-        areas[f"score_transit_{slug}"] = round_score(score_transit_by_system[system])
+    for code, slug in transit_slugs.items():
+        areas[f"score_transit_{slug}"] = round_score(score_transit_by_system[code])
     areas["score_supermarkets"] = round_score(score_supermarkets)
     areas["score_supermarkets_time"] = round_score(score_supermarkets_time)
     areas["score_gyms"] = round_score(score_gyms)
@@ -281,11 +282,11 @@ def score_areas(
     areas["nearest_transit_name"] = nearest_transit.names
     areas["nearest_core_transit_name"] = nearest_core_transit.names
     areas["nearest_surface_transit_name"] = nearest_surface_transit.names
-    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
-        areas[f"nearest_{slug}_transit_name"] = nearest_transit_by_system[system].names
+    for code, slug in transit_slugs.items():
+        areas[f"nearest_{slug}_transit_name"] = nearest_transit_by_system[code].names
     areas["nearest_supermarket_name"] = nearest_supermarket.names
-    areas["nearest_costco_name"] = nearest_costco.names
-    areas["nearest_walmart_name"] = nearest_walmart.names
+    for slug in brand_slugs:
+        areas[f"nearest_{slug}_name"] = brand_nearest[slug].names
     areas["nearest_gym_name"] = nearest_gym.names
     areas["nearest_work_source"] = nearest_work.sources
     areas["work_travel_time_source"] = (
@@ -294,19 +295,16 @@ def score_areas(
     areas["nearest_transit_source"] = nearest_transit.sources
     areas["nearest_core_transit_source"] = nearest_core_transit.sources
     areas["nearest_surface_transit_source"] = nearest_surface_transit.sources
-    for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items():
-        areas[f"nearest_{slug}_transit_source"] = nearest_transit_by_system[system].sources
+    for code, slug in transit_slugs.items():
+        areas[f"nearest_{slug}_transit_source"] = nearest_transit_by_system[code].sources
     areas["nearest_supermarket_source"] = nearest_supermarket.sources
-    areas["nearest_costco_source"] = nearest_costco.sources
-    areas["nearest_walmart_source"] = nearest_walmart.sources
+    for slug in brand_slugs:
+        areas[f"nearest_{slug}_source"] = brand_nearest[slug].sources
     areas["nearest_gym_source"] = nearest_gym.sources
     if router is not None:
-        amenity_routed_row = (
-            routed_supermarket.routed_mask
-            | routed_costco.routed_mask
-            | routed_walmart.routed_mask
-            | routed_gym.routed_mask
-        )
+        amenity_routed_row = routed_supermarket.routed_mask | routed_gym.routed_mask
+        for slug in brand_slugs:
+            amenity_routed_row = amenity_routed_row | brand_routed[slug].routed_mask
         areas["amenity_travel_time_source"] = [
             router.source if flag else FALLBACK_STRAIGHT_LINE_SOURCE for flag in amenity_routed_row
         ]
@@ -380,13 +378,12 @@ def score_areas(
                     "routed_count": routed_supermarket.routed_count,
                     "fallback_count": routed_supermarket.fallback_count,
                 },
-                "costco": {
-                    "routed_count": routed_costco.routed_count,
-                    "fallback_count": routed_costco.fallback_count,
-                },
-                "walmart": {
-                    "routed_count": routed_walmart.routed_count,
-                    "fallback_count": routed_walmart.fallback_count,
+                **{
+                    slug: {
+                        "routed_count": brand_routed[slug].routed_count,
+                        "fallback_count": brand_routed[slug].fallback_count,
+                    }
+                    for slug in brand_slugs
                 },
                 "gyms": {
                     "routed_count": routed_gym.routed_count,
@@ -420,14 +417,12 @@ def score_areas(
             "candidate_count": amenity_time_config["candidate_count"],
             "candidate_pairs": {
                 "supermarkets": routed_supermarket.candidate_pairs,
-                "costco": routed_costco.candidate_pairs,
-                "walmart": routed_walmart.candidate_pairs,
+                **{slug: brand_routed[slug].candidate_pairs for slug in brand_slugs},
                 "gyms": routed_gym.candidate_pairs,
             },
             "estimated_pairs": {
                 "supermarkets": routed_supermarket.estimated_pairs,
-                "costco": routed_costco.estimated_pairs,
-                "walmart": routed_walmart.estimated_pairs,
+                **{slug: brand_routed[slug].estimated_pairs for slug in brand_slugs},
                 "gyms": routed_gym.estimated_pairs,
             },
         },

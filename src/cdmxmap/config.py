@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from cdmxmap.schema import validate_places_config
-from cdmxmap.sources.io import DATA_CONFIG
+from cdmxmap.sources.io import DATA_CITIES, DATA_CONFIG
 from cdmxmap.transit_commute import OUTPUT_COLUMNS as TRANSIT_COMMUTE_COLUMNS
 from cdmxmap.transit_commute import TransitCommuteConfig
 
@@ -121,14 +121,23 @@ for transit_column in TRANSIT_COMMUTE_COLUMNS:
         TRANSIT_COMMUTE_OUTPUT_COLUMNS.append("time_work_transit_p75_min")
 
 
-def load_places_config() -> dict:
-    path = DATA_CONFIG / "places.json"
-    if not path.exists():
-        return {
-            "workplace": {},
-            "travel_time": DEFAULT_TRAVEL_TIME_CONFIG,
-        }
-    return validate_places_config(json.loads(path.read_text(encoding="utf-8")))
+def load_places_config(city: str = "cdmx") -> dict:
+    """Load a city's places.json.
+
+    Resolution order: ``data/cities/<city>/places.json`` first; for CDMX, fall
+    back to the legacy ``data/config/places.json`` so existing behavior is
+    unchanged. Missing config yields safe defaults.
+    """
+    candidates = [DATA_CITIES / city / "places.json"]
+    if city == "cdmx":
+        candidates.append(DATA_CONFIG / "places.json")
+    for path in candidates:
+        if path.exists():
+            return validate_places_config(json.loads(path.read_text(encoding="utf-8")))
+    return {
+        "workplace": {},
+        "travel_time": DEFAULT_TRAVEL_TIME_CONFIG,
+    }
 
 
 def merged_travel_time_config(places_config: dict) -> dict:

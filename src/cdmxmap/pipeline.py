@@ -16,6 +16,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from cdmxmap.citycontext import CityContext, load_city_context
 from cdmxmap.config import TRANSIT_ROUTER_APIMETRO, load_places_config
 from cdmxmap.errors import FetchError
 from cdmxmap.logging_config import setup_logging
@@ -30,18 +31,18 @@ from cdmxmap.manifest import (
     repo_relative,
     sha256_file,
 )
-from cdmxmap.models import AREA_CONFIGS
 from cdmxmap.output import build_metadata, write_geojson
 from cdmxmap.routing.base import Router
 from cdmxmap.routing.cache import RoutingCache
 from cdmxmap.scoring import score_areas
 from cdmxmap.scoring.points import load_point_datasets
-from cdmxmap.sources.io import DATA_PROCESSED, DATA_RAW, FRONTEND_PUBLIC_DATA, ensure_dirs
+from cdmxmap.sources.io import DATA_PROCESSED, DATA_RAW, ensure_dirs
 
 logger = logging.getLogger(__name__)
 
-# Source fetchers run as modules, in order, each producing one primary file.
-SOURCE_OUTPUTS = {
+# CDMX's source fetchers and their flat output paths (the historical layout).
+# Each fetcher runs as a module, in order, producing one primary file.
+CDMX_SOURCE_OUTPUTS = {
     "fetch_postal_codes": DATA_RAW / "correos-postales.json",
     "fetch_colonias": DATA_RAW / "colonias.geojson",
     "fetch_transit": DATA_PROCESSED / "transit_stops.csv",
@@ -49,8 +50,50 @@ SOURCE_OUTPUTS = {
     "fetch_gyms": DATA_PROCESSED / "gyms.csv",
     "fetch_crime": DATA_PROCESSED / "crime_points.csv",
 }
-FETCH_SEQUENCE = list(SOURCE_OUTPUTS)
-CITY_AWARE_FETCHERS = {"fetch_supermarkets", "fetch_gyms"}
+# Only CDMX's OSM amenity fetchers accept --city; its source-specific fetchers are
+# hardwired to CDMX open data. Other cities declare city-aware fetchers in profile.
+CDMX_CITY_AWARE_FETCHERS = {"fetch_supermarkets", "fetch_gyms"}
+
+
+def source_outputs(ctx: CityContext) -> dict[str, Path]:
+    """Map each fetcher module to its primary output path, per city.
+
+    CDMX keeps the flat historical layout. Other cities declare their fetchers in
+    ``city.json`` as ``fetchers: [{module, output, dir}]`` (``dir`` is "raw" or
+    "processed", default processed), resolved under the per-city raw/processed dirs.
+    """
+    if ctx.city_id == "cdmx":
+        return dict(CDMX_SOURCE_OUTPUTS)
+    outputs: dict[str, Path] = {}
+    for entry in ctx.profile.get("fetchers", []):
+        base = ctx.raw_dir if entry.get("dir") == "raw" else ctx.data_dir
+        outputs[entry["module"]] = base / entry["output"]
+    return outputs
+
+
+def fetch_sequence(ctx: CityContext) -> list[str]:
+    return list(source_outputs(ctx))
+
+
+def city_aware_fetchers(ctx: CityContext) -> set[str]:
+    """Fetchers that receive --city. CDMX: only OSM amenities; others: all."""
+    if ctx.city_id == "cdmx":
+        return set(CDMX_CITY_AWARE_FETCHERS)
+    return set(source_outputs(ctx))
+
+
+def _resolve_context(city: str, ctx: CityContext | None) -> CityContext:
+    """Resolve the city context, falling back to CDMX defaults when a city has no
+    profile (e.g. the synthetic test 'fixture' city), which reproduces the
+    pre-multi-city behavior where everything used CDMX configuration."""
+    if ctx is not None:
+        return ctx
+    try:
+        return load_city_context(city)
+    except FileNotFoundError:
+        if city != "cdmx":
+            logger.warning("No city profile for %r; using CDMX defaults.", city)
+        return load_city_context("cdmx")
 
 
 def _now_iso() -> str:
@@ -67,6 +110,8 @@ def _atomic_write_text(path: Path, text: str) -> None:
 def build_area(
     area_unit: str,
     *,
+    city: str = "cdmx",
+    ctx: CityContext | None = None,
     input_path: Path | None = None,
     output_path: Path | None = None,
     skip_legacy: bool = False,
@@ -79,29 +124,34 @@ def build_area(
 ) -> Path:
     """Score one area unit and write its GeoJSON + metadata. Returns the output path.
 
-    ``data_dir`` / ``public_dir`` / ``places_config`` default to the real pipeline
-    locations; they exist so tests can drive the build over a fixture. All defaults
-    leave production behavior (and the byte-for-byte output) unchanged.
+    ``data_dir`` / ``public_dir`` / ``places_config`` default to the per-city
+    pipeline locations; they exist so tests can drive the build over a fixture. For
+    CDMX (the default city) all defaults leave production behavior (and the
+    byte-for-byte output) unchanged.
     """
     ensure_dirs()
-    resolved_data_dir = data_dir or DATA_PROCESSED
-    resolved_public_dir = public_dir or FRONTEND_PUBLIC_DATA
+    resolved_ctx = _resolve_context(city, ctx)
+    resolved_data_dir = data_dir or resolved_ctx.data_dir
+    resolved_public_dir = public_dir or resolved_ctx.public_dir
     resolved_data_dir.mkdir(parents=True, exist_ok=True)
     resolved_public_dir.mkdir(parents=True, exist_ok=True)
 
-    config = AREA_CONFIGS[area_unit]
+    config = resolved_ctx.area_configs[area_unit]
     resolved_input = input_path or config.default_input_path
     resolved_output = output_path or resolved_data_dir / config.output_name
     public_output_path = resolved_public_dir / resolved_output.name
 
     if places_config is None:
-        places_config = load_places_config()
-    point_datasets = load_point_datasets(places_config, data_dir=resolved_data_dir)
+        places_config = load_places_config(resolved_ctx.city_id)
+    point_datasets = load_point_datasets(
+        places_config, ctx=resolved_ctx, data_dir=resolved_data_dir
+    )
     scored = score_areas(
         config=config,
         input_path=resolved_input,
         point_datasets=point_datasets,
         places_config=places_config,
+        ctx=resolved_ctx,
         transit_router=transit_router,
         router=router,
         routing_cache=routing_cache,
@@ -133,6 +183,7 @@ def build_area(
         point_datasets=point_datasets,
         score_metadata=scored.metadata,
         places_config=places_config,
+        ctx=resolved_ctx,
     )
     metadata_path = resolved_data_dir / f"score_metadata_{config.area_unit}.json"
     public_metadata_path = resolved_public_dir / metadata_path.name
@@ -149,11 +200,18 @@ def build_area(
 
 
 def _fetch_one(
-    module: str, city: str, manifest: RunManifest, *, resume: bool, fail_fast: bool
+    module: str,
+    ctx: CityContext,
+    manifest: RunManifest,
+    *,
+    outputs: dict[str, Path],
+    aware: set[str],
+    resume: bool,
+    fail_fast: bool,
 ) -> None:
     name = module.removeprefix("fetch_")
     entry = manifest.entry(name, "source")
-    output = SOURCE_OUTPUTS[module]
+    output = outputs[module]
 
     if resume and output.exists():
         entry.status = SKIPPED
@@ -165,8 +223,8 @@ def _fetch_one(
     entry.status = RUNNING
     entry.started_at = _now_iso()
     cmd = [sys.executable, "-m", f"cdmxmap.sources.{module}"]
-    if module in CITY_AWARE_FETCHERS:
-        cmd.extend(["--city", city])
+    if module in aware:
+        cmd.extend(["--city", ctx.city_id])
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True)  # noqa: S603
         for line in proc.stdout.splitlines():
@@ -198,6 +256,7 @@ def _build_one(
     area_unit: str,
     manifest: RunManifest,
     *,
+    ctx: CityContext,
     transit_router: str,
     fail_fast: bool,
     places_config: dict | None = None,
@@ -212,6 +271,7 @@ def _build_one(
     try:
         output = build_area(
             area_unit,
+            ctx=ctx,
             transit_router=transit_router,
             places_config=places_config,
             data_dir=data_dir,
@@ -260,6 +320,7 @@ def run_pipeline(
     resume: bool = False,
     log_level: str | None = None,
     run_id: str | None = None,
+    ctx: CityContext | None = None,
     places_config: dict | None = None,
     data_dir: Path | None = None,
     public_dir: Path | None = None,
@@ -269,10 +330,12 @@ def run_pipeline(
     """Fetch sources (unless skipped) and build the requested area units.
 
     Returns a process exit code (0 ok, 1 partial, 3 no output, 130 interrupted).
-    ``places_config`` / ``data_dir`` / ``public_dir`` default to the real pipeline
-    locations and exist so an offline test can drive a full run over a fixture.
+    ``places_config`` / ``data_dir`` / ``public_dir`` default to the per-city
+    pipeline locations and exist so an offline test can drive a full run over a
+    fixture.
     """
     units = area_units or []
+    resolved_ctx = _resolve_context(city, ctx)
     resolved_run_id = run_id or datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     command = "cdmxmap " + " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "run_pipeline"
     manifest = RunManifest(
@@ -292,12 +355,23 @@ def run_pipeline(
 
     try:
         if not skip_fetch:
-            for module in FETCH_SEQUENCE:
-                _fetch_one(module, city, manifest, resume=resume, fail_fast=fail_fast)
+            outputs = source_outputs(resolved_ctx)
+            aware = city_aware_fetchers(resolved_ctx)
+            for module in fetch_sequence(resolved_ctx):
+                _fetch_one(
+                    module,
+                    resolved_ctx,
+                    manifest,
+                    outputs=outputs,
+                    aware=aware,
+                    resume=resume,
+                    fail_fast=fail_fast,
+                )
         for area_unit in units:
             _build_one(
                 area_unit,
                 manifest,
+                ctx=resolved_ctx,
                 transit_router=transit_router,
                 fail_fast=fail_fast,
                 places_config=places_config,

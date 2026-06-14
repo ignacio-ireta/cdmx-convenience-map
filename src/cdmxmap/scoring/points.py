@@ -9,11 +9,9 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from cdmxmap.citycontext import CityContext, load_city_context
 from cdmxmap.config import (
-    CORE_TRANSIT_SYSTEMS,
     METRIC_CRS,
-    SURFACE_TRANSIT_SYSTEMS,
-    TRANSIT_SYSTEM_FIELD_SLUGS,
     WGS84_CRS,
 )
 from cdmxmap.models import (
@@ -26,10 +24,12 @@ from cdmxmap.routing.base import FALLBACK_STRAIGHT_LINE_SOURCE, LatLon, Router
 from cdmxmap.routing.cache import RouteCacheKey, RoutingCache
 from cdmxmap.scoring.crime import read_crimes
 from cdmxmap.scoring.metrics import estimate_travel_minutes, nullable_number
-from cdmxmap.sources.io import DATA_PROCESSED, DATA_RAW
+from cdmxmap.sources.io import DATA_RAW
 
 
-def read_points(path: Path, *, required: bool = True) -> gpd.GeoDataFrame:
+def read_points(
+    path: Path, *, required: bool = True, metric_crs: str = METRIC_CRS
+) -> gpd.GeoDataFrame:
     if not path.exists():
         if required:
             raise FileNotFoundError(f"Missing required point file: {path}")
@@ -51,10 +51,15 @@ def read_points(path: Path, *, required: bool = True) -> gpd.GeoDataFrame:
         geometry=gpd.points_from_xy(df["longitude"], df["latitude"]),
         crs=WGS84_CRS,
     )
-    return gdf.to_crs(METRIC_CRS)
+    return gdf.to_crs(metric_crs)
 
 
-def load_workplaces(places_config: dict) -> gpd.GeoDataFrame:
+def load_workplaces(
+    places_config: dict,
+    *,
+    metric_crs: str = METRIC_CRS,
+    raw_dir: Path = DATA_RAW,
+) -> gpd.GeoDataFrame:
     workplace = places_config.get("workplace", {})
     latitude = workplace.get("latitude")
     longitude = workplace.get("longitude")
@@ -75,9 +80,9 @@ def load_workplaces(places_config: dict) -> gpd.GeoDataFrame:
             geometry=gpd.points_from_xy(df["longitude"], df["latitude"]),
             crs=WGS84_CRS,
         )
-        return gdf.to_crs(METRIC_CRS)
+        return gdf.to_crs(metric_crs)
 
-    return read_points(DATA_RAW / "workplaces.csv")
+    return read_points(raw_dir / "workplaces.csv", metric_crs=metric_crs)
 
 
 def workplace_coordinates(
@@ -385,28 +390,41 @@ def amenity_route_candidates(
     )
 
 
-def load_point_datasets(places_config: dict, *, data_dir: Path = DATA_PROCESSED) -> PointDatasets:
-    transit = read_points(data_dir / "transit_stops.csv")
-    supermarkets = read_points(data_dir / "supermarkets.csv")
-    gyms = read_points(data_dir / "gyms.csv")
-    workplaces = load_workplaces(places_config)
-    crimes = read_crimes(data_dir / "crime_points.csv")
+def load_point_datasets(
+    places_config: dict,
+    *,
+    ctx: CityContext | None = None,
+    data_dir: Path | None = None,
+) -> PointDatasets:
+    ctx = ctx or load_city_context()
+    resolved_dir = data_dir if data_dir is not None else ctx.data_dir
+    transit = read_points(resolved_dir / "transit_stops.csv", metric_crs=ctx.metric_crs)
+    supermarkets = read_points(resolved_dir / "supermarkets.csv", metric_crs=ctx.metric_crs)
+    gyms = read_points(resolved_dir / "gyms.csv", metric_crs=ctx.metric_crs)
+    workplaces = load_workplaces(
+        places_config, metric_crs=ctx.metric_crs, raw_dir=ctx.raw_dir
+    )
+    crimes = read_crimes(resolved_dir / "crime_points.csv", metric_crs=ctx.metric_crs)
 
     supermarket_brand = (
         supermarkets["brand"].fillna("").astype(str).str.lower()
         if "brand" in supermarkets.columns
         else pd.Series([""] * len(supermarkets), index=supermarkets.index)
     )
-    costcos = supermarkets[supermarket_brand.str.contains("costco", na=False)].copy()
-    walmarts = supermarkets[supermarket_brand.str.contains("walmart", na=False)].copy()
+    supermarkets_by_brand: dict[str, gpd.GeoDataFrame] = {}
+    for brand in ctx.store_brands:
+        mask = pd.Series(False, index=supermarkets.index)
+        for token in brand.match:
+            mask = mask | supermarket_brand.str.contains(token, regex=False)
+        supermarkets_by_brand[brand.slug] = supermarkets[mask].copy()
 
     if "system" in transit.columns:
         transit_system = transit["system"].fillna("").astype(str).str.upper()
-        core_transit = transit[transit_system.isin(CORE_TRANSIT_SYSTEMS)].copy()
-        surface_transit = transit[transit_system.isin(SURFACE_TRANSIT_SYSTEMS)].copy()
+        core_transit = transit[transit_system.isin(ctx.core_codes)].copy()
+        surface_transit = transit[transit_system.isin(ctx.surface_codes)].copy()
         transit_by_system = {
-            system: transit[transit_system.eq(system)].copy()
-            for system in TRANSIT_SYSTEM_FIELD_SLUGS
+            spec.code: transit[transit_system.eq(spec.code)].copy()
+            for spec in ctx.transit_systems
         }
     else:
         core_transit = transit
@@ -414,7 +432,7 @@ def load_point_datasets(places_config: dict, *, data_dir: Path = DATA_PROCESSED)
         empty_transit = gpd.GeoDataFrame(
             transit.iloc[0:0].copy(), geometry="geometry", crs=transit.crs
         )
-        transit_by_system = {system: empty_transit.copy() for system in TRANSIT_SYSTEM_FIELD_SLUGS}
+        transit_by_system = {spec.code: empty_transit.copy() for spec in ctx.transit_systems}
 
     return PointDatasets(
         transit=transit,
@@ -422,8 +440,7 @@ def load_point_datasets(places_config: dict, *, data_dir: Path = DATA_PROCESSED)
         surface_transit=surface_transit,
         transit_by_system=transit_by_system,
         supermarkets=supermarkets,
-        costcos=costcos,
-        walmarts=walmarts,
+        supermarkets_by_brand=supermarkets_by_brand,
         gyms=gyms,
         workplaces=workplaces,
         crimes=crimes,

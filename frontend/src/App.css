@@ -62,6 +62,26 @@
   margin-top: 12px;
 }
 
+.city-picker {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.city-picker span {
+  color: #68746f;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.city-picker select {
+  border: 1px solid #cbd5d1;
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 24px;

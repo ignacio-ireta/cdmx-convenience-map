@@ -7,17 +7,12 @@ import './App.css'
 
 import {
   AMENITY_MODES,
-  DATA_ASSETS,
+  CITY_CONFIGS,
   DATA_FOCUS_PADDING,
-  DEFAULT_MAP_CENTER,
-  DEFAULT_WEIGHTS,
-  GEOGRAPHIES,
   LEGEND_STEPS,
   METRICS,
   SELECTED_AREA_FOCUS_PADDING,
   SELECTED_AREA_MAX_ZOOM,
-  STORE_OPTIONS,
-  TRANSIT_ACCESS_OPTIONS,
   WORK_MODES,
 } from './constants'
 import type {
@@ -89,6 +84,10 @@ import {
 } from './lib/scoring'
 
 function App() {
+  const city =
+    new URLSearchParams(window.location.search).get('city') === 'oslo'
+      ? CITY_CONFIGS.oslo
+      : CITY_CONFIGS.cdmx
   const [selectedAreaUnit, setSelectedAreaUnit] = useState<AreaUnit>('postal_code')
   const [datasets, setDatasets] = useState<AreaDatasets>({})
   const [metadata, setMetadata] = useState<ScoreMetadata | null>(null)
@@ -96,15 +95,13 @@ function App() {
   const [workMode, setWorkMode] = useState<WorkMode>('distance')
   const [supermarketMode, setSupermarketMode] = useState<AmenityMode>('distance')
   const [gymMode, setGymMode] = useState<AmenityMode>('distance')
-  const [selectedStores, setSelectedStores] = useState<StorePreferenceKey[]>(['costco', 'walmart'])
-  const [selectedTransitAccess, setSelectedTransitAccess] = useState<TransitAccessKey[]>([
-    'metro',
-    'metrobus',
-    'rtp',
-    'trolebus',
-    'corredor',
-  ])
-  const [weights, setWeights] = useState<Record<WeightKey, number>>(DEFAULT_WEIGHTS)
+  const [selectedStores, setSelectedStores] = useState<StorePreferenceKey[]>(
+    city.stores.map((option) => option.key),
+  )
+  const [selectedTransitAccess, setSelectedTransitAccess] = useState<TransitAccessKey[]>(
+    city.transit.map((option) => option.key),
+  )
+  const [weights, setWeights] = useState<Record<WeightKey, number>>(city.weights)
   const [selected, setSelected] = useState<AreaFeature | null>(null)
   const [selectedFocus, setSelectedFocus] = useState<AreaFocusRequest | null>(null)
   const [query, setQuery] = useState('')
@@ -116,7 +113,8 @@ function App() {
   const data = datasets[selectedAreaUnit] ?? null
   const postalData = datasets.postal_code ?? null
   const selectedGeography =
-    GEOGRAPHIES.find((geography) => geography.unit === selectedAreaUnit) ?? GEOGRAPHIES[0]
+    city.geographies.find((geography) => geography.unit === selectedAreaUnit) ??
+    city.geographies[0]
   const selectedWorkMode = WORK_MODES.find((mode) => mode.key === workMode) ?? WORK_MODES[0]
 
   useEffect(() => {
@@ -124,7 +122,7 @@ function App() {
     if (cached) return
 
     let cancelled = false
-    fetch(DATA_ASSETS.scores[selectedAreaUnit])
+    fetch(city.assets.scores[selectedAreaUnit])
       .then((response) => {
         if (!response.ok) {
           throw new Error(`GeoJSON request failed: ${response.status}`)
@@ -133,7 +131,7 @@ function App() {
       })
       .then((payload: RawAreaFeatureCollection) => {
         if (cancelled) return
-        const normalized = normalizeAreaCollection(payload)
+        const normalized = normalizeAreaCollection(payload, city.postalWidth)
         setDatasets((current) => ({
           ...current,
           [selectedAreaUnit]: normalized,
@@ -147,11 +145,11 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [datasets, selectedAreaUnit])
+  }, [city, datasets, selectedAreaUnit])
 
   useEffect(() => {
-    fetch(DATA_ASSETS.metadata[selectedAreaUnit])
-      .then((response) => (response.ok ? response.json() : fetch(DATA_ASSETS.scoreMetadata)))
+    fetch(city.assets.metadata[selectedAreaUnit])
+      .then((response) => (response.ok ? response.json() : fetch(city.assets.scoreMetadata)))
       .then((payloadOrResponse: ScoreMetadata | Response | null) =>
         payloadOrResponse instanceof Response
           ? payloadOrResponse.ok
@@ -161,7 +159,7 @@ function App() {
       )
       .then((payload: ScoreMetadata | null) => setMetadata(payload))
       .catch(() => setMetadata(null))
-  }, [selectedAreaUnit])
+  }, [city, selectedAreaUnit])
 
   const workFeature = useMemo(() => {
     if (!postalData || !workPostalCode) return null
@@ -285,7 +283,7 @@ function App() {
   const searchMatches = useMemo<SearchMatch[]>(() => {
     if (!data || !trimmedSearchQuery) return []
     const normalizedQuery = normalizeSearchText(trimmedSearchQuery)
-    const postalQuery = normalizePostalCode(trimmedSearchQuery)
+    const postalQuery = normalizePostalCode(trimmedSearchQuery, city.postalWidth)
     if (!normalizedQuery && !postalQuery) return []
 
     return data.features
@@ -301,7 +299,7 @@ function App() {
           'es-MX',
         )
       })
-  }, [data, trimmedSearchQuery])
+  }, [city.postalWidth, data, trimmedSearchQuery])
 
   const searchResults = searchMatches.slice(0, 12)
 
@@ -568,7 +566,7 @@ function App() {
           <div className="title-row">
             <MapPinned aria-hidden="true" />
             <div>
-              <p className="eyebrow">CDMX apartment search</p>
+              <p className="eyebrow">{city.eyebrow}</p>
               <h1>Area convenience map</h1>
             </div>
           </div>
@@ -578,6 +576,19 @@ function App() {
               : `Loading ${selectedGeography.pluralLabel.toLocaleLowerCase()}`}
           </p>
         </header>
+
+        <label className="city-picker">
+          <span>City</span>
+          <select
+            value={city.id}
+            onChange={(event) => {
+              window.location.search = event.target.value === 'oslo' ? '?city=oslo' : ''
+            }}
+          >
+            <option value="cdmx">CDMX</option>
+            <option value="oslo">Oslo</option>
+          </select>
+        </label>
 
         <form className="search-form" onSubmit={handleSearch}>
           <Search aria-hidden="true" />
@@ -641,7 +652,7 @@ function App() {
         <section className="panel-section">
           <h2>Geography</h2>
           <div className="geography-grid">
-            {GEOGRAPHIES.map((geography) => (
+            {city.geographies.map((geography) => (
               <button
                 className={selectedAreaUnit === geography.unit ? 'active' : ''}
                 key={geography.unit}
@@ -671,8 +682,8 @@ function App() {
               <input
                 id="work-postal-code"
                 inputMode="numeric"
-                maxLength={5}
-                placeholder="e.g. 06600"
+                maxLength={city.postalWidth}
+                placeholder={city.postalPlaceholder}
                 value={workCodeDraft}
                 onChange={(event) => setWorkCodeDraft(event.target.value)}
               />
@@ -744,7 +755,7 @@ function App() {
             <div className="amenity-mode-row preference-row">
               <span>Brands</span>
               <div className="option-checkboxes store-options">
-                {STORE_OPTIONS.map((option) => (
+                {city.stores.map((option) => (
                   <label className="option-checkbox" key={option.key}>
                     <input
                       checked={selectedStores.includes(option.key)}
@@ -759,7 +770,7 @@ function App() {
             <div className="amenity-mode-row preference-row">
               <span>Transit</span>
               <div className="option-checkboxes transit-options">
-                {TRANSIT_ACCESS_OPTIONS.map((option) => (
+                {city.transit.map((option) => (
                   <label className="option-checkbox" key={option.key}>
                     <input
                       checked={selectedTransitAccess.includes(option.key)}
@@ -844,7 +855,12 @@ function App() {
             </div>
             <div>
               <dt>Crime</dt>
-              <dd>FGJ CDMX · {metadata?.crime?.records_recent_12m ?? 'n/a'} recent records</dd>
+              <dd>
+                {city.safetySource}
+                {city.id === 'cdmx'
+                  ? ` · ${metadata?.crime?.records_recent_12m ?? 'n/a'} recent records`
+                  : ''}
+              </dd>
             </div>
           </dl>
         </section>
@@ -854,7 +870,7 @@ function App() {
             <h2>Weights</h2>
             <span>Combined</span>
           </div>
-          {(Object.keys(DEFAULT_WEIGHTS) as WeightKey[]).map((key) => (
+          {(Object.keys(city.weights) as WeightKey[]).map((key) => (
             <label className="weight-row" key={key}>
               <span>{METRICS.find((metric) => metric.key === key)?.label}</span>
               <input
@@ -992,7 +1008,7 @@ function App() {
                   <dt>Surface transit</dt>
                   <dd>{formatMeters(selected.properties.dist_surface_transit_m)}</dd>
                 </div>
-                {TRANSIT_ACCESS_OPTIONS.map((option) => (
+                {city.transit.map((option) => (
                   <div key={option.key}>
                     <dt>{option.label}</dt>
                     <dd>
@@ -1094,7 +1110,7 @@ function App() {
             minZoom={9}
             {...(mapBounds
               ? { bounds: mapBounds, boundsOptions: mapBoundsOptions }
-              : { center: DEFAULT_MAP_CENTER, zoom: 11 })}
+              : { center: city.mapCenter, zoom: city.mapZoom })}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

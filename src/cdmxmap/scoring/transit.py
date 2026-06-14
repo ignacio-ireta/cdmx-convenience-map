@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from cdmxmap.config import (
+    METRIC_CRS,
     R5PY_OSM_SOURCE,
     R5PY_TRANSIT_COMMUTE_SOURCE,
     TRANSIT_COMMUTE_FAILED_SOURCE,
@@ -81,6 +82,8 @@ def build_transit_commute_frame(
     point_datasets: PointDatasets,
     places_config: dict,
     config: TransitCommuteConfig,
+    *,
+    metric_crs: str = METRIC_CRS,
 ) -> pd.DataFrame:
     coordinates = workplace_coordinates(places_config, point_datasets.workplaces)
     if coordinates is None:
@@ -99,6 +102,7 @@ def build_transit_commute_frame(
                 workplace_lat=coordinates[0],
                 workplace_lon=coordinates[1],
                 config=config,
+                metric_crs=metric_crs,
             )
         )
     except Exception as exc:  # noqa: BLE001 - keep score generation robust.

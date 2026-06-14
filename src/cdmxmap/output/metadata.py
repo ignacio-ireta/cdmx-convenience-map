@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cdmxmap.config import DEFAULT_WEIGHTS, R5PY_OSM_SOURCE, TRANSIT_SYSTEM_FIELD_SLUGS
+from cdmxmap.citycontext import CityContext, load_city_context
 from cdmxmap.models import AreaConfig, PointDatasets
-from cdmxmap.sources.io import DATA_CONFIG, DATA_PROCESSED, DATA_RAW, ROOT
+from cdmxmap.sources.io import DATA_CITIES, DATA_CONFIG, ROOT
+
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
 
 def build_metadata(
@@ -20,38 +22,42 @@ def build_metadata(
     point_datasets: PointDatasets,
     score_metadata: dict,
     places_config: dict,
+    ctx: CityContext | None = None,
 ) -> dict:
+    ctx = ctx or load_city_context()
+
     def repo_path(path: Path) -> str:
         try:
             return str(path.resolve().relative_to(ROOT))
         except ValueError:
             return str(path)
 
+    city_places = DATA_CITIES / ctx.city_id / "places.json"
+    places_path = city_places if city_places.exists() else DATA_CONFIG / "places.json"
+
+    # Provenance URLs come from the city profile's ``sources`` block, plus the
+    # active area unit's source and the always-on Overpass endpoint.
+    profile_sources = ctx.profile.get("sources") or {}
     source_urls = {
         config.source_url_key: config.source_url,
-        "transit_apimetro": "https://apimetro.dev/docs",
-        "transit_gtfs_cdmx": (
-            "https://datos.cdmx.gob.mx/dataset/75538d96-3ade-4bc5-ae7d-d85595e4522d/"
-            "resource/32ed1b6b-41cd-49b3-b7f0-b57acb0eb819/download/gtfs-2.zip"
-        ),
-        "osm_bbbike_mexico_city": R5PY_OSM_SOURCE,
-        "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
-        "crime_victims_fgj": "https://datos.cdmx.gob.mx/dataset/victimas-en-carpetas-de-investigacion-fgj/resource/d543a7b1-f8cb-439f-8a5c-e56c5479eeb5",
+        "openstreetmap_overpass": OVERPASS_URL,
+        **profile_sources,
     }
     source_urls = {key: value for key, value in source_urls.items() if value}
 
     return {
         "generated_at": score_metadata["generated_at"],
+        "city_id": ctx.city_id,
         "area_unit": config.area_unit,
         "feature_count": score_metadata["feature_count"],
-        "weights": DEFAULT_WEIGHTS,
+        "weights": ctx.weights,
         "point_counts": {
             "transit_stops": int(len(point_datasets.transit)),
             "transit_core_points": int(len(point_datasets.core_transit)),
             "transit_surface_points": int(len(point_datasets.surface_transit)),
             "transit_system_points": {
-                slug: int(len(point_datasets.transit_by_system[system]))
-                for system, slug in TRANSIT_SYSTEM_FIELD_SLUGS.items()
+                slug: int(len(point_datasets.transit_by_system[code]))
+                for code, slug in ctx.transit_slugs.items()
             },
             "supermarkets": int(len(point_datasets.supermarkets)),
             "gyms": int(len(point_datasets.gyms)),
@@ -69,12 +75,12 @@ def build_metadata(
         "sources": {
             "areas": repo_path(input_path),
             config.area_unit: repo_path(input_path),
-            "places_config": repo_path(DATA_CONFIG / "places.json"),
-            "transit_stops": repo_path(DATA_PROCESSED / "transit_stops.csv"),
-            "supermarkets": repo_path(DATA_PROCESSED / "supermarkets.csv"),
-            "gyms": repo_path(DATA_PROCESSED / "gyms.csv"),
-            "workplaces_legacy_csv": repo_path(DATA_RAW / "workplaces.csv"),
-            "crime_points": repo_path(DATA_PROCESSED / "crime_points.csv"),
+            "places_config": repo_path(places_path),
+            "transit_stops": repo_path(ctx.data_dir / "transit_stops.csv"),
+            "supermarkets": repo_path(ctx.data_dir / "supermarkets.csv"),
+            "gyms": repo_path(ctx.data_dir / "gyms.csv"),
+            "workplaces_legacy_csv": repo_path(ctx.raw_dir / "workplaces.csv"),
+            "crime_points": repo_path(ctx.data_dir / "crime_points.csv"),
         },
         "outputs": {
             "processed": repo_path(output_path),

@@ -61,6 +61,11 @@ def city_bbox(city: str = "cdmx") -> dict[str, float]:
     return {key: float(bbox[key]) for key in required}
 
 
+def city_data_dir(base: Path, city: str) -> Path:
+    """Return the legacy flat CDMX directory or a city-scoped directory."""
+    return base if city == "cdmx" else base / city
+
+
 def download(url: str, target: Path, *, force: bool = False, timeout: int = 90) -> Path:
     ensure_dirs()
     if target.exists() and not force:

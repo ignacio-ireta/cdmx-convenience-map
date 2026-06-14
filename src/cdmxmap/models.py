@@ -32,6 +32,12 @@ class AreaConfig:
     name_fields: list[str]
     source_url_key: str
     source_url: str
+    # ``postal_width`` is the zero-pad width for postal-style ids (5 for CDMX
+    # postal codes, 4 for Norwegian postnummer); ``None`` marks a named unit
+    # (colonia, grunnkrets) that is not normalized as a postal code.
+    postal_width: int | None = None
+    # Prefix for the postal display_name ("CP " for CDMX); ignored for named units.
+    display_prefix: str = "CP "
 
 
 @dataclass(frozen=True)
@@ -82,10 +88,11 @@ class PointDatasets:
     transit: gpd.GeoDataFrame
     core_transit: gpd.GeoDataFrame
     surface_transit: gpd.GeoDataFrame
+    # Keyed by the raw transit-system code (e.g. "METRO", "TBANE").
     transit_by_system: dict[str, gpd.GeoDataFrame]
     supermarkets: gpd.GeoDataFrame
-    costcos: gpd.GeoDataFrame
-    walmarts: gpd.GeoDataFrame
+    # Keyed by store-brand slug (e.g. "costco", "rema"); see CityContext.store_brands.
+    supermarkets_by_brand: dict[str, gpd.GeoDataFrame]
     gyms: gpd.GeoDataFrame
     workplaces: gpd.GeoDataFrame
     crimes: gpd.GeoDataFrame
@@ -107,6 +114,8 @@ AREA_CONFIGS = {
         name_fields=POSTAL_LABEL_FIELDS,
         source_url_key="postal_codes",
         source_url="https://datos.cdmx.gob.mx/dataset/codigos-postales",
+        postal_width=5,
+        display_prefix="CP ",
     ),
     "colonia": AreaConfig(
         area_unit="colonia",
@@ -121,3 +130,33 @@ AREA_CONFIGS = {
         ),
     ),
 }
+
+
+def build_area_configs(profile: dict, raw_dir: Path) -> dict[str, AreaConfig]:
+    """Build a city's ``{area_unit: AreaConfig}`` from its profile ``area_units``.
+
+    Each entry is an object declaring the unit's input filename, id/name field
+    candidates, and output naming. ``default_input_path`` is resolved under the
+    city's ``raw_dir``. CDMX does not use this — its configs are the in-code
+    ``AREA_CONFIGS`` global, kept byte-stable.
+    """
+    configs: dict[str, AreaConfig] = {}
+    for entry in profile.get("area_units", []):
+        if isinstance(entry, str):
+            # Bare-string units carry no field mapping; skip (non-CDMX profiles
+            # must declare full objects).
+            continue
+        unit = entry["area_unit"]
+        configs[unit] = AreaConfig(
+            area_unit=unit,
+            default_input_path=raw_dir / entry["default_input"],
+            output_name=entry.get("output_name", f"scores_{unit}.geojson"),
+            legacy_output_names=tuple(entry.get("legacy_output_names", ())),
+            id_fields=list(entry.get("id_fields", [])),
+            name_fields=list(entry.get("name_fields", [])),
+            source_url_key=entry.get("source_url_key", unit),
+            source_url=entry.get("source_url", ""),
+            postal_width=entry.get("postal_width"),
+            display_prefix=entry.get("display_prefix", "CP "),
+        )
+    return configs
