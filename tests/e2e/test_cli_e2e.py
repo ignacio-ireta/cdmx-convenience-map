@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import replace
@@ -99,7 +100,8 @@ def test_cli_help_and_validate(
     # New routing commands are wired into the CLI.
     assert "build-matrix" in help_result.stdout
     assert "build-tiles" in help_result.stdout
-    assert "travel-router" in cdmxmap("score", "--help").stdout
+    score_help = re.sub(r"\x1b\[[0-9;]*m", "", cdmxmap("score", "--help").stdout)
+    assert "--travel-router" in "".join(score_help.split())
 
     assert cdmxmap("validate", "--path", str(out)).returncode == 0
 
