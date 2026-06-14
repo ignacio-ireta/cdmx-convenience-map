@@ -1,8 +1,15 @@
 # Travel-Time-To-Work Roadmap
 
-## Current Implementation
+> **Status update:** offline road routing is now implemented. See
+> [`docs/road-routing.md`](road-routing.md) for the Valhalla architecture,
+> setup, and the dynamic-workplace matrix. The straight-line method below is the
+> default fallback used when no router is configured. (The pipeline is now the
+> `cdmxmap` package/CLI; older `scripts/build_scores.py` references are historical.)
 
-Travel-time-to-work is generated offline in `scripts/build_scores.py`; the browser only loads static GeoJSON.
+## Current Implementation (default / fallback)
+
+Travel-time-to-work is generated offline by the `cdmxmap` pipeline (`cdmxmap run`
+/ `cdmxmap score`); the browser only loads static GeoJSON.
 
 The default workplace lives in `data/config/places.json`:
 
@@ -50,24 +57,27 @@ The fallback is intentionally crude. It does not know street networks, hills, tr
 
 No routing calls happen in the browser. This keeps GitHub Pages deployment static and avoids exposing API keys.
 
-## Replacing The Fallback
+## Replacing The Fallback — implemented
 
-The replacement should still run only during preprocessing and write static fields to GeoJSON.
+This is now done with **Valhalla** routing, run only during preprocessing, writing
+static fields to GeoJSON. The shape closely follows the original plan, adapted to
+the `src/cdmxmap/` package layout:
 
-Recommended shape:
+1. A routing abstraction lives under `src/cdmxmap/routing/` (a `Router` Protocol,
+   the `ValhallaRouter` adapter, a `RoutingCache`, and the matrix codec/builder).
+2. `score_areas(..., router=...)` routes work + amenity candidates per mode.
+3. Results are cached by area unit/id, origin & destination coords, mode, engine,
+   version, profile, and an inputs hash, under the ignored `data/processed/routing_cache/`.
+4. For amenities only the straight-line candidate set is routed (candidate
+   narrowing is retained), then the genuinely fastest routed destination is chosen.
+5. On routing/snapping failure a row falls back to the straight-line estimate and
+   is labeled `fallback_straight_line_estimate` per feature; routed rows are
+   labeled `valhalla_free_flow`. Routed distance is stored separately (`*_routed_m`).
+6. A single writer still renders the GeoJSON (`output/geojson.py`).
 
-1. Add a routing adapter under `scripts/`, for example `scripts/routing.py`.
-2. Give it a function such as `get_work_travel_times(area_points, workplace, modes)`.
-3. Cache results by `area_unit`, `area_id`, mode, source, and workplace coordinate under `data/processed/routing_cache/` or another ignored path.
-4. For amenities, cache by `area_unit`, `area_id`, POI identifier/name, mode, source, and destination coordinate. Only candidate pairs should be routed or cached.
-5. On routing failures, return nulls for failed rows or fall back to the current straight-line estimate.
-6. Keep `scripts/build_scores.py` as the single writer of final GeoJSON fields.
+The dynamic-workplace area-to-area matrix is precomputed and served as a binary +
+index (`cdmxmap build-matrix`); see [`docs/road-routing.md`](road-routing.md).
 
-Candidate routing sources:
-
-- OSRM: good for local/offline driving, walking, and biking if profiles are prepared.
-- Valhalla: strong multimodal routing, heavier local setup.
-- OpenRouteService: easy hosted API, but requires an API key and strict caching/rate-limit handling.
-- GraphHopper: hosted or local option, similar key/caching considerations.
-
-Do not put API keys in the repo or browser. Use environment variables during preprocessing, and cache the resulting travel times into generated static assets.
+No API keys are used (Valhalla is local and free-flow). Hosted options
+(OpenRouteService, GraphHopper) were rejected for needing keys/rate limits;
+OSRM remains a documented drop-in alternative behind the `Router` Protocol.

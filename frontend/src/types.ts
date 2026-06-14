@@ -43,6 +43,13 @@ export type AreaProperties = {
   dist_costco_m?: number
   dist_walmart_m?: number
   dist_gym_m?: number
+  // Routed network distances (present only on a routed build; null where a row
+  // fell back to the straight-line estimate). Additive — see docs/data-contract.md.
+  dist_work_routed_m?: number
+  dist_supermarket_routed_m?: number
+  dist_costco_routed_m?: number
+  dist_walmart_routed_m?: number
+  dist_gym_routed_m?: number
   time_work_driving_min?: number
   time_work_walking_min?: number
   time_work_biking_min?: number
@@ -133,6 +140,33 @@ export type WorkModel = {
   scores: Map<string, number>
   travelTimes: Record<TravelWorkMode, Map<string, number>>
   travelScores: Record<TravelWorkMode, Map<string, number>>
+  // True when travel times came from the precomputed routed matrix. ``travelSources``
+  // is the per-area, per-mode honest label (valhalla_free_flow vs fallback_travel_time).
+  routed: boolean
+  travelSources: Record<TravelWorkMode, Map<string, string>>
+}
+
+export type MatrixIndex = {
+  area_unit: AreaUnit
+  n: number
+  dtype: string
+  scale: number
+  sentinel: number
+  axis0: string
+  axis1: string
+  layout: string
+  unit: string
+  area_ids: string[]
+  modes: string[]
+  mode_files: Record<string, string>
+  engine: string
+  version: string
+  profiles: Record<string, string>
+  inputs_hash: string
+  osm_source?: string | null
+  osm_sha?: string | null
+  osm_date?: string | null
+  generated_at: string
 }
 export type FieldScoreMap = {
   hasValues: boolean
@@ -168,10 +202,19 @@ export type ScoreMetadata = {
   }
   travel_time?: {
     source?: string
+    fallback_source?: string
     modes?: string[]
     speeds_kmh?: Record<string, number>
     detour_factors?: Record<string, number>
   }
+  road_routing?: {
+    engine?: string
+    version?: string
+    source?: string
+    modes?: string[]
+    profiles?: Record<string, string>
+    osm_source?: string | null
+  } | null
   amenity_travel_time?: {
     source?: string
     mode?: string

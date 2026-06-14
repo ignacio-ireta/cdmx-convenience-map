@@ -61,6 +61,17 @@ class TravelTimeConfig(BaseModel):
     detour_factors: dict[str, float] | None = None
 
 
+class RoadRoutingConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    engine: str | None = None
+    tiles_dir: str | None = None
+    modes: list[str] | None = None
+    candidate_count: int | None = None
+    version: str | None = None
+    osm_source: str | None = None
+
+
 class PlacesConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -68,6 +79,7 @@ class PlacesConfig(BaseModel):
     travel_time: TravelTimeConfig | None = None
     amenity_travel_time: dict | None = None
     transit_commute: dict | None = None
+    road_routing: RoadRoutingConfig | None = None
 
 
 def validate_city_profile(data: dict, *, city: str | None = None) -> dict:

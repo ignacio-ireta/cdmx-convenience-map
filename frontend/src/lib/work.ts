@@ -33,7 +33,11 @@ export function estimateTravelMinutes(distanceMeters: number, mode: TravelWorkMo
   return (distanceMeters * detourFactor) / ((speedKmh * 1000) / 60)
 }
 
-export function buildWorkModel(data: AreaFeatureCollection, workFeature: AreaFeature): WorkModel {
+export function buildWorkModel(
+  data: AreaFeatureCollection,
+  workFeature: AreaFeature,
+  routedTimes: Record<TravelWorkMode, Map<string, number>> | null = null,
+): WorkModel {
   const distances = new Map<string, number>()
   const workLat = workFeature.properties.centroid_lat
   const workLon = workFeature.properties.centroid_lon
@@ -49,6 +53,7 @@ export function buildWorkModel(data: AreaFeatureCollection, workFeature: AreaFea
     distances.set(feature.properties.area_id, distance)
     return distance
   })
+  // Distance mode always stays straight-line (haversine), even on a routed model.
   const { cap } = scoreCloserIsBetter(distanceValues)
   const scores = new Map<string, number>()
   for (const [areaId, distance] of distances) {
@@ -60,12 +65,27 @@ export function buildWorkModel(data: AreaFeatureCollection, workFeature: AreaFea
   const travelScores = Object.fromEntries(
     TRAVEL_WORK_MODES.map((mode) => [mode, new Map<string, number>()]),
   ) as Record<TravelWorkMode, Map<string, number>>
+  const travelSources = Object.fromEntries(
+    TRAVEL_WORK_MODES.map((mode) => [mode, new Map<string, string>()]),
+  ) as Record<TravelWorkMode, Map<string, string>>
 
   for (const mode of TRAVEL_WORK_MODES) {
     const timeValues = data.features.map((feature) => {
-      const distance = distances.get(feature.properties.area_id) ?? Number.NaN
-      const minutes = estimateTravelMinutes(distance, mode)
-      travelTimes[mode].set(feature.properties.area_id, minutes)
+      const areaId = feature.properties.area_id
+      const routed = routedTimes?.[mode].get(areaId)
+      let minutes: number
+      let source: string
+      if (typeof routed === 'number' && Number.isFinite(routed)) {
+        // Genuine routed travel time from the matrix.
+        minutes = routed
+        source = 'valhalla_free_flow'
+      } else {
+        // No matrix, or an unreachable cell -> labeled straight-line estimate.
+        minutes = estimateTravelMinutes(distances.get(areaId) ?? Number.NaN, mode)
+        source = 'fallback_travel_time'
+      }
+      travelTimes[mode].set(areaId, minutes)
+      travelSources[mode].set(areaId, source)
       return minutes
     })
     const timeCap = percentile(timeValues, 0.95)
@@ -84,6 +104,8 @@ export function buildWorkModel(data: AreaFeatureCollection, workFeature: AreaFea
     scores,
     travelTimes,
     travelScores,
+    routed: routedTimes !== null,
+    travelSources,
   }
 }
 
@@ -131,8 +153,10 @@ export function getWorkSource(
   workMode: WorkMode,
 ) {
   if (workMode !== 'distance') {
+    // A custom workplace: routed when the matrix covered this area, else a labeled
+    // estimate. No custom workplace: the precomputed per-feature source.
     return workModel
-      ? 'fallback_travel_time'
+      ? (workModel.travelSources[workMode].get(properties.area_id) ?? 'fallback_travel_time')
       : properties.work_travel_time_source || properties.nearest_work_source
   }
   return workModel ? 'area_reference_point' : properties.nearest_work_source

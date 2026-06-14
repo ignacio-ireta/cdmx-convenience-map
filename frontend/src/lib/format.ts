@@ -81,6 +81,8 @@ export function formatSource(source?: string) {
   if (source === 'places_config') return 'places config'
   if (source === 'fallback_straight_line_estimate') return 'fallback estimate'
   if (source === 'fallback_travel_time') return 'fallback estimate'
+  if (source === 'valhalla_free_flow') return 'Valhalla (free-flow)'
+  if (source === 'osrm_free_flow') return 'OSRM (free-flow)'
   if (source === 'offline_transit_router') return 'offline transit router'
   if (source === 'apimetro_stop_pair_approximation') {
     return 'Approximation from Apimetro stops; not schedule-aware'
@@ -95,6 +97,30 @@ export function formatSource(source?: string) {
   if (source === 'fgj_cdmx_victimas') return 'FGJ CDMX'
   if (source === 'seed') return 'seed fallback'
   return source
+}
+
+// Real network-routed sources (street network or schedule-aware transit).
+const ROUTED_SOURCES = new Set(['valhalla_free_flow', 'osrm_free_flow', 'r5py_gtfs_schedule'])
+
+export function isRoutedSource(source?: string) {
+  return source !== undefined && ROUTED_SOURCES.has(source)
+}
+
+export function isEstimateSource(source?: string) {
+  if (!source) return false
+  return (
+    source.includes('fallback') ||
+    source.includes('estimate') ||
+    source.includes('approximation') ||
+    source === 'area_reference_point'
+  )
+}
+
+/** A short badge label distinguishing genuinely routed values from estimates. */
+export function sourceBadge(source?: string): 'routed' | 'estimate' | null {
+  if (isRoutedSource(source)) return 'routed'
+  if (isEstimateSource(source)) return 'estimate'
+  return null
 }
 
 export function transitStopLabel(system?: string, name?: string, line?: string) {

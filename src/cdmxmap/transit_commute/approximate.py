@@ -92,6 +92,8 @@ def estimate_transit_commute_to_work(
     workplace_lat: float,
     workplace_lon: float,
     config: dict[str, Any] | TransitCommuteConfig | None = None,
+    *,
+    metric_crs: str = METRIC_CRS,
 ) -> pd.DataFrame:
     commute_config = (
         config
@@ -102,14 +104,14 @@ def estimate_transit_commute_to_work(
     if transit_points_gdf.empty:
         return _empty_result(area_identity, "no_transit_stops_available")
 
-    areas_metric = _to_metric(areas_gdf)
-    transit_metric = _to_metric(transit_points_gdf)
+    areas_metric = _to_metric(areas_gdf, metric_crs)
+    transit_metric = _to_metric(transit_points_gdf, metric_crs)
     transit_metric = _valid_transit_points(transit_metric)
     if transit_metric.empty:
         return _empty_result(area_identity, "no_valid_transit_stop_coordinates")
 
     reference_points = areas_metric.geometry.make_valid().representative_point()
-    workplace_point = _workplace_point(workplace_lat, workplace_lon)
+    workplace_point = _workplace_point(workplace_lat, workplace_lon, metric_crs)
     stops = _stop_arrays(transit_metric)
     candidate_limit = min(commute_config.candidate_stop_count, len(transit_metric))
     destination_candidates = _nearest_candidates(
@@ -195,12 +197,12 @@ def _empty_result(area_identity: pd.DataFrame, source: str) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=OUTPUT_COLUMNS)
 
 
-def _to_metric(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def _to_metric(frame: gpd.GeoDataFrame, metric_crs: str = METRIC_CRS) -> gpd.GeoDataFrame:
     if frame.crs is None:
         frame = frame.set_crs(WGS84_CRS)
-    if str(frame.crs) == METRIC_CRS:
+    if str(frame.crs) == metric_crs:
         return frame.copy()
-    return frame.to_crs(METRIC_CRS)
+    return frame.to_crs(metric_crs)
 
 
 def _valid_transit_points(transit_metric: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -209,11 +211,11 @@ def _valid_transit_points(transit_metric: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return valid
 
 
-def _workplace_point(workplace_lat: float, workplace_lon: float):
+def _workplace_point(workplace_lat: float, workplace_lon: float, metric_crs: str = METRIC_CRS):
     point = gpd.GeoSeries(
         gpd.points_from_xy([float(workplace_lon)], [float(workplace_lat)]),
         crs=WGS84_CRS,
-    ).to_crs(METRIC_CRS)
+    ).to_crs(metric_crs)
     return point.iloc[0]
 
 

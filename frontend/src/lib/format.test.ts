@@ -7,9 +7,12 @@ import {
   formatPercent,
   formatSource,
   formatTransitComplexity,
+  isEstimateSource,
+  isRoutedSource,
   numberFrom,
   optionalString,
   scoreText,
+  sourceBadge,
   stringFrom,
   transitStopLabel,
   verdict,
@@ -80,8 +83,21 @@ describe('classifiers', () => {
   it('translates known source codes and passes through unknown ones', () => {
     expect(formatSource('apimetro')).toBe('Apimetro')
     expect(formatSource('seed')).toBe('seed fallback')
+    expect(formatSource('valhalla_free_flow')).toBe('Valhalla (free-flow)')
     expect(formatSource(undefined)).toBe('unknown')
     expect(formatSource('something-new')).toBe('something-new')
+  })
+
+  it('classifies sources as routed, estimate, or neither for the UI badge', () => {
+    expect(isRoutedSource('valhalla_free_flow')).toBe(true)
+    expect(isRoutedSource('r5py_gtfs_schedule')).toBe(true)
+    expect(isRoutedSource('fallback_travel_time')).toBe(false)
+    expect(isEstimateSource('fallback_straight_line_estimate')).toBe(true)
+    expect(isEstimateSource('apimetro_stop_pair_approximation')).toBe(true)
+    expect(isEstimateSource('valhalla_free_flow')).toBe(false)
+    expect(sourceBadge('valhalla_free_flow')).toBe('routed')
+    expect(sourceBadge('fallback_travel_time')).toBe('estimate')
+    expect(sourceBadge('fgj_cdmx_victimas')).toBeNull()
   })
 
   it('labels transit stops and complexity', () => {

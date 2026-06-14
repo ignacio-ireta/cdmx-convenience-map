@@ -188,6 +188,17 @@ export const DATA_ASSETS = {
     colonia: `${import.meta.env.BASE_URL}data/score_metadata_colonia.json`,
   } satisfies Record<AreaUnit, string>,
   scoreMetadata: `${import.meta.env.BASE_URL}data/score_metadata.json`,
+  // Dynamic-workplace routed matrix sidecars (feature-detected; absent on a
+  // straight-line build, in which case the frontend uses the labeled estimate).
+  matrixIndex: {
+    postal_code: `${import.meta.env.BASE_URL}data/routing_matrix_postal_code_index.json`,
+    colonia: `${import.meta.env.BASE_URL}data/routing_matrix_colonia_index.json`,
+  } satisfies Record<AreaUnit, string>,
+}
+
+/** URL for a matrix binary, resolved against the Pages base path. */
+export function matrixAssetUrl(filename: string) {
+  return `${import.meta.env.BASE_URL}data/${filename}`
 }
 
 export const SCORE_FIELDS: Record<WeightKey, keyof AreaProperties> = {
@@ -211,3 +222,61 @@ export const SELECTED_AREA_MAX_ZOOM = 14
 export const SELECTED_AREA_FOCUS_PADDING: L.PointExpression = [56, 56]
 export const DATA_FOCUS_PADDING: L.PointExpression = [18, 18]
 export const DEFAULT_MAP_CENTER: L.LatLngExpression = [19.4326, -99.1332]
+
+export const CITY_CONFIGS = {
+  cdmx: {
+    id: 'cdmx',
+    eyebrow: 'CDMX apartment search',
+    postalWidth: 5,
+    postalPlaceholder: 'e.g. 06600',
+    mapCenter: DEFAULT_MAP_CENTER,
+    mapZoom: 11,
+    weights: DEFAULT_WEIGHTS,
+    geographies: GEOGRAPHIES,
+    stores: STORE_OPTIONS,
+    transit: TRANSIT_ACCESS_OPTIONS,
+    assets: DATA_ASSETS,
+    safetySource: 'FGJ CDMX',
+  },
+  oslo: {
+    id: 'oslo',
+    eyebrow: 'Oslo apartment search',
+    postalWidth: 4,
+    postalPlaceholder: 'e.g. 0150',
+    mapCenter: [59.9139, 10.7522] as L.LatLngExpression,
+    mapZoom: 11,
+    weights: {
+      work: 35,
+      transit: 30,
+      supermarkets: 20,
+      gyms: 15,
+      safety: 0,
+    } satisfies Record<WeightKey, number>,
+    geographies: [
+      {
+        unit: 'postal_code',
+        label: 'Postal code',
+        pluralLabel: 'Postal codes',
+        sourceLabel: 'Kartverket',
+      },
+    ] satisfies GeographyConfig[],
+    stores: [] satisfies StoreOption[],
+    transit: [] satisfies TransitAccessOption[],
+    assets: {
+      scores: {
+        postal_code: `${import.meta.env.BASE_URL}data/oslo/scores_postal_code.geojson`,
+        colonia: `${import.meta.env.BASE_URL}data/oslo/scores_postal_code.geojson`,
+      },
+      metadata: {
+        postal_code: `${import.meta.env.BASE_URL}data/oslo/score_metadata_postal_code.json`,
+        colonia: `${import.meta.env.BASE_URL}data/oslo/score_metadata_postal_code.json`,
+      },
+      scoreMetadata: `${import.meta.env.BASE_URL}data/oslo/score_metadata.json`,
+      matrixIndex: {
+        postal_code: `${import.meta.env.BASE_URL}data/oslo/routing_matrix_postal_code_index.json`,
+        colonia: `${import.meta.env.BASE_URL}data/oslo/routing_matrix_postal_code_index.json`,
+      },
+    },
+    safetySource: 'Not scored',
+  },
+} as const

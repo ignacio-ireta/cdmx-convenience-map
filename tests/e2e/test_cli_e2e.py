@@ -80,9 +80,59 @@ def test_cli_help_and_validate(
     help_result = cdmxmap("--help")
     assert help_result.returncode == 0
     assert "score" in help_result.stdout
+    # New routing commands are wired into the CLI.
+    assert "build-matrix" in help_result.stdout
+    assert "build-tiles" in help_result.stdout
+    assert "travel-router" in cdmxmap("score", "--help").stdout
 
     assert cdmxmap("validate", "--path", str(out)).returncode == 0
 
     broken = tmp_path / "broken.geojson"
     broken.write_text(json.dumps({"type": "FeatureCollection", "features": []}), encoding="utf-8")
     assert cdmxmap("validate", "--path", str(broken)).returncode != 0
+
+
+@pytest.mark.e2e
+def test_build_area_routed_writes_routed_fields(
+    fixture_places: dict, fixture_data_dir: Path, tmp_path: Path, stub_router
+) -> None:
+    out = build_area(
+        "colonia",
+        input_path=FIXTURE_CITY / "areas.geojson",
+        places_config=fixture_places,
+        data_dir=fixture_data_dir,
+        public_dir=tmp_path / "public",
+        skip_legacy=True,
+        router=stub_router,
+    )
+    assert validate_geojson(out) == 3
+    props = json.loads(out.read_text())["features"][0]["properties"]
+    assert props["work_travel_time_source"] == "valhalla_free_flow"
+    assert "dist_work_routed_m" in props
+    meta = json.loads((fixture_data_dir / "score_metadata_colonia.json").read_text())
+    assert meta["road_routing"]["engine"] == "stub"
+
+
+@pytest.mark.e2e
+def test_run_pipeline_routed_saves_cache(
+    fixture_places: dict, fixture_data_dir: Path, tmp_path: Path, stub_router, monkeypatch
+) -> None:
+    from cdmxmap.routing.cache import RoutingCache
+
+    monkeypatch.setattr(mf, "RUNS_DIR", tmp_path / "runs")
+    cache = RoutingCache(path=tmp_path / "routes.json")
+    code = run_pipeline(
+        "fixture",
+        area_units=["colonia"],
+        skip_fetch=True,
+        places_config=fixture_places,
+        data_dir=fixture_data_dir,
+        public_dir=tmp_path / "public",
+        run_id="routedrun",
+        log_level="warning",
+        router=stub_router,
+        routing_cache=cache,
+    )
+    assert code == 0
+    # run_pipeline persists the cache in its finally block.
+    assert (tmp_path / "routes.json").exists()

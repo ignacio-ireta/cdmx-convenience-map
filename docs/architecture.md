@@ -37,6 +37,11 @@ GeoJSON.
   candidate routing), `metrics` (distance & inverse-density scores, travel-time
   estimates), `crime` (spatial aggregation), `transit/` (Apimetro approximation +
   optional r5py overlay), and `engine.score_areas()` which assembles the contract.
+- **`routing/`** — opt-in offline road routing for work/amenity travel times: a
+  `Router` Protocol, the `ValhallaRouter` adapter (in-process `pyvalhalla`), a
+  keyed `RoutingCache`, and the area-to-area matrix codec/builder. Off by default
+  (straight-line fallback); separate from schedule-aware transit. See
+  `docs/road-routing.md`.
 - **`output/`** — `geojson` (atomic writes), `metadata`, `manifest`.
 - **`pipeline/`** — `runner` orchestrates a city run with per-source isolation;
   `state` tracks the manifest (hashing, skip-unchanged, resume); `progress`
@@ -71,4 +76,4 @@ this. See `docs/github-pages.md` and `docs/website-embed-sync.md`.
 
 `current-state.md`, `data-pipeline.md`, `multi-city-roadmap.md`,
 `transit-commute.md`, `transit-routing-roadmap.md`, `travel-time-roadmap.md`,
-`r5py-prototype-results.md`, `true-transit-routing-spike.md`.
+`road-routing.md`, `r5py-prototype-results.md`, `true-transit-routing-spike.md`.

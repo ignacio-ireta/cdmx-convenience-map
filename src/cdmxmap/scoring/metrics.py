@@ -53,6 +53,19 @@ def round_distance(values: np.ndarray) -> list[int]:
     return np.rint(clean).astype(int).tolist()
 
 
+def nullable_round_distance(values: np.ndarray) -> list[int | None]:
+    """Round to int meters, but keep non-finite values as ``None``.
+
+    Used for routed-only distance fields: a row that fell back to the straight-line
+    estimate has no routed distance, so it is emitted as explicit ``null`` rather
+    than a misleading ``0``.
+    """
+    result: list[int | None] = []
+    for value in np.asarray(values, dtype=float):
+        result.append(int(round(value)) if math.isfinite(value) else None)
+    return result
+
+
 def round_score(values: np.ndarray) -> list[float]:
     clean = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
     return np.round(np.clip(clean, 0, 100), 1).tolist()

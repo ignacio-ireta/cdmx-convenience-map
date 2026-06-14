@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import re
 
 from .io import (
     DATA_PROCESSED,
     city_bbox,
+    city_data_dir,
     copy_seed,
     element_center,
     load_city_profile,
@@ -13,28 +13,31 @@ from .io import (
     write_csv,
 )
 
-BRAND_PATTERN = re.compile(r"(costco|walmart)", re.IGNORECASE)
 ALLOWED_SHOPS = {"supermarket", "wholesale", "department_store"}
 
 
-def build_query(city: str) -> str:
+def build_query(city: str, brands: set[str]) -> str:
     bbox_data = city_bbox(city)
     bbox = f"{bbox_data['south']},{bbox_data['west']},{bbox_data['north']},{bbox_data['east']}"
+    pattern = "|".join(sorted(brands))
     return f"""
 [out:json][timeout:45];
 (
-  nwr["brand"~"Costco|Walmart",i]({bbox});
-  nwr["operator"~"Costco|Walmart",i]({bbox});
-  nwr["name"~"Costco|Walmart",i]({bbox});
+  nwr["shop"~"supermarket|wholesale|department_store"]["brand"~"{pattern}",i]({bbox});
+  nwr["shop"~"supermarket|wholesale|department_store"]["operator"~"{pattern}",i]({bbox});
+  nwr["shop"~"supermarket|wholesale|department_store"]["name"~"{pattern}",i]({bbox});
 );
 out tags center;
 """
 
 
-def infer_brand(tags: dict) -> str:
-    haystack = " ".join(str(tags.get(key, "")) for key in ["brand", "operator", "name"])
-    match = BRAND_PATTERN.search(haystack)
-    return match.group(1).title() if match else "Unknown"
+def infer_brand(tags: dict, brands: set[str]) -> str:
+    haystack = " ".join(str(tags.get(key, "")).lower() for key in ["brand", "operator", "name"])
+    match = next(
+        (brand for brand in sorted(brands, key=len, reverse=True) if brand in haystack),
+        None,
+    )
+    return match.title() if match else "Unknown"
 
 
 def is_store(tags: dict) -> bool:
@@ -57,8 +60,11 @@ def main() -> None:
     parser.add_argument("--seed-only", action="store_true", help="Skip Overpass and use seed CSV.")
     args = parser.parse_args()
 
-    target = DATA_PROCESSED / "supermarkets.csv"
+    target = city_data_dir(DATA_PROCESSED, args.city) / "supermarkets.csv"
+    target.parent.mkdir(parents=True, exist_ok=True)
     if args.seed_only:
+        if args.city != "cdmx":
+            raise ValueError("Seed data is only valid for CDMX")
         copy_seed("supermarkets_seed.csv", target)
         return
 
@@ -70,7 +76,7 @@ def main() -> None:
                 "supermarkets", ["costco", "walmart"]
             )
         }
-        payload = retry_overpass(build_query(args.city), attempts=2, timeout=75)
+        payload = retry_overpass(build_query(args.city, brands), attempts=2, timeout=75)
         rows: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for element in payload.get("elements", []):
@@ -78,7 +84,7 @@ def main() -> None:
             if not center:
                 continue
             tags = element.get("tags", {})
-            brand = infer_brand(tags)
+            brand = infer_brand(tags, brands)
             if brand == "Unknown" or brand.lower() not in brands or not is_store(tags):
                 continue
             key = (element.get("type", ""), str(element.get("id", "")))
@@ -95,10 +101,12 @@ def main() -> None:
                 }
             )
         if len(rows) < 5:
-            raise ValueError(f"Only found {len(rows)} Costco/Walmart rows")
+            raise ValueError(f"Only found {len(rows)} matching supermarket rows")
         write_csv(target, rows, ["name", "brand", "latitude", "longitude", "source"])
-        print(f"Fetched {len(rows)} Costco/Walmart points")
+        print(f"Fetched {len(rows)} matching supermarket points")
     except Exception as exc:
+        if args.city != "cdmx":
+            raise RuntimeError(f"Could not fetch supermarkets for {args.city}: {exc}") from exc
         print(f"Falling back to seed supermarkets because Overpass failed: {exc}")
         copy_seed("supermarkets_seed.csv", target)
 

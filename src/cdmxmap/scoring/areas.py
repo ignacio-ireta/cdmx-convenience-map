@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 
-from cdmxmap.config import ALCALDIA_FIELDS, WGS84_CRS
+from cdmxmap.config import ALCALDIA_FIELDS, METRIC_CRS, WGS84_CRS
 from cdmxmap.models import AreaConfig
 
 
@@ -21,10 +22,10 @@ def first_existing(columns: list[str], candidates: list[str]) -> str | None:
     return None
 
 
-def normalize_postal_code(value: object) -> str:
+def normalize_postal_code(value: object, width: int = 5) -> str:
     text = str(value or "").strip()
     digits = "".join(character for character in text if character.isdigit())
-    return digits.zfill(5)[-5:] if digits else text.zfill(5)
+    return digits.zfill(width)[-width:] if digits else text.zfill(width)
 
 
 def normalize_text_series(series: pd.Series) -> pd.Series:
@@ -70,8 +71,10 @@ def prepare_area_properties(areas: gpd.GeoDataFrame, config: AreaConfig) -> gpd.
     else:
         raw_area_ids = normalize_text_series(prepared[id_field])
 
-    if config.area_unit == "postal_code":
-        area_ids = raw_area_ids.map(normalize_postal_code)
+    is_postal = config.postal_width is not None
+    if is_postal:
+        width = config.postal_width if config.postal_width is not None else 5
+        area_ids = raw_area_ids.map(partial(normalize_postal_code, width=width))
         prepared["postal_code"] = area_ids
         if "d_cp" not in prepared.columns:
             prepared["d_cp"] = area_ids
@@ -87,12 +90,30 @@ def prepare_area_properties(areas: gpd.GeoDataFrame, config: AreaConfig) -> gpd.
     prepared["area_unit"] = config.area_unit
     prepared["area_id"] = area_ids
     prepared["area_name"] = area_names
-    prepared["display_name"] = "CP " + area_ids if config.area_unit == "postal_code" else area_names
+    prepared["display_name"] = (config.display_prefix + area_ids) if is_postal else area_names
     prepared["alcaldia"] = alcaldias
 
-    if config.area_unit == "postal_code":
+    if is_postal:
         prepared["postal_label"] = area_names.where(area_names != area_ids, "")
     else:
         prepared["colonia_name"] = area_names
 
     return prepared
+
+
+def area_representative_latlon(
+    input_path: Path, config: AreaConfig, *, metric_crs: str = METRIC_CRS
+) -> tuple[list[str], list[tuple[float, float]]]:
+    """Area ids and their ``(lat, lon)`` representative points.
+
+    Uses the exact computation the scoring engine uses (``score_areas``) so the
+    area-to-area matrix build produces routed cells aligned with the scored output.
+    """
+    areas = prepare_area_properties(load_area_geometries(input_path), config)
+    areas_metric = areas.to_crs(metric_crs)
+    areas_metric["geometry"] = areas_metric.geometry.make_valid()
+    reference_points = areas_metric.geometry.representative_point()
+    reference_wgs84 = gpd.GeoSeries(reference_points, crs=metric_crs).to_crs(WGS84_CRS)
+    area_ids = areas["area_id"].tolist()
+    latlon = list(zip(reference_wgs84.y.tolist(), reference_wgs84.x.tolist()))
+    return area_ids, latlon

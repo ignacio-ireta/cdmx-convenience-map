@@ -68,8 +68,8 @@ cd frontend && npm run lint && npm run typecheck && npm run build   # frontend g
 - Crime data comes from CDMX open data: [Víctimas en Carpetas de Investigación FGJ](https://datos.cdmx.gob.mx/dataset/victimas-en-carpetas-de-investigacion-fgj/resource/d543a7b1-f8cb-439f-8a5c-e56c5479eeb5).
 - `data/seeds/*.csv` are fallback demo files only. If the nearest gym says `Unnamed gym`, that is an unnamed OSM feature, not generated sample data.
 - Workplace distance defaults to `data/config/places.json`; the checked-in default is postal code `11510`, and the app can override it with any CDMX postal code at runtime.
-- Work travel times are generated offline. The current implementation uses fallback straight-line estimates, documented in `docs/travel-time-roadmap.md`.
-- Amenity travel times are generated offline with nearest-candidate narrowing; the current implementation uses fallback walking-time estimates, not live routing.
+- Work and amenity travel times are generated offline. The default is a straight-line estimate; passing `--travel-router valhalla` uses real **offline road routing** (Valhalla, free-flow) baked into the static GeoJSON, with a per-feature straight-line fallback. Routed values are labeled `valhalla_free_flow`. See `docs/road-routing.md` (setup: `uv sync --extra routing`, then `cdmxmap build-tiles`).
+- Amenity travel times use straight-line nearest-candidate narrowing, then route those candidates and pick the genuinely fastest destination when routing is enabled.
 - Safety score is lower-is-better recent crime density. It uses the latest 12 months available in the FGJ CSV, not the current calendar date.
 
 ## Multi-City Evolution

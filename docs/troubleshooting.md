@@ -19,6 +19,14 @@ a **Java 21+** runtime on `PATH`. Install it (`uv sync --extra transit`) and a
 JDK; otherwise the pipeline falls back to the Apimetro approximation engine and
 sets `transit_commute_source` accordingly.
 
+**Road routing (`--travel-router valhalla`) errors.** Install the optional extra
+(`uv sync --extra routing`, pulls the `pyvalhalla` wheel — no Docker/Java needed)
+and build a tileset (`cdmxmap build-tiles --pbf <osm.pbf>`). A missing extra or
+tileset raises an actionable `ConfigError`, not a crash; without `--travel-router`
+the pipeline uses the straight-line estimate (`fallback_straight_line_estimate`).
+If `cdmxmap build-tiles` can't find `valhalla_build_*`, the wheel's binaries
+aren't on `PATH`/in the package — reinstall the extra. See `docs/road-routing.md`.
+
 ## Pipeline runs
 
 **A source fails (Overpass timeout, 5xx from datos.cdmx.gob.mx).** By default the

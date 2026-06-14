@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from cdmxmap.schema import validate_places_config
-from cdmxmap.sources.io import DATA_CONFIG
+from cdmxmap.sources.io import DATA_CITIES, DATA_CONFIG
 from cdmxmap.transit_commute import OUTPUT_COLUMNS as TRANSIT_COMMUTE_COLUMNS
 from cdmxmap.transit_commute import TransitCommuteConfig
 
@@ -98,6 +98,15 @@ DEFAULT_TRAVEL_TIME_CONFIG: dict[str, Any] = {
     },
 }
 
+ROAD_ROUTER_NONE = "none"
+ROAD_ROUTER_VALHALLA = "valhalla"
+DEFAULT_ROAD_ROUTING_CONFIG: dict[str, Any] = {
+    "engine": ROAD_ROUTER_NONE,
+    "tiles_dir": "data/processed/valhalla",
+    "modes": list(WORK_TRAVEL_MODES),
+    "candidate_count": 5,
+}
+
 TRANSIT_COMMUTE_NOT_CONFIGURED_SOURCE = "transit_commute_not_configured"
 TRANSIT_COMMUTE_FAILED_SOURCE = "transit_commute_failed"
 TRANSIT_ROUTER_APIMETRO = "apimetro_approximation"
@@ -112,14 +121,23 @@ for transit_column in TRANSIT_COMMUTE_COLUMNS:
         TRANSIT_COMMUTE_OUTPUT_COLUMNS.append("time_work_transit_p75_min")
 
 
-def load_places_config() -> dict:
-    path = DATA_CONFIG / "places.json"
-    if not path.exists():
-        return {
-            "workplace": {},
-            "travel_time": DEFAULT_TRAVEL_TIME_CONFIG,
-        }
-    return validate_places_config(json.loads(path.read_text(encoding="utf-8")))
+def load_places_config(city: str = "cdmx") -> dict:
+    """Load a city's places.json.
+
+    Resolution order: ``data/cities/<city>/places.json`` first; for CDMX, fall
+    back to the legacy ``data/config/places.json`` so existing behavior is
+    unchanged. Missing config yields safe defaults.
+    """
+    candidates = [DATA_CITIES / city / "places.json"]
+    if city == "cdmx":
+        candidates.append(DATA_CONFIG / "places.json")
+    for path in candidates:
+        if path.exists():
+            return validate_places_config(json.loads(path.read_text(encoding="utf-8")))
+    return {
+        "workplace": {},
+        "travel_time": DEFAULT_TRAVEL_TIME_CONFIG,
+    }
 
 
 def merged_travel_time_config(places_config: dict) -> dict:
@@ -157,3 +175,24 @@ def amenity_travel_time_config(places_config: dict, travel_time_config: dict) ->
 
 def transit_commute_config(places_config: dict) -> TransitCommuteConfig:
     return TransitCommuteConfig.from_mapping(places_config.get("transit_commute", {}))
+
+
+def road_routing_config(places_config: dict) -> dict:
+    """Merge the optional ``road_routing`` block with defaults.
+
+    ``engine`` defaults to ``none`` (straight-line fallback). ``modes`` is filtered
+    to the supported work modes; ``candidate_count`` is clamped to 1..10.
+    """
+    configured = places_config.get("road_routing", {}) or {}
+    engine = str(configured.get("engine", DEFAULT_ROAD_ROUTING_CONFIG["engine"])).strip().lower()
+    modes = configured.get("modes") or list(WORK_TRAVEL_MODES)
+    modes = [mode for mode in modes if mode in WORK_TRAVEL_MODES] or list(WORK_TRAVEL_MODES)
+    candidate_count = int(configured.get("candidate_count", 5) or 5)
+    return {
+        "engine": engine,
+        "tiles_dir": configured.get("tiles_dir", DEFAULT_ROAD_ROUTING_CONFIG["tiles_dir"]),
+        "modes": tuple(modes),
+        "candidate_count": max(1, min(candidate_count, 10)),
+        "version": configured.get("version"),
+        "osm_source": configured.get("osm_source"),
+    }

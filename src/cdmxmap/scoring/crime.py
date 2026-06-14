@@ -11,7 +11,7 @@ import pandas as pd
 from cdmxmap.config import METRIC_CRS, WGS84_CRS
 
 
-def read_crimes(path: Path) -> gpd.GeoDataFrame:
+def read_crimes(path: Path, *, metric_crs: str = METRIC_CRS) -> gpd.GeoDataFrame:
     if not path.exists():
         return gpd.GeoDataFrame(
             columns=[
@@ -25,11 +25,11 @@ def read_crimes(path: Path) -> gpd.GeoDataFrame:
             ],
             geometry=[],
             crs=WGS84_CRS,
-        ).to_crs(METRIC_CRS)
+        ).to_crs(metric_crs)
 
     df = pd.read_csv(path)
     if df.empty:
-        return gpd.GeoDataFrame(df, geometry=[], crs=WGS84_CRS).to_crs(METRIC_CRS)
+        return gpd.GeoDataFrame(df, geometry=[], crs=WGS84_CRS).to_crs(metric_crs)
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
@@ -47,7 +47,7 @@ def read_crimes(path: Path) -> gpd.GeoDataFrame:
         geometry=gpd.points_from_xy(df["longitude"], df["latitude"]),
         crs=WGS84_CRS,
     )
-    return crimes.to_crs(METRIC_CRS)
+    return crimes.to_crs(metric_crs)
 
 
 def aggregate_crime(
