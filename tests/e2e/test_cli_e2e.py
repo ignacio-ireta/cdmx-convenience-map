@@ -3,17 +3,29 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from cdmxmap import manifest as mf
+from cdmxmap.citycontext import load_city_context
 from cdmxmap.pipeline import build_area, run_pipeline
 from cdmxmap.validate import validate_geojson
 
 FIXTURE_CITY = Path(__file__).parents[1] / "fixtures" / "fixture_city"
+
+
+def fixture_context():
+    ctx = load_city_context()
+    colonia = replace(
+        ctx.area_configs["colonia"],
+        default_input_path=FIXTURE_CITY / "areas.geojson",
+    )
+    return replace(ctx, city_id="fixture", area_configs={"colonia": colonia})
 
 
 @pytest.mark.e2e
@@ -42,6 +54,7 @@ def test_run_pipeline_skip_fetch_writes_manifest(
     monkeypatch.setattr(mf, "RUNS_DIR", tmp_path / "runs")
     code = run_pipeline(
         "fixture",
+        ctx=fixture_context(),
         area_units=["colonia"],
         skip_fetch=True,
         places_config=fixture_places,
@@ -74,7 +87,10 @@ def test_cli_help_and_validate(
 
     def cdmxmap(*args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [sys.executable, "-m", "cdmxmap", *args], capture_output=True, text=True
+            [sys.executable, "-m", "cdmxmap", *args],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "COLUMNS": "200", "NO_COLOR": "1"},
         )
 
     help_result = cdmxmap("--help")
@@ -123,6 +139,7 @@ def test_run_pipeline_routed_saves_cache(
     cache = RoutingCache(path=tmp_path / "routes.json")
     code = run_pipeline(
         "fixture",
+        ctx=fixture_context(),
         area_units=["colonia"],
         skip_fetch=True,
         places_config=fixture_places,
