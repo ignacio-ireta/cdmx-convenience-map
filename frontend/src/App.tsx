@@ -113,8 +113,7 @@ function App() {
   const data = datasets[selectedAreaUnit] ?? null
   const postalData = datasets.postal_code ?? null
   const selectedGeography =
-    city.geographies.find((geography) => geography.unit === selectedAreaUnit) ??
-    city.geographies[0]
+    city.geographies.find((geography) => geography.unit === selectedAreaUnit) ?? city.geographies[0]
   const selectedWorkMode = WORK_MODES.find((mode) => mode.key === workMode) ?? WORK_MODES[0]
 
   useEffect(() => {

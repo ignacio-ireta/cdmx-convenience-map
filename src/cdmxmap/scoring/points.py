@@ -401,9 +401,7 @@ def load_point_datasets(
     transit = read_points(resolved_dir / "transit_stops.csv", metric_crs=ctx.metric_crs)
     supermarkets = read_points(resolved_dir / "supermarkets.csv", metric_crs=ctx.metric_crs)
     gyms = read_points(resolved_dir / "gyms.csv", metric_crs=ctx.metric_crs)
-    workplaces = load_workplaces(
-        places_config, metric_crs=ctx.metric_crs, raw_dir=ctx.raw_dir
-    )
+    workplaces = load_workplaces(places_config, metric_crs=ctx.metric_crs, raw_dir=ctx.raw_dir)
     crimes = read_crimes(resolved_dir / "crime_points.csv", metric_crs=ctx.metric_crs)
 
     supermarket_brand = (
@@ -423,8 +421,7 @@ def load_point_datasets(
         core_transit = transit[transit_system.isin(ctx.core_codes)].copy()
         surface_transit = transit[transit_system.isin(ctx.surface_codes)].copy()
         transit_by_system = {
-            spec.code: transit[transit_system.eq(spec.code)].copy()
-            for spec in ctx.transit_systems
+            spec.code: transit[transit_system.eq(spec.code)].copy() for spec in ctx.transit_systems
         }
     else:
         core_transit = transit

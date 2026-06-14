@@ -140,8 +140,7 @@ def _store_brands_from_profile(profile: dict) -> tuple[StoreBrandSpec, ...]:
             StoreBrandSpec(
                 slug=str(brand["slug"]),
                 match=tuple(
-                    str(token).lower()
-                    for token in (brand.get("match") or [brand["slug"]])
+                    str(token).lower() for token in (brand.get("match") or [brand["slug"]])
                 ),
             )
             for brand in declared
@@ -149,8 +148,7 @@ def _store_brands_from_profile(profile: dict) -> tuple[StoreBrandSpec, ...]:
     # Fall back to amenity_brands.supermarkets: one column family per brand.
     brands = (profile.get("amenity_brands") or {}).get("supermarkets") or []
     return tuple(
-        StoreBrandSpec(slug=str(brand).lower(), match=(str(brand).lower(),))
-        for brand in brands
+        StoreBrandSpec(slug=str(brand).lower(), match=(str(brand).lower(),)) for brand in brands
     )
 
 

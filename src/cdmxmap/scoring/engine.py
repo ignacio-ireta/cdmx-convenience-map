@@ -122,9 +122,7 @@ def score_areas(
         dataset = point_datasets.supermarkets_by_brand[slug]
         return dataset if not dataset.empty else point_datasets.supermarkets
 
-    brand_nearest = {
-        slug: nearest(reference_points, _brand_dataset(slug)) for slug in brand_slugs
-    }
+    brand_nearest = {slug: nearest(reference_points, _brand_dataset(slug)) for slug in brand_slugs}
     nearest_gym = nearest(reference_points, point_datasets.gyms)
     routed_supermarket = amenity_route_candidates(
         reference_points,
@@ -245,9 +243,7 @@ def score_areas(
     areas["dist_core_transit_m"] = round_distance(nearest_core_transit.distances)
     areas["dist_surface_transit_m"] = round_distance(nearest_surface_transit.distances)
     for code, slug in transit_slugs.items():
-        areas[f"dist_{slug}_transit_m"] = round_distance(
-            nearest_transit_by_system[code].distances
-        )
+        areas[f"dist_{slug}_transit_m"] = round_distance(nearest_transit_by_system[code].distances)
     areas["dist_supermarket_m"] = round_distance(nearest_supermarket.distances)
     for slug in brand_slugs:
         areas[f"dist_{slug}_m"] = round_distance(brand_nearest[slug].distances)
