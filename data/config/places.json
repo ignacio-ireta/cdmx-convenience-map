@@ -26,5 +26,12 @@
     "mode": "walking",
     "candidate_count": 5,
     "notes": "For each area and amenity group, only the nearest candidate_count POIs by straight-line distance are considered before estimating travel time."
+  },
+  "road_routing": {
+    "engine": "none",
+    "tiles_dir": "data/processed/valhalla",
+    "modes": ["driving", "walking", "biking"],
+    "candidate_count": 5,
+    "notes": "Off by default (engine=none -> straight-line fallback). Set engine=valhalla and pass --travel-router valhalla to route on a locally built Valhalla tileset. See docs/road-routing.md."
   }
 }
