@@ -85,3 +85,25 @@ class TestValidateGeojson:
         path = write_collection(tmp_path / "no_transit.geojson", props)
         with pytest.raises(AssertionError):
             vp.validate_geojson(path)
+
+    def test_routed_fields_optional_and_nullable(self, tmp_path: Path) -> None:
+        props = make_props()
+        props["dist_work_routed_m"] = 2500  # routed row
+        props["dist_gym_routed_m"] = None  # fell back -> null is allowed
+        props["work_travel_time_source"] = "valhalla_free_flow"
+        path = write_collection(tmp_path / "routed.geojson", props)
+        assert vp.validate_geojson(path) == 1
+
+    def test_routed_distance_negative_fails(self, tmp_path: Path) -> None:
+        props = make_props()
+        props["dist_work_routed_m"] = -10
+        path = write_collection(tmp_path / "bad_routed.geojson", props)
+        with pytest.raises(AssertionError):
+            vp.validate_geojson(path)
+
+    def test_source_field_must_be_scalar_string(self, tmp_path: Path) -> None:
+        props = make_props()
+        props["work_travel_time_source"] = ["valhalla_free_flow"]  # array is invalid
+        path = write_collection(tmp_path / "list_source.geojson", props)
+        with pytest.raises(AssertionError):
+            vp.validate_geojson(path)

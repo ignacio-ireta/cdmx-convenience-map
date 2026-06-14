@@ -54,7 +54,21 @@ fields may be explicit `null`.
 
 **Travel times (`*_min`, ≥ 0):** `time_work_driving_min`, `time_work_walking_min`,
 `time_work_biking_min`, `time_supermarket_min`, `time_costco_min`,
-`time_walmart_min`, `time_gym_min`.
+`time_walmart_min`, `time_gym_min`. These are straight-line estimates by default
+and real routed times where road routing ran (see *Road routing* below); a row
+that fails to route falls back to the estimate, so the field is always populated.
+
+**Routed distances (`*_routed_m`, ≥ 0, optional — present only when road routing
+ran):** `dist_work_routed_m`, `dist_supermarket_routed_m`, `dist_costco_routed_m`,
+`dist_walmart_routed_m`, `dist_gym_routed_m`. The routed network distance of the
+chosen destination, stored separately from the straight-line `dist_*_m`. A row
+that fell back to the straight-line estimate emits explicit `null` here. These are
+**additive**: absent entirely on the default straight-line build.
+
+**Per-feature source labels (scalar strings, never arrays):**
+`work_travel_time_source` and `amenity_travel_time_source` are `valhalla_free_flow`
+(or another engine label) on rows that routed and `fallback_straight_line_estimate`
+on rows that fell back. Free-flow routing is never labeled as live-traffic commute.
 
 **Scores (0–100):** `score_work`, `score_work_driving`, `score_work_walking`,
 `score_work_biking`, `score_transit`, `score_supermarkets`,
@@ -78,7 +92,29 @@ fields may be explicit `null`.
 feature has geometry and all identity fields; postal features have `postal_code`;
 all distance/time/crime fields are finite `≥ 0`; all score fields are `0–100`;
 the transit block keys all exist and `transit_commute_source` is non-empty; and
-**at least one** feature has a non-null `time_work_transit_min`.
+**at least one** feature has a non-null `time_work_transit_min`. When present, each
+`*_routed_m` field is a number `≥ 0` or explicit `null`, and each `*_source`
+field is a scalar string (a JSON array is rejected).
+
+### Road routing (optional)
+
+When the pipeline runs with `--travel-router valhalla`, work and amenity travel
+times come from an offline Valhalla road network (free-flow) instead of the
+straight-line estimate. See `docs/road-routing.md` for the architecture decision,
+setup, and the dynamic-workplace matrix. The `score_metadata` gains a
+`road_routing` block (engine, version, source, profiles per mode, OSM source,
+per-mode and per-amenity routed/fallback counts, and cache stats), and
+`travel_time.source` reflects the engine while `travel_time.fallback_source`
+keeps the straight-line label.
+
+The dynamic-workplace area-to-area matrix is published as binary assets in
+`frontend/public/data/`: `routing_matrix_<area_unit>_<mode>_<hash>.bin` (the N×N
+travel-time matrix in **deciminutes** as little-endian `uint16`, sentinel `65535`
+for unreachable, laid out **destination-major** so one workplace column is a
+contiguous Range request) plus a `routing_matrix_<area_unit>_index.json` sidecar
+(ordered `area_ids`, `n`, `dtype`, `scale`, `sentinel`, axis order, per-mode
+filenames, and provenance). The frontend feature-detects the index and falls back
+to the labeled straight-line estimate when it is absent.
 
 ### Determinism
 

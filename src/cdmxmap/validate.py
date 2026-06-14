@@ -80,6 +80,22 @@ CRIME_COUNT_FIELDS = [
     "crime_density_recent_12m_per_km2",
 ]
 
+# Additive, optional: present only when road routing ran. Each is meters >= 0, or
+# null on a row that fell back to the straight-line estimate.
+ROUTED_DISTANCE_FIELDS = [
+    "dist_work_routed_m",
+    "dist_supermarket_routed_m",
+    "dist_costco_routed_m",
+    "dist_walmart_routed_m",
+    "dist_gym_routed_m",
+]
+
+# Per-feature travel-time provenance. Must be a single string, never a JSON array.
+SOURCE_FIELDS = [
+    "work_travel_time_source",
+    "amenity_travel_time_source",
+]
+
 
 def assert_number(value: object, *, minimum: float, maximum: float | None = None) -> None:
     if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
@@ -140,6 +156,13 @@ def validate_geojson(path: Path) -> int:
         assert_optional_number(props.get("transit_transfer_penalty_min"), minimum=0)
         for field in CRIME_COUNT_FIELDS:
             assert_number(props.get(field), minimum=0)
+        for field in ROUTED_DISTANCE_FIELDS:
+            if field in props:
+                assert_optional_number(props.get(field), minimum=0)
+        for field in SOURCE_FIELDS:
+            value = props.get(field)
+            if value is not None and not isinstance(value, str):
+                raise AssertionError(f"{field} must be a string, got {type(value).__name__}")
 
     if transit_estimate_count == 0:
         raise AssertionError("No features have non-null transit commute estimates")
