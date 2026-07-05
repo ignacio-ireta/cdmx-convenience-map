@@ -1,0 +1,13 @@
+{
+  "workplace": {
+    "name": "Drammen stasjon reference point",
+    "latitude": 59.7429,
+    "longitude": 10.2046,
+    "source": "configured_reference_point"
+  },
+  "transit_commute": {
+    "source": "osm_stop_pair_approximation",
+    "stop_source_label": "OpenStreetMap",
+    "engine_label": "osm_stop_pair_approximation"
+  }
+}

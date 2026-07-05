@@ -1,0 +1,56 @@
+{
+  "city_id": "morelia",
+  "display_name": "Morelia",
+  "country_code": "MX",
+  "timezone": "America/Mexico_City",
+  "crs_metric_epsg": 32614,
+  "postal_code_range": [58000, 58399],
+  "bbox": { "south": 19.44, "west": -101.61, "north": 19.96, "east": -101.04 },
+  "default_weights": {
+    "work": 0.35,
+    "transit": 0.30,
+    "supermarkets": 0.20,
+    "gyms": 0.15,
+    "safety": 0.0
+  },
+  "transit_core_weight": 0.7,
+  "transit_surface_weight": 0.3,
+  "transit_systems": [
+    { "code": "RAIL", "slug": "rail", "group": "core" },
+    { "code": "BUS", "slug": "bus", "group": "surface" }
+  ],
+  "store_brands": [
+    { "slug": "aurrera", "match": ["aurrera", "aurrerá"] },
+    { "slug": "walmart", "match": ["walmart"] },
+    { "slug": "soriana", "match": ["soriana"] },
+    { "slug": "chedraui", "match": ["chedraui"] }
+  ],
+  "amenity_brands": {
+    "supermarkets": ["aurrera", "aurrerá", "walmart", "soriana", "chedraui"]
+  },
+  "area_units": [
+    {
+      "area_unit": "postal_code",
+      "default_input": "postal_codes.geojson",
+      "output_name": "scores_postal_code.geojson",
+      "id_fields": ["d_codigo"],
+      "name_fields": [],
+      "source_url_key": "postal_codes",
+      "source_url": "https://github.com/open-mexico/mexico-geojson",
+      "postal_width": 5,
+      "display_prefix": "CP "
+    }
+  ],
+  "fetchers": [
+    { "module": "fetch_mx_postal_codes", "output": "postal_codes.geojson", "dir": "raw" },
+    { "module": "fetch_osm_transit", "output": "transit_stops.csv" },
+    { "module": "fetch_supermarkets", "output": "supermarkets.csv" },
+    { "module": "fetch_gyms", "output": "gyms.csv" }
+  ],
+  "sources": {
+    "postal_codes": "https://raw.githubusercontent.com/open-mexico/mexico-geojson/main/16-Mich.geojson",
+    "transit": "https://wiki.openstreetmap.org/wiki/Key:public_transport",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "safety": null
+  }
+}

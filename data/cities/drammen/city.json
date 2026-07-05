@@ -1,0 +1,58 @@
+{
+  "city_id": "drammen",
+  "display_name": "Drammen",
+  "country_code": "NO",
+  "timezone": "Europe/Oslo",
+  "crs_metric_epsg": 25832,
+  "municipality_code": "3301",
+  "bbox": { "south": 59.53, "west": 9.94, "north": 59.86, "east": 10.43 },
+  "default_weights": {
+    "work": 0.35,
+    "transit": 0.30,
+    "supermarkets": 0.20,
+    "gyms": 0.15,
+    "safety": 0.0
+  },
+  "transit_core_weight": 0.7,
+  "transit_surface_weight": 0.3,
+  "transit_systems": [
+    { "code": "RAIL", "slug": "rail", "group": "core" },
+    { "code": "BUS", "slug": "bus", "group": "surface" }
+  ],
+  "store_brands": [
+    { "slug": "rema", "match": ["rema"] },
+    { "slug": "kiwi", "match": ["kiwi"] },
+    { "slug": "coop", "match": ["coop", "extra"] },
+    { "slug": "meny", "match": ["meny"] },
+    { "slug": "joker", "match": ["joker"] },
+    { "slug": "bunnpris", "match": ["bunnpris"] }
+  ],
+  "amenity_brands": {
+    "supermarkets": ["rema", "kiwi", "coop", "extra", "meny", "joker", "bunnpris"]
+  },
+  "area_units": [
+    {
+      "area_unit": "postal_code",
+      "default_input": "postal_codes.geojson",
+      "output_name": "scores_postal_code.geojson",
+      "id_fields": ["postnummer"],
+      "name_fields": ["poststed"],
+      "source_url_key": "postal_codes",
+      "source_url": "https://wfs.geonorge.no/skwms1/wfs.postnummeromrader",
+      "postal_width": 4,
+      "display_prefix": ""
+    }
+  ],
+  "fetchers": [
+    { "module": "fetch_no_postal_codes", "output": "postal_codes.geojson", "dir": "raw" },
+    { "module": "fetch_no_transit", "output": "transit_stops.csv" },
+    { "module": "fetch_supermarkets", "output": "supermarkets.csv" },
+    { "module": "fetch_gyms", "output": "gyms.csv" }
+  ],
+  "sources": {
+    "postal_codes": "https://kartkatalog.geonorge.no/metadata/postnummeromrader/462a5297-33ef-438a-82a5-07fff5799be3",
+    "transit": "https://wiki.openstreetmap.org/wiki/Key:public_transport",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "safety": null
+  }
+}

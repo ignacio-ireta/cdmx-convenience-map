@@ -16,7 +16,9 @@ VALID_CITY = {
 
 
 class TestCityProfile:
-    @pytest.mark.parametrize("city", ["cdmx", "oslo", "bergen", "trondheim", "stavanger"])
+    @pytest.mark.parametrize(
+        "city", ["cdmx", "oslo", "bergen", "trondheim", "stavanger", "drammen", "morelia"]
+    )
     def test_committed_profiles_validate(self, city: str) -> None:
         # The real loaders run validation; every shipped profile must pass.
         assert load_city_profile(city)["city_id"] == city

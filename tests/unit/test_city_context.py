@@ -7,7 +7,7 @@ from cdmxmap.errors import ConfigError
 from cdmxmap.scoring.points import load_workplaces
 
 
-@pytest.mark.parametrize("city", ["oslo", "bergen", "trondheim", "stavanger"])
+@pytest.mark.parametrize("city", ["oslo", "bergen", "trondheim", "stavanger", "drammen"])
 def test_norwegian_profile_is_runnable(city: str) -> None:
     ctx = load_city_context(city)
 
@@ -24,6 +24,24 @@ def test_norwegian_profile_is_runnable(city: str) -> None:
     ]
     assert ctx.raw_dir.name == city
     assert ctx.data_dir.name == city
+
+
+def test_morelia_profile_is_runnable() -> None:
+    ctx = load_city_context("morelia")
+
+    assert set(ctx.area_configs) == {"postal_code"}
+    assert ctx.area_configs["postal_code"].postal_width == 5
+    assert ctx.area_configs["postal_code"].display_prefix == "CP "
+    assert ctx.weights["safety"] == 0
+    assert ctx.metric_crs == "EPSG:32614"
+    assert [brand.slug for brand in ctx.store_brands] == [
+        "aurrera",
+        "walmart",
+        "soriana",
+        "chedraui",
+    ]
+    assert ctx.raw_dir.name == "morelia"
+    assert ctx.data_dir.name == "morelia"
 
 
 def test_incomplete_city_profile_fails_before_cli_execution(monkeypatch) -> None:

@@ -4,13 +4,16 @@ This project already has a good split between **offline scoring** (Python) and *
 
 > **Implementation status.** Much of this roadmap has shipped. The pipeline is
 > `--city` profile-driven (`data/cities/<id>/{city.json,places.json}`) and now
-> ships CDMX plus four Norwegian cities — **Oslo**, **Bergen**, **Trondheim**, and
-> **Stavanger** — built with `uv run cdmxmap run --city <id> --area-unit postal_code`.
+> ships two Mexican cities — **CDMX** and **Morelia** — plus five Norwegian cities
+> — **Oslo**, **Bergen**, **Trondheim**, **Stavanger**, and **Drammen** — built
+> with `uv run cdmxmap run --city <id> --area-unit postal_code`.
 > Where sections below propose a `scripts/`-based layout (e.g. `scripts/run_city.py`,
 > `scripts/adapters/<city_id>/`), the realized design is the importable
-> `src/cdmxmap/` package and the `cdmxmap` CLI; the Norwegian area/transit adapters
-> live at `src/cdmxmap/sources/fetch_no_*.py`. Treat the rest of this document as the
-> original design sketch, not current file paths.
+> `src/cdmxmap/` package and the `cdmxmap` CLI; the Norwegian area adapter lives at
+> `src/cdmxmap/sources/fetch_no_postal_codes.py`, the Mexican one at
+> `fetch_mx_postal_codes.py`, and the shared OSM transit adapter at
+> `fetch_osm_transit.py`. Treat the rest of this document as the original design
+> sketch, not current file paths.
 
 ## 1) Introduce a city profile contract
 

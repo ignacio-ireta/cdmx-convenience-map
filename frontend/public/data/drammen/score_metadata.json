@@ -1,0 +1,158 @@
+{
+  "generated_at": "2026-07-05T08:03:37+00:00",
+  "city_id": "drammen",
+  "area_unit": "postal_code",
+  "feature_count": 46,
+  "weights": {
+    "work": 0.35,
+    "transit": 0.3,
+    "supermarkets": 0.2,
+    "gyms": 0.15,
+    "safety": 0.0
+  },
+  "point_counts": {
+    "transit_stops": 1567,
+    "transit_core_points": 33,
+    "transit_surface_points": 1534,
+    "transit_system_points": {
+      "rail": 33,
+      "bus": 1534
+    },
+    "supermarkets": 72,
+    "gyms": 25,
+    "workplaces": 1,
+    "crime_records": 0
+  },
+  "crime": {
+    "records_total": 0,
+    "records_recent_12m": 0,
+    "latest_date": null,
+    "recent_start_date": null
+  },
+  "workplace": {
+    "name": "Drammen stasjon reference point",
+    "postal_code": null,
+    "source": "configured_reference_point"
+  },
+  "travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "fallback_source": "fallback_straight_line_estimate",
+    "modes": [
+      "driving",
+      "walking",
+      "biking"
+    ],
+    "speeds_kmh": {
+      "driving": 24.0,
+      "walking": 4.8,
+      "biking": 14.0
+    },
+    "detour_factors": {
+      "driving": 1.35,
+      "walking": 1.15,
+      "biking": 1.25
+    }
+  },
+  "road_routing": null,
+  "amenity_travel_time": {
+    "source": "fallback_straight_line_estimate",
+    "mode": "walking",
+    "candidate_count": 5,
+    "candidate_pairs": {
+      "supermarkets": 230,
+      "rema": 230,
+      "kiwi": 230,
+      "coop": 230,
+      "meny": 230,
+      "joker": 184,
+      "bunnpris": 230,
+      "gyms": 230
+    },
+    "estimated_pairs": {
+      "supermarkets": 230,
+      "rema": 230,
+      "kiwi": 230,
+      "coop": 230,
+      "meny": 230,
+      "joker": 184,
+      "bunnpris": 230,
+      "gyms": 230
+    }
+  },
+  "transit_commute_source": "osm_stop_pair_approximation",
+  "transit_commute": {
+    "source": "osm_stop_pair_approximation",
+    "candidate_stop_count": 5,
+    "walking_speed_kmh": 4.8,
+    "speeds_kmh": {
+      "metro": 28.0,
+      "metrobus": 18.0,
+      "bus": 14.0,
+      "trolleybus": 14.0,
+      "default_transit": 16.0
+    },
+    "penalties_min": {
+      "same_line": 2.0,
+      "same_system_different_or_unknown_line": 8.0,
+      "different_system": 12.0
+    },
+    "max_walk_m": {
+      "origin": 1200.0,
+      "destination": 1200.0
+    },
+    "known_limitations": [
+      "Uses OpenStreetMap stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
+      "Line values are only used when present in the processed stop data; the current OpenStreetMap cache does not include line/order fields.",
+      "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
+      "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
+      "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
+    ],
+    "generated_at": "2026-07-05T08:03:37+00:00",
+    "engine": "osm_stop_pair_approximation",
+    "router": {
+      "engine": "osm_stop_pair_approximation",
+      "source": "osm_stop_pair_approximation",
+      "routed_count": 46,
+      "failed_count": 0
+    },
+    "transit_commute_source": "osm_stop_pair_approximation",
+    "estimated_areas": 46,
+    "failed_areas": 0,
+    "source_counts": {
+      "osm_stop_pair_approximation": 46
+    }
+  },
+  "source_urls": {
+    "postal_codes": "https://kartkatalog.geonorge.no/metadata/postnummeromrader/462a5297-33ef-438a-82a5-07fff5799be3",
+    "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
+    "transit": "https://wiki.openstreetmap.org/wiki/Key:public_transport",
+    "amenities": "https://overpass-api.de/api/interpreter"
+  },
+  "sources": {
+    "areas": "data/raw/drammen/postal_codes.geojson",
+    "postal_code": "data/raw/drammen/postal_codes.geojson",
+    "places_config": "data/cities/drammen/places.json",
+    "transit_stops": "data/processed/drammen/transit_stops.csv",
+    "supermarkets": "data/processed/drammen/supermarkets.csv",
+    "gyms": "data/processed/drammen/gyms.csv",
+    "workplaces_legacy_csv": "data/raw/drammen/workplaces.csv",
+    "crime_points": "data/processed/drammen/crime_points.csv"
+  },
+  "outputs": {
+    "processed": "data/processed/drammen/scores_postal_code.geojson",
+    "public": "frontend/public/data/drammen/scores_postal_code.geojson",
+    "legacy_processed": [],
+    "legacy_public": []
+  },
+  "notes": [
+    "Distances are straight-line representative-point-to-point distances in meters.",
+    "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
+    "Scores are closer-is-better and clipped at the 95th percentile per metric.",
+    "Work travel times are offline fallback estimates unless the travel_time source is replaced with cached routing results.",
+    "Work transit commute uses an offline OpenStreetMap stop-pair approximation and is not schedule-aware.",
+    "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
+    "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
+    "System-specific transit distance and score fields support client-side transit method filters.",
+    "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file."
+  ]
+}

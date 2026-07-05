@@ -1,72 +1,15 @@
+"""Backward-compatible alias for the generic OpenStreetMap transit fetcher.
+
+The Norwegian city profiles (``oslo``/``bergen``/``trondheim``/``stavanger``/
+``drammen``) reference this module by name in their ``fetchers`` list. The
+implementation is country-neutral and now lives in :mod:`fetch_osm_transit`;
+this shim preserves the ``python -m cdmxmap.sources.fetch_no_transit`` entry
+point so those profiles keep working byte-for-byte.
+"""
+
 from __future__ import annotations
 
-import argparse
-
-from .io import (
-    DATA_PROCESSED,
-    city_bbox,
-    city_data_dir,
-    element_center,
-    retry_overpass,
-    write_csv,
-)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Fetch Norwegian public-transport stops from OSM by city profile."
-    )
-    parser.add_argument("--city", required=True)
-    args = parser.parse_args()
-    bbox_data = city_bbox(args.city)
-    bbox = ",".join(str(bbox_data[key]) for key in ["south", "west", "north", "east"])
-    query = f"""
-[out:json][timeout:90];
-(
-  nwr["highway"="bus_stop"]({bbox});
-  nwr["railway"~"station|halt|tram_stop|subway_entrance"]({bbox});
-  nwr["public_transport"~"platform|station"]({bbox});
-);
-out tags center;
-"""
-    payload = retry_overpass(query, attempts=3, timeout=120)
-    rows = []
-    seen = set()
-    for element in payload.get("elements", []):
-        center = element_center(element)
-        if not center:
-            continue
-        tags = element.get("tags") or {}
-        key = (element.get("type"), element.get("id"))
-        if key in seen:
-            continue
-        seen.add(key)
-        railway = str(tags.get("railway", ""))
-        mode = str(tags.get("station", "") or tags.get("tram", ""))
-        system = "RAIL" if railway or mode in {"subway", "light_rail", "tram"} else "BUS"
-        rows.append(
-            {
-                "id": f"osm:{key[0]}:{key[1]}",
-                "name": tags.get("name", "Unnamed stop"),
-                "system": system,
-                "line": "",
-                "hierarchy": tags.get("public_transport", ""),
-                "latitude": center[0],
-                "longitude": center[1],
-                "source": "openstreetmap",
-            }
-        )
-    if not rows:
-        raise ValueError(f"OSM returned no public-transport stops for {args.city}")
-    target = city_data_dir(DATA_PROCESSED, args.city) / "transit_stops.csv"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    write_csv(
-        target,
-        rows,
-        ["id", "name", "system", "line", "hierarchy", "latitude", "longitude", "source"],
-    )
-    print(f"Wrote {len(rows)} {args.city} public-transport stops")
-
+from .fetch_osm_transit import main
 
 if __name__ == "__main__":
     main()

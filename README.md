@@ -28,10 +28,10 @@ Open [http://127.0.0.1:5174](http://127.0.0.1:5174).
 transit, supermarkets, gyms, crime) and then builds scores; pass `--skip-fetch`
 to rebuild scores from already-downloaded data, or use `cdmxmap fetch` /
 `cdmxmap score` individually. City profiles live in
-`data/cities/<city_id>/city.json` (`cdmx` plus the Norwegian cities `oslo`,
-`bergen`, `trondheim`, and `stavanger`); every fetcher a profile lists is
-city-aware. Build another city's map with, for example,
-`uv run cdmxmap run --city bergen --area-unit postal_code`. The pipeline lives in
+`data/cities/<city_id>/city.json` — the Mexican cities `cdmx` and `morelia`, plus
+the Norwegian cities `oslo`, `bergen`, `trondheim`, `stavanger`, and `drammen`;
+every fetcher a profile lists is city-aware. Build another city's map with, for
+example, `uv run cdmxmap run --city bergen --area-unit postal_code`. The pipeline lives in
 the importable `src/cdmxmap/` package; `python -m cdmxmap` is equivalent to the
 `cdmxmap` command.
 
@@ -77,9 +77,12 @@ cd frontend && npm run lint && npm run typecheck && npm run build   # frontend g
 
 ## Multi-City Evolution
 
-The pipeline is already `--city` profile-driven. Alongside CDMX it ships four
-Norwegian cities — **Oslo**, **Bergen**, **Trondheim**, and **Stavanger** — each
-built from `data/cities/<id>/{city.json,places.json}` and viewable in the frontend
-via the city switcher or `?city=<id>`. Adding another Norwegian city is mostly a
-profile (set its `municipality_code`); other countries additionally need an
-area/transit fetcher. See `docs/multi-city-roadmap.md` for the full contract.
+The pipeline is already `--city` profile-driven. Alongside CDMX it ships five
+Norwegian cities — **Oslo**, **Bergen**, **Trondheim**, **Stavanger**, and
+**Drammen** — and a second Mexican city, **Morelia** (postal-code polygons from
+the open-mexico SEPOMEX dataset, OpenStreetMap transit/grocery/gym, no crime
+scoring), each built from `data/cities/<id>/{city.json,places.json}` and viewable
+in the frontend via the city switcher or `?city=<id>`. Adding another Norwegian
+city is mostly a profile (set its `municipality_code`); a new Mexican city needs
+its `postal_code_range` and the shared OSM fetchers; other countries additionally
+need an area/transit fetcher. See `docs/multi-city-roadmap.md` for the full contract.

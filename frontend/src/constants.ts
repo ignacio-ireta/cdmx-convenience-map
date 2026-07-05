@@ -320,7 +320,46 @@ const NORWAY_STORES: StoreOption[] = [
   },
 ]
 
-function norwegianAssets(cityId: string): CityAssets {
+// Morelia (Michoacán) shares the open-data provenance of the Norwegian cities —
+// OpenStreetMap transit + grocery brands, no crime scoring — but keeps Mexican
+// 5-digit "CP " postal codes (open-mexico SEPOMEX polygons) and local grocery
+// chains. See data/cities/morelia/.
+const MORELIA_STORES: StoreOption[] = [
+  {
+    key: 'aurrera',
+    label: 'Bodega Aurrerá',
+    distanceField: 'dist_aurrera_m',
+    timeField: 'time_aurrera_min',
+    nearestNameField: 'nearest_aurrera_name',
+    nearestSourceField: 'nearest_aurrera_source',
+  },
+  {
+    key: 'walmart',
+    label: 'Walmart',
+    distanceField: 'dist_walmart_m',
+    timeField: 'time_walmart_min',
+    nearestNameField: 'nearest_walmart_name',
+    nearestSourceField: 'nearest_walmart_source',
+  },
+  {
+    key: 'soriana',
+    label: 'Soriana',
+    distanceField: 'dist_soriana_m',
+    timeField: 'time_soriana_min',
+    nearestNameField: 'nearest_soriana_name',
+    nearestSourceField: 'nearest_soriana_source',
+  },
+  {
+    key: 'chedraui',
+    label: 'Chedraui',
+    distanceField: 'dist_chedraui_m',
+    timeField: 'time_chedraui_min',
+    nearestNameField: 'nearest_chedraui_name',
+    nearestSourceField: 'nearest_chedraui_source',
+  },
+]
+
+function cityDataAssets(cityId: string): CityAssets {
   const base = `${import.meta.env.BASE_URL}data/${cityId}`
   return {
     // No colonia geography outside CDMX; alias it to the postal file so the
@@ -361,7 +400,7 @@ function norwegianCity(opts: {
     geographies: NORWAY_GEOGRAPHIES,
     stores: NORWAY_STORES,
     transit: [],
-    assets: norwegianAssets(opts.id),
+    assets: cityDataAssets(opts.id),
     transitSourceLabel: 'OpenStreetMap',
     safetySource: 'Not scored',
     scoresSafety: false,
@@ -411,4 +450,35 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
     mapCenter: [58.97, 5.7331],
     postalPlaceholder: 'e.g. 4006',
   }),
+  drammen: norwegianCity({
+    id: 'drammen',
+    name: 'Drammen',
+    mapCenter: [59.744, 10.2045],
+    postalPlaceholder: 'e.g. 3015',
+  }),
+  morelia: {
+    id: 'morelia',
+    name: 'Morelia',
+    eyebrow: 'Morelia apartment search',
+    postalWidth: 5,
+    postalPlaceholder: 'e.g. 58000',
+    postalPrefix: 'CP ',
+    mapCenter: [19.7024, -101.1946],
+    mapZoom: 12,
+    weights: { work: 35, transit: 30, supermarkets: 20, gyms: 15, safety: 0 },
+    geographies: [
+      {
+        unit: 'postal_code',
+        label: 'Postal code',
+        pluralLabel: 'Postal codes',
+        sourceLabel: 'SEPOMEX (Correos de México)',
+      },
+    ],
+    stores: MORELIA_STORES,
+    transit: [],
+    assets: cityDataAssets('morelia'),
+    transitSourceLabel: 'OpenStreetMap',
+    safetySource: 'Not scored',
+    scoresSafety: false,
+  },
 }

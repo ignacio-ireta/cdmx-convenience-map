@@ -9,6 +9,25 @@ published.
 
 ### Added
 
+- Two more cities: **Drammen** (Norway) and **Morelia** (Michoacán, Mexico), each
+  a full Oslo-equivalent map viewable via the city switcher or `?city=<id>`.
+  - **Drammen** reuses the Norway-generic path end to end: a
+    `data/cities/drammen/{city.json,places.json}` profile (Kartverket kommune
+    `3301`, 46 postal areas, OSM transit + grocery brands, no crime scoring) and a
+    `norwegianCity()` frontend entry — no new code.
+  - **Morelia** is the first profile-driven **Mexican** city (CDMX stays on its
+    in-code constants). Its 154 postal-code polygons (CP `58000`–`58399`) come
+    from the national [open-mexico](https://github.com/open-mexico/mexico-geojson)
+    SEPOMEX GeoJSON via a new `fetch_mx_postal_codes` fetcher (state file cached
+    once and written atomically, then trimmed by `postal_code_range` + bbox,
+    mirroring `fetch_no_postal_codes`). Transit, groceries (Bodega Aurrerá,
+    Walmart, Soriana, Chedraui), and gyms come from OpenStreetMap; safety is not
+    scored. A dedicated frontend `CityConfig` carries its Mexican `CP ` postal
+    formatting and local grocery brands.
+  - The Oslo/Norway OSM transit fetcher is generalized to a country-neutral
+    `fetch_osm_transit`; `fetch_no_transit` remains as a thin backward-compatible
+    alias so the Norwegian profiles are byte-unchanged, and Morelia reuses the
+    generic module.
 - Three more Norwegian cities alongside Oslo — **Bergen**, **Trondheim**, and
   **Stavanger** — each a full Oslo-equivalent map:
   - Complete `data/cities/<id>/city.json` + `places.json` profiles (Kartverket

@@ -1,0 +1,13 @@
+{
+  "workplace": {
+    "name": "Centro Histórico de Morelia reference point",
+    "latitude": 19.7050,
+    "longitude": -101.1944,
+    "source": "configured_reference_point"
+  },
+  "transit_commute": {
+    "source": "osm_stop_pair_approximation",
+    "stop_source_label": "OpenStreetMap",
+    "engine_label": "osm_stop_pair_approximation"
+  }
+}
