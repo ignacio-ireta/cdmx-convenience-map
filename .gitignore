@@ -18,8 +18,14 @@ data/raw/*.geojson
 data/raw/*.zip
 data/raw/*.csv
 data/raw/*.pbf
+data/raw/*.gml
+data/raw/*.gfs
 data/raw/gtfs/
 data/raw/osm/
+# Per-city raw fetches (e.g. data/raw/oslo/, data/raw/bergen/) — regenerable
+# national/OSM downloads, including the large shared Kartverket postal GML
+# (data/raw/no_postnummeromrader.gml).
+data/raw/*/
 data/archive/**
 data/processed/
 data/processed/*.csv

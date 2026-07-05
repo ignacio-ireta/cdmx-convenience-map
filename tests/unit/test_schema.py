@@ -16,10 +16,10 @@ VALID_CITY = {
 
 
 class TestCityProfile:
-    def test_committed_profiles_validate(self) -> None:
-        # The real loaders run validation; both shipped profiles must pass.
-        assert load_city_profile("cdmx")["city_id"] == "cdmx"
-        assert load_city_profile("stavanger")["city_id"] == "stavanger"
+    @pytest.mark.parametrize("city", ["cdmx", "oslo", "bergen", "trondheim", "stavanger"])
+    def test_committed_profiles_validate(self, city: str) -> None:
+        # The real loaders run validation; every shipped profile must pass.
+        assert load_city_profile(city)["city_id"] == city
 
     def test_returns_original_dict_unchanged(self) -> None:
         data = {**VALID_CITY, "notes": "extra keys are allowed"}

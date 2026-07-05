@@ -223,7 +223,152 @@ export const SELECTED_AREA_FOCUS_PADDING: L.PointExpression = [56, 56]
 export const DATA_FOCUS_PADDING: L.PointExpression = [18, 18]
 export const DEFAULT_MAP_CENTER: L.LatLngExpression = [19.4326, -99.1332]
 
-export const CITY_CONFIGS = {
+export type CityAssets = {
+  scores: Record<AreaUnit, string>
+  metadata: Record<AreaUnit, string>
+  scoreMetadata: string
+  matrixIndex: Record<AreaUnit, string>
+}
+
+export type CityConfig = {
+  id: string
+  name: string
+  eyebrow: string
+  postalWidth: number
+  postalPlaceholder: string
+  postalPrefix: string
+  mapCenter: L.LatLngExpression
+  mapZoom: number
+  weights: Record<WeightKey, number>
+  geographies: GeographyConfig[]
+  stores: StoreOption[]
+  transit: TransitAccessOption[]
+  assets: CityAssets
+  transitSourceLabel: string
+  safetySource: string
+  scoresSafety: boolean
+}
+
+// Every Norwegian city shares the same open-data provenance (Kartverket postal
+// areas, OpenStreetMap transit + grocery brands) and does not score crime; only
+// location, map framing, and static-asset paths differ. See data/cities/<id>/.
+const NORWAY_WEIGHTS: Record<WeightKey, number> = {
+  work: 35,
+  transit: 30,
+  supermarkets: 20,
+  gyms: 15,
+  safety: 0,
+}
+
+const NORWAY_GEOGRAPHIES: GeographyConfig[] = [
+  {
+    unit: 'postal_code',
+    label: 'Postal code',
+    pluralLabel: 'Postal codes',
+    sourceLabel: 'Kartverket',
+  },
+]
+
+const NORWAY_STORES: StoreOption[] = [
+  {
+    key: 'rema',
+    label: 'Rema 1000',
+    distanceField: 'dist_rema_m',
+    timeField: 'time_rema_min',
+    nearestNameField: 'nearest_rema_name',
+    nearestSourceField: 'nearest_rema_source',
+  },
+  {
+    key: 'kiwi',
+    label: 'Kiwi',
+    distanceField: 'dist_kiwi_m',
+    timeField: 'time_kiwi_min',
+    nearestNameField: 'nearest_kiwi_name',
+    nearestSourceField: 'nearest_kiwi_source',
+  },
+  {
+    key: 'coop',
+    label: 'Coop/Extra',
+    distanceField: 'dist_coop_m',
+    timeField: 'time_coop_min',
+    nearestNameField: 'nearest_coop_name',
+    nearestSourceField: 'nearest_coop_source',
+  },
+  {
+    key: 'meny',
+    label: 'Meny',
+    distanceField: 'dist_meny_m',
+    timeField: 'time_meny_min',
+    nearestNameField: 'nearest_meny_name',
+    nearestSourceField: 'nearest_meny_source',
+  },
+  {
+    key: 'joker',
+    label: 'Joker',
+    distanceField: 'dist_joker_m',
+    timeField: 'time_joker_min',
+    nearestNameField: 'nearest_joker_name',
+    nearestSourceField: 'nearest_joker_source',
+  },
+  {
+    key: 'bunnpris',
+    label: 'Bunnpris',
+    distanceField: 'dist_bunnpris_m',
+    timeField: 'time_bunnpris_min',
+    nearestNameField: 'nearest_bunnpris_name',
+    nearestSourceField: 'nearest_bunnpris_source',
+  },
+]
+
+function norwegianAssets(cityId: string): CityAssets {
+  const base = `${import.meta.env.BASE_URL}data/${cityId}`
+  return {
+    // No colonia geography outside CDMX; alias it to the postal file so the
+    // shared AreaUnit-keyed lookups resolve to a real asset.
+    scores: {
+      postal_code: `${base}/scores_postal_code.geojson`,
+      colonia: `${base}/scores_postal_code.geojson`,
+    },
+    metadata: {
+      postal_code: `${base}/score_metadata_postal_code.json`,
+      colonia: `${base}/score_metadata_postal_code.json`,
+    },
+    scoreMetadata: `${base}/score_metadata.json`,
+    matrixIndex: {
+      postal_code: `${base}/routing_matrix_postal_code_index.json`,
+      colonia: `${base}/routing_matrix_postal_code_index.json`,
+    },
+  }
+}
+
+function norwegianCity(opts: {
+  id: string
+  name: string
+  mapCenter: L.LatLngExpression
+  postalPlaceholder: string
+  mapZoom?: number
+}): CityConfig {
+  return {
+    id: opts.id,
+    name: opts.name,
+    eyebrow: `${opts.name} apartment search`,
+    postalWidth: 4,
+    postalPlaceholder: opts.postalPlaceholder,
+    postalPrefix: '',
+    mapCenter: opts.mapCenter,
+    mapZoom: opts.mapZoom ?? 11,
+    weights: NORWAY_WEIGHTS,
+    geographies: NORWAY_GEOGRAPHIES,
+    stores: NORWAY_STORES,
+    transit: [],
+    assets: norwegianAssets(opts.id),
+    transitSourceLabel: 'OpenStreetMap',
+    safetySource: 'Not scored',
+    scoresSafety: false,
+  }
+}
+
+export const CITY_CONFIGS: Record<string, CityConfig> = {
   cdmx: {
     id: 'cdmx',
     name: 'CDMX',
@@ -242,98 +387,28 @@ export const CITY_CONFIGS = {
     safetySource: 'FGJ CDMX',
     scoresSafety: true,
   },
-  oslo: {
+  oslo: norwegianCity({
     id: 'oslo',
     name: 'Oslo',
-    eyebrow: 'Oslo apartment search',
-    postalWidth: 4,
+    mapCenter: [59.9139, 10.7522],
     postalPlaceholder: 'e.g. 0150',
-    postalPrefix: '',
-    mapCenter: [59.9139, 10.7522] as L.LatLngExpression,
-    mapZoom: 11,
-    weights: {
-      work: 35,
-      transit: 30,
-      supermarkets: 20,
-      gyms: 15,
-      safety: 0,
-    } satisfies Record<WeightKey, number>,
-    geographies: [
-      {
-        unit: 'postal_code',
-        label: 'Postal code',
-        pluralLabel: 'Postal codes',
-        sourceLabel: 'Kartverket',
-      },
-    ] satisfies GeographyConfig[],
-    stores: [
-      {
-        key: 'rema',
-        label: 'Rema 1000',
-        distanceField: 'dist_rema_m',
-        timeField: 'time_rema_min',
-        nearestNameField: 'nearest_rema_name',
-        nearestSourceField: 'nearest_rema_source',
-      },
-      {
-        key: 'kiwi',
-        label: 'Kiwi',
-        distanceField: 'dist_kiwi_m',
-        timeField: 'time_kiwi_min',
-        nearestNameField: 'nearest_kiwi_name',
-        nearestSourceField: 'nearest_kiwi_source',
-      },
-      {
-        key: 'coop',
-        label: 'Coop/Extra',
-        distanceField: 'dist_coop_m',
-        timeField: 'time_coop_min',
-        nearestNameField: 'nearest_coop_name',
-        nearestSourceField: 'nearest_coop_source',
-      },
-      {
-        key: 'meny',
-        label: 'Meny',
-        distanceField: 'dist_meny_m',
-        timeField: 'time_meny_min',
-        nearestNameField: 'nearest_meny_name',
-        nearestSourceField: 'nearest_meny_source',
-      },
-      {
-        key: 'joker',
-        label: 'Joker',
-        distanceField: 'dist_joker_m',
-        timeField: 'time_joker_min',
-        nearestNameField: 'nearest_joker_name',
-        nearestSourceField: 'nearest_joker_source',
-      },
-      {
-        key: 'bunnpris',
-        label: 'Bunnpris',
-        distanceField: 'dist_bunnpris_m',
-        timeField: 'time_bunnpris_min',
-        nearestNameField: 'nearest_bunnpris_name',
-        nearestSourceField: 'nearest_bunnpris_source',
-      },
-    ] satisfies StoreOption[],
-    transit: [] satisfies TransitAccessOption[],
-    assets: {
-      scores: {
-        postal_code: `${import.meta.env.BASE_URL}data/oslo/scores_postal_code.geojson`,
-        colonia: `${import.meta.env.BASE_URL}data/oslo/scores_postal_code.geojson`,
-      },
-      metadata: {
-        postal_code: `${import.meta.env.BASE_URL}data/oslo/score_metadata_postal_code.json`,
-        colonia: `${import.meta.env.BASE_URL}data/oslo/score_metadata_postal_code.json`,
-      },
-      scoreMetadata: `${import.meta.env.BASE_URL}data/oslo/score_metadata.json`,
-      matrixIndex: {
-        postal_code: `${import.meta.env.BASE_URL}data/oslo/routing_matrix_postal_code_index.json`,
-        colonia: `${import.meta.env.BASE_URL}data/oslo/routing_matrix_postal_code_index.json`,
-      },
-    },
-    transitSourceLabel: 'OpenStreetMap',
-    safetySource: 'Not scored',
-    scoresSafety: false,
-  },
-} as const
+  }),
+  bergen: norwegianCity({
+    id: 'bergen',
+    name: 'Bergen',
+    mapCenter: [60.3913, 5.3221],
+    postalPlaceholder: 'e.g. 5003',
+  }),
+  trondheim: norwegianCity({
+    id: 'trondheim',
+    name: 'Trondheim',
+    mapCenter: [63.4305, 10.3951],
+    postalPlaceholder: 'e.g. 7010',
+  }),
+  stavanger: norwegianCity({
+    id: 'stavanger',
+    name: 'Stavanger',
+    mapCenter: [58.97, 5.7331],
+    postalPlaceholder: 'e.g. 4006',
+  }),
+}

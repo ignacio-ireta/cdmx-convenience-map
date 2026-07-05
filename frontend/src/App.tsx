@@ -84,10 +84,12 @@ import {
 } from './lib/scoring'
 
 function App() {
-  const city =
-    new URLSearchParams(window.location.search).get('city') === 'oslo'
-      ? CITY_CONFIGS.oslo
-      : CITY_CONFIGS.cdmx
+  const cityParam = new URLSearchParams(window.location.search).get('city') ?? ''
+  // Own-key check so prototype members (?city=constructor, ?city=toString, …)
+  // fall back to CDMX instead of resolving to an inherited Object.prototype value.
+  const city = Object.prototype.hasOwnProperty.call(CITY_CONFIGS, cityParam)
+    ? CITY_CONFIGS[cityParam]
+    : CITY_CONFIGS.cdmx
   const [selectedAreaUnit, setSelectedAreaUnit] = useState<AreaUnit>('postal_code')
   const [datasets, setDatasets] = useState<AreaDatasets>({})
   const [metadata, setMetadata] = useState<ScoreMetadata | null>(null)
@@ -602,11 +604,15 @@ function App() {
           <select
             value={city.id}
             onChange={(event) => {
-              window.location.search = event.target.value === 'oslo' ? '?city=oslo' : ''
+              const next = event.target.value
+              window.location.search = next === 'cdmx' ? '' : `?city=${next}`
             }}
           >
-            <option value="cdmx">CDMX</option>
-            <option value="oslo">Oslo</option>
+            {Object.values(CITY_CONFIGS).map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
           </select>
         </label>
 

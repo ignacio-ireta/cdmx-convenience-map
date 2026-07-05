@@ -1,11 +1,11 @@
 {
-  "city_id": "stavanger",
-  "display_name": "Stavanger",
+  "city_id": "trondheim",
+  "display_name": "Trondheim",
   "country_code": "NO",
   "timezone": "Europe/Oslo",
   "crs_metric_epsg": 25832,
-  "municipality_code": "1103",
-  "bbox": { "south": 58.86, "west": 5.48, "north": 59.33, "east": 6.15 },
+  "municipality_code": "5001",
+  "bbox": { "south": 63.14, "west": 9.98, "north": 63.54, "east": 10.76 },
   "default_weights": {
     "work": 0.35,
     "transit": 0.30,

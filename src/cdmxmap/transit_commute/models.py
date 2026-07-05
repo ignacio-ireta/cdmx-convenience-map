@@ -19,17 +19,27 @@ class TransitCommuteConfig:
     max_destination_walk_m: float = 1200.0
     candidate_stop_count: int = 5
     source: str = "apimetro_stop_pair_approximation"
+    # Human-readable provenance of the stop points, used in the per-feature notes
+    # and metadata limitations text (e.g. "Apimetro" for CDMX, "OpenStreetMap" for
+    # Norway).
+    stop_source_label: str = "Apimetro"
+    # Machine engine label surfaced in the metadata ``transit_commute.engine`` /
+    # ``router.engine`` fields; kept distinct from ``source`` so CDMX stays
+    # byte-identical (its historical engine value differs from its source).
+    engine_label: str = "apimetro_approximation"
+
+    _STR_FIELDS = frozenset({"source", "stop_source_label", "engine_label"})
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any] | None) -> TransitCommuteConfig:
         if not values:
             return cls()
 
-        defaults = asdict(cls())
+        defaults = {k: v for k, v in asdict(cls()).items() if not k.startswith("_")}
         merged = {key: values.get(key, default_value) for key, default_value in defaults.items()}
         merged["candidate_stop_count"] = max(1, min(int(merged["candidate_stop_count"]), 25))
         for key in defaults:
-            if key in {"source", "candidate_stop_count"}:
+            if key in cls._STR_FIELDS or key == "candidate_stop_count":
                 continue
             merged[key] = float(merged[key])
         return cls(**merged)

@@ -13,11 +13,11 @@ from .io import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch Oslo public-transport stops from OSM.")
+    parser = argparse.ArgumentParser(
+        description="Fetch Norwegian public-transport stops from OSM by city profile."
+    )
     parser.add_argument("--city", required=True)
     args = parser.parse_args()
-    if args.city != "oslo":
-        raise ValueError("This fetcher only supports the Oslo profile")
     bbox_data = city_bbox(args.city)
     bbox = ",".join(str(bbox_data[key]) for key in ["south", "west", "north", "east"])
     query = f"""
@@ -57,7 +57,7 @@ out tags center;
             }
         )
     if not rows:
-        raise ValueError("OSM returned no Oslo public-transport stops")
+        raise ValueError(f"OSM returned no public-transport stops for {args.city}")
     target = city_data_dir(DATA_PROCESSED, args.city) / "transit_stops.csv"
     target.parent.mkdir(parents=True, exist_ok=True)
     write_csv(
@@ -65,7 +65,7 @@ out tags center;
         rows,
         ["id", "name", "system", "line", "hierarchy", "latitude", "longitude", "source"],
     )
-    print(f"Wrote {len(rows)} Oslo public-transport stops")
+    print(f"Wrote {len(rows)} {args.city} public-transport stops")
 
 
 if __name__ == "__main__":

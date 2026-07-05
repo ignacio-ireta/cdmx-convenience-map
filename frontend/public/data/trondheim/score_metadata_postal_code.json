@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-05T07:25:13+00:00",
-  "city_id": "oslo",
+  "generated_at": "2026-07-05T07:25:14+00:00",
+  "city_id": "trondheim",
   "area_unit": "postal_code",
-  "feature_count": 505,
+  "feature_count": 77,
   "weights": {
     "work": 0.35,
     "transit": 0.3,
@@ -11,15 +11,15 @@
     "safety": 0.0
   },
   "point_counts": {
-    "transit_stops": 5039,
-    "transit_core_points": 847,
-    "transit_surface_points": 4192,
+    "transit_stops": 2084,
+    "transit_core_points": 111,
+    "transit_surface_points": 1973,
     "transit_system_points": {
-      "rail": 847,
-      "bus": 4192
+      "rail": 111,
+      "bus": 1973
     },
-    "supermarkets": 440,
-    "gyms": 119,
+    "supermarkets": 131,
+    "gyms": 38,
     "workplaces": 1,
     "crime_records": 0
   },
@@ -30,7 +30,7 @@
     "recent_start_date": null
   },
   "workplace": {
-    "name": "Oslo S reference point",
+    "name": "Trondheim S reference point",
     "postal_code": null,
     "source": "configured_reference_point"
   },
@@ -59,24 +59,24 @@
     "mode": "walking",
     "candidate_count": 5,
     "candidate_pairs": {
-      "supermarkets": 2525,
-      "rema": 2525,
-      "kiwi": 2525,
-      "coop": 2525,
-      "meny": 2525,
-      "joker": 2525,
-      "bunnpris": 2525,
-      "gyms": 2525
+      "supermarkets": 385,
+      "rema": 385,
+      "kiwi": 385,
+      "coop": 385,
+      "meny": 308,
+      "joker": 231,
+      "bunnpris": 385,
+      "gyms": 385
     },
     "estimated_pairs": {
-      "supermarkets": 2525,
-      "rema": 2525,
-      "kiwi": 2525,
-      "coop": 2525,
-      "meny": 2525,
-      "joker": 2525,
-      "bunnpris": 2525,
-      "gyms": 2525
+      "supermarkets": 385,
+      "rema": 385,
+      "kiwi": 385,
+      "coop": 385,
+      "meny": 308,
+      "joker": 231,
+      "bunnpris": 385,
+      "gyms": 385
     }
   },
   "transit_commute_source": "osm_stop_pair_approximation",
@@ -107,19 +107,19 @@
       "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
       "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
     ],
-    "generated_at": "2026-07-05T07:25:13+00:00",
+    "generated_at": "2026-07-05T07:25:14+00:00",
     "engine": "osm_stop_pair_approximation",
     "router": {
       "engine": "osm_stop_pair_approximation",
       "source": "osm_stop_pair_approximation",
-      "routed_count": 505,
+      "routed_count": 77,
       "failed_count": 0
     },
     "transit_commute_source": "osm_stop_pair_approximation",
-    "estimated_areas": 505,
+    "estimated_areas": 77,
     "failed_areas": 0,
     "source_counts": {
-      "osm_stop_pair_approximation": 505
+      "osm_stop_pair_approximation": 77
     }
   },
   "source_urls": {
@@ -129,18 +129,18 @@
     "amenities": "https://overpass-api.de/api/interpreter"
   },
   "sources": {
-    "areas": "data/raw/oslo/postal_codes.geojson",
-    "postal_code": "data/raw/oslo/postal_codes.geojson",
-    "places_config": "data/cities/oslo/places.json",
-    "transit_stops": "data/processed/oslo/transit_stops.csv",
-    "supermarkets": "data/processed/oslo/supermarkets.csv",
-    "gyms": "data/processed/oslo/gyms.csv",
-    "workplaces_legacy_csv": "data/raw/oslo/workplaces.csv",
-    "crime_points": "data/processed/oslo/crime_points.csv"
+    "areas": "data/raw/trondheim/postal_codes.geojson",
+    "postal_code": "data/raw/trondheim/postal_codes.geojson",
+    "places_config": "data/cities/trondheim/places.json",
+    "transit_stops": "data/processed/trondheim/transit_stops.csv",
+    "supermarkets": "data/processed/trondheim/supermarkets.csv",
+    "gyms": "data/processed/trondheim/gyms.csv",
+    "workplaces_legacy_csv": "data/raw/trondheim/workplaces.csv",
+    "crime_points": "data/processed/trondheim/crime_points.csv"
   },
   "outputs": {
-    "processed": "data/processed/oslo/scores_postal_code.geojson",
-    "public": "frontend/public/data/oslo/scores_postal_code.geojson",
+    "processed": "data/processed/trondheim/scores_postal_code.geojson",
+    "public": "frontend/public/data/trondheim/scores_postal_code.geojson",
     "legacy_processed": [],
     "legacy_public": []
   },

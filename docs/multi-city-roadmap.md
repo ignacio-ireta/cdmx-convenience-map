@@ -2,6 +2,16 @@
 
 This project already has a good split between **offline scoring** (Python) and **static visualization** (React + Leaflet). To make it reusable for cities beyond CDMX (for example Stavanger), the key move is to convert CDMX assumptions into city profiles and adapters.
 
+> **Implementation status.** Much of this roadmap has shipped. The pipeline is
+> `--city` profile-driven (`data/cities/<id>/{city.json,places.json}`) and now
+> ships CDMX plus four Norwegian cities — **Oslo**, **Bergen**, **Trondheim**, and
+> **Stavanger** — built with `uv run cdmxmap run --city <id> --area-unit postal_code`.
+> Where sections below propose a `scripts/`-based layout (e.g. `scripts/run_city.py`,
+> `scripts/adapters/<city_id>/`), the realized design is the importable
+> `src/cdmxmap/` package and the `cdmxmap` CLI; the Norwegian area/transit adapters
+> live at `src/cdmxmap/sources/fetch_no_*.py`. Treat the rest of this document as the
+> original design sketch, not current file paths.
+
 ## 1) Introduce a city profile contract
 
 Create one profile per city under `data/cities/<city_id>/city.json` with:
@@ -116,7 +126,7 @@ Add validation rules that all cities must satisfy before publishing:
 3. Add transit adapter (e.g., GTFS/NeTEx-derived stop points).
 4. Add supermarket/gym OSM adapter with localized brand list.
 5. Add safety proxy dataset if official crime microdata is unavailable.
-6. Run `scripts/run_city.py --city stavanger --area-unit <unit>`.
+6. Run `uv run cdmxmap run --city stavanger --area-unit postal_code`.
 7. Validate and publish static assets.
 8. Open frontend with `?city=stavanger`.
 

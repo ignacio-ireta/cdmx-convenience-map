@@ -1,8 +1,8 @@
 {
   "workplace": {
-    "name": "Oslo S reference point",
-    "latitude": 59.9109,
-    "longitude": 10.7522,
+    "name": "Stavanger stasjon reference point",
+    "latitude": 58.9668,
+    "longitude": 5.7325,
     "source": "configured_reference_point"
   },
   "transit_commute": {

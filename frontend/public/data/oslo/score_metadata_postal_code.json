@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T04:08:06+00:00",
+  "generated_at": "2026-07-05T07:25:13+00:00",
   "city_id": "oslo",
   "area_unit": "postal_code",
   "feature_count": 505,
@@ -102,12 +102,12 @@
     },
     "known_limitations": [
       "Uses OpenStreetMap stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
-      "Line values are only used when present in the processed stop data; the current transit stop cache does not include line/order fields.",
+      "Line values are only used when present in the processed stop data; the current OpenStreetMap cache does not include line/order fields.",
       "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
       "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
       "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
     ],
-    "generated_at": "2026-06-14T04:08:06+00:00",
+    "generated_at": "2026-07-05T07:25:13+00:00",
     "engine": "osm_stop_pair_approximation",
     "router": {
       "engine": "osm_stop_pair_approximation",

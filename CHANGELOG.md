@@ -9,6 +9,32 @@ published.
 
 ### Added
 
+- Three more Norwegian cities alongside Oslo — **Bergen**, **Trondheim**, and
+  **Stavanger** — each a full Oslo-equivalent map:
+  - Complete `data/cities/<id>/city.json` + `places.json` profiles (Kartverket
+    postal areas by kommune number, OSM transit + grocery brands, no crime
+    scoring). Stavanger's earlier skeleton profile is promoted to a full one.
+  - The Oslo-only postal/transit fetchers are generalized into Norway-generic,
+    profile-driven `fetch_no_postal_codes` / `fetch_no_transit` (a new
+    `municipality_code` profile field selects the kommune); Oslo now uses them
+    too. The national postal GML is cached per city between runs.
+  - Generated static assets under `frontend/public/data/<id>/` (Bergen 145,
+    Trondheim 77, Stavanger 59 postal areas), each validated against the data
+    contract.
+  - Frontend: a `norwegianCity()` config factory + `CityConfig` type replace the
+    duplicated Oslo block; the city switcher and `?city=` selection are
+    generalized to every registered city (CDMX, Oslo, Bergen, Trondheim,
+    Stavanger).
+  - The transit-commute provenance is now fully config-driven — per-feature
+    `transit_commute_source` + `transit_commute_notes`, and the metadata
+    `engine` / limitations / notes — via `transit_commute.source`,
+    `stop_source_label`, and `engine_label`. The Norwegian cities emit
+    `osm_stop_pair_approximation` / "OpenStreetMap" natively (Oslo included, so it
+    is now reproducible from code rather than a post-hoc rename); CDMX output is
+    byte-unchanged.
+  - `fetch_no_postal_codes` caches the ~26 MB national Kartverket GML once at a
+    shared path and writes it atomically (parse-validated), so all four Norwegian
+    cities share one download and a corrupt/interrupted fetch cannot poison re-runs.
 - Offline road routing (opt-in) replacing the straight-line travel-time
   placeholder for work and amenity (supermarket/Costco/Walmart/gym) times:
   - New `src/cdmxmap/routing/` package — a `Router` Protocol, an in-process

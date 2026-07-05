@@ -143,11 +143,12 @@ def transit_commute_metadata(
         if isinstance(config, TransitCommuteConfig)
         else TransitCommuteConfig.from_mapping(config)
     )
+    label = commute_config.stop_source_label
     return {
         **commute_config.to_metadata(),
         "known_limitations": [
-            "Uses Apimetro stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
-            "Line values are only used when present in the processed stop data; the current Apimetro cache does not include line/order fields.",
+            f"Uses {label} stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
+            f"Line values are only used when present in the processed stop data; the current {label} cache does not include line/order fields.",
             "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
             "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
             "Different-line and different-system trips use fixed penalties instead of a real transfer graph.",
@@ -338,7 +339,7 @@ def _estimate_pair(
         + destination_walk_penalty
     )
 
-    notes = ["Approximation from Apimetro stops; not schedule-aware."]
+    notes = [f"Approximation from {config.stop_source_label} stops; not schedule-aware."]
     if not same_line:
         notes.append("Line/order data is unavailable or does not match.")
     if origin.walk_m > config.max_origin_walk_m:

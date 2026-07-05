@@ -159,7 +159,7 @@ def score_areas(
         metric_crs=metric_crs,
     )
     transit_router_info = {
-        "engine": TRANSIT_ROUTER_APIMETRO,
+        "engine": work_transit_config.engine_label,
         "source": work_transit_config.source,
         "routed_count": int(transit_commute["time_work_transit_min"].notna().sum()),
         "failed_count": int(
@@ -451,7 +451,7 @@ def score_areas(
                 "Work transit commute uses opt-in r5py schedule-aware routing where available, "
                 "with Apimetro approximation fallback."
                 if transit_router == TRANSIT_ROUTER_R5PY
-                else "Work transit commute uses an offline Apimetro stop-pair approximation and is not schedule-aware."
+                else f"Work transit commute uses an offline {work_transit_config.stop_source_label} stop-pair approximation and is not schedule-aware."
             ),
             "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
             "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",

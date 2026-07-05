@@ -1,11 +1,11 @@
 {
-  "city_id": "stavanger",
-  "display_name": "Stavanger",
+  "city_id": "bergen",
+  "display_name": "Bergen",
   "country_code": "NO",
   "timezone": "Europe/Oslo",
   "crs_metric_epsg": 25832,
-  "municipality_code": "1103",
-  "bbox": { "south": 58.86, "west": 5.48, "north": 59.33, "east": 6.15 },
+  "municipality_code": "4601",
+  "bbox": { "south": 60.16, "west": 5.12, "north": 60.55, "east": 5.71 },
   "default_weights": {
     "work": 0.35,
     "transit": 0.30,

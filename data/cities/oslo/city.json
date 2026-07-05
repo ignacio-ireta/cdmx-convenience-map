@@ -4,6 +4,7 @@
   "country_code": "NO",
   "timezone": "Europe/Oslo",
   "crs_metric_epsg": 25832,
+  "municipality_code": "0301",
   "bbox": { "south": 59.80, "west": 10.45, "north": 60.02, "east": 10.95 },
   "default_weights": {
     "work": 0.35,
@@ -43,8 +44,8 @@
     }
   ],
   "fetchers": [
-    { "module": "fetch_oslo_postal_codes", "output": "postal_codes.geojson", "dir": "raw" },
-    { "module": "fetch_oslo_transit", "output": "transit_stops.csv" },
+    { "module": "fetch_no_postal_codes", "output": "postal_codes.geojson", "dir": "raw" },
+    { "module": "fetch_no_transit", "output": "transit_stops.csv" },
     { "module": "fetch_supermarkets", "output": "supermarkets.csv" },
     { "module": "fetch_gyms", "output": "gyms.csv" }
   ],
