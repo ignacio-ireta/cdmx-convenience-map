@@ -87,6 +87,9 @@ export function formatSource(source?: string) {
   if (source === 'apimetro_stop_pair_approximation') {
     return 'Approximation from Apimetro stops; not schedule-aware'
   }
+  if (source === 'osm_stop_pair_approximation') {
+    return 'Approximation from OpenStreetMap transit stops; not schedule-aware'
+  }
   if (source === 'r5py_gtfs_schedule') return 'r5py GTFS schedule'
   if (source === 'transit_commute_failed') return 'Transit commute failed'
   if (source === 'transit_commute_not_configured') return 'Transit commute not configured'

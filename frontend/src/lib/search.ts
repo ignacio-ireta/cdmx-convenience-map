@@ -4,21 +4,21 @@ export function areaUnitLabel(unit: AreaUnit) {
   return unit === 'postal_code' ? 'Postal code' : 'Colonia'
 }
 
-export function areaShortLabel(properties: AreaProperties) {
+export function areaShortLabel(properties: AreaProperties, postalPrefix = 'CP ') {
   return properties.area_unit === 'postal_code'
-    ? `CP ${properties.postal_code ?? properties.area_id}`
+    ? `${postalPrefix}${properties.postal_code ?? properties.area_id}`
     : properties.display_name
 }
 
-export function areaFullLabel(properties: AreaProperties) {
-  const base = areaShortLabel(properties)
+export function areaFullLabel(properties: AreaProperties, postalPrefix = 'CP ') {
+  const base = areaShortLabel(properties, postalPrefix)
   return properties.alcaldia ? `${base}, ${properties.alcaldia}` : base
 }
 
-export function areaResultLabel(properties: AreaProperties) {
+export function areaResultLabel(properties: AreaProperties, postalPrefix = 'CP ') {
   const primary =
     properties.area_unit === 'postal_code'
-      ? `CP ${properties.postal_code ?? properties.area_id}`
+      ? `${postalPrefix}${properties.postal_code ?? properties.area_id}`
       : properties.colonia_name || properties.area_name || properties.display_name
   return properties.alcaldia ? `${primary} — ${properties.alcaldia}` : primary
 }

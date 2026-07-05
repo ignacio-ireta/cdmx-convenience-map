@@ -11,6 +11,7 @@ import {
   selectedTransitLabel,
   weightSummary,
 } from './scoring'
+import { STORE_OPTIONS } from '../constants'
 
 const NO_WEIGHT: Record<WeightKey, number> = {
   work: 0,
@@ -82,8 +83,8 @@ describe('getScore', () => {
 
 describe('label + summary helpers', () => {
   it('labels selected stores and transit access', () => {
-    expect(selectedStoreLabel(['costco'])).toBe('Costco')
-    expect(selectedStoreLabel([])).toBe('No stores')
+    expect(selectedStoreLabel(STORE_OPTIONS, ['costco'])).toBe('Costco')
+    expect(selectedStoreLabel(STORE_OPTIONS, [])).toBe('No stores')
     expect(selectedTransitLabel(['metro', 'metrobus'])).toBe('Metro, Metrobús')
     expect(selectedTransitLabel([])).toBe('No transit')
   })
@@ -98,7 +99,7 @@ describe('label + summary helpers', () => {
     expect(weightSummary({ work: 50, transit: 50, supermarkets: 0, gyms: 0, safety: 0 })).toContain(
       'Work 50 (50%)',
     )
-    expect(scoreModeSummary('gyms', 'distance', 'distance', 'time', [], [])).toBe(
+    expect(scoreModeSummary('gyms', 'distance', 'distance', 'time', STORE_OPTIONS, [], [])).toBe(
       'Gyms scored by time',
     )
   })

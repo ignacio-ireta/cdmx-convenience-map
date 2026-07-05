@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { props } from '../test/fixtures'
 import {
   areaResultLabel,
+  areaShortLabel,
   areaUnitLabel,
   getAreaSearchRank,
   normalizeSearchText,
@@ -25,6 +26,12 @@ describe('labels', () => {
   it('builds a postal result label with alcaldia', () => {
     const label = areaResultLabel(props({ postal_code: '06700', alcaldia: 'Cuauhtémoc' }))
     expect(label).toBe('CP 06700 — Cuauhtémoc')
+  })
+
+  it('honors the city postal prefix (CDMX "CP " default vs Oslo empty)', () => {
+    expect(areaShortLabel(props({ postal_code: '06700' }))).toBe('CP 06700')
+    expect(areaShortLabel(props({ postal_code: '0274' }), '')).toBe('0274')
+    expect(areaResultLabel(props({ postal_code: '0274' }), '')).toBe('0274')
   })
 })
 

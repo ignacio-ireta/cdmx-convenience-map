@@ -4,6 +4,7 @@ import type {
   AreaProperties,
   FieldScoreMap,
   PreferenceScoreModel,
+  StoreOption,
 } from '../types'
 
 export function percentile(values: number[], fraction: number) {
@@ -55,20 +56,23 @@ export function buildScoreRecord<Key extends string>(
   ) as Record<Key, FieldScoreMap>
 }
 
-export function buildPreferenceScoreModel(data: AreaFeatureCollection): PreferenceScoreModel {
+export function buildPreferenceScoreModel(
+  data: AreaFeatureCollection,
+  storeOptions: StoreOption[] = STORE_OPTIONS,
+): PreferenceScoreModel {
   return {
     storeDistanceScores: buildScoreRecord(
       data,
-      STORE_OPTIONS.map((option) => ({
+      storeOptions.map((option) => ({
         key: option.key,
-        field: option.distanceField,
+        field: option.distanceField as keyof AreaProperties,
       })),
     ),
     storeTimeScores: buildScoreRecord(
       data,
-      STORE_OPTIONS.map((option) => ({
+      storeOptions.map((option) => ({
         key: option.key,
-        field: option.timeField,
+        field: option.timeField as keyof AreaProperties,
       })),
     ),
     transitAccessScores: buildScoreRecord(

@@ -2,10 +2,10 @@ import {
   DEFAULT_WEIGHTS,
   METRICS,
   SCORE_FIELDS,
-  STORE_OPTIONS,
   TRANSIT_ACCESS_OPTIONS,
   WORK_MODES,
 } from '../constants'
+import type { StoreOption } from '../types'
 import type {
   AmenityMode,
   AreaProperties,
@@ -133,17 +133,20 @@ function selectedOptionLabels<Key extends string>(
     .join(', ')
 }
 
-export function selectedStoreLabel(selectedStores: StorePreferenceKey[]) {
-  return selectedOptionLabels(STORE_OPTIONS, selectedStores) || 'No stores'
+export function selectedStoreLabel(
+  storeOptions: StoreOption[],
+  selectedStores: StorePreferenceKey[],
+) {
+  return selectedOptionLabels(storeOptions, selectedStores) || 'No stores'
 }
 
 export function selectedTransitLabel(selectedTransitAccess: TransitAccessKey[]) {
   return selectedOptionLabels(TRANSIT_ACCESS_OPTIONS, selectedTransitAccess) || 'No transit'
 }
 
-function getSingleStoreOption(selectedStores: StorePreferenceKey[]) {
+function getSingleStoreOption(storeOptions: StoreOption[], selectedStores: StorePreferenceKey[]) {
   if (selectedStores.length !== 1) return undefined
-  return STORE_OPTIONS.find((option) => option.key === selectedStores[0])
+  return storeOptions.find((option) => option.key === selectedStores[0])
 }
 
 function getSingleTransitAccessOption(selectedTransitAccess: TransitAccessKey[]) {
@@ -154,9 +157,10 @@ function getSingleTransitAccessOption(selectedTransitAccess: TransitAccessKey[])
 export function getStoreDetailValue(
   properties: AreaProperties,
   supermarketMode: AmenityMode,
+  storeOptions: StoreOption[],
   selectedStores: StorePreferenceKey[],
 ) {
-  const option = getSingleStoreOption(selectedStores)
+  const option = getSingleStoreOption(storeOptions, selectedStores)
   if (!option) {
     return formatDistanceAndTime(properties.dist_supermarket_m, properties.time_supermarket_min)
   }
@@ -170,9 +174,10 @@ export function getStoreDetailValue(
 
 export function getStoreNearestName(
   properties: AreaProperties,
+  storeOptions: StoreOption[],
   selectedStores: StorePreferenceKey[],
 ) {
-  const option = getSingleStoreOption(selectedStores)
+  const option = getSingleStoreOption(storeOptions, selectedStores)
   if (!option) return properties.nearest_supermarket_name
   return properties[option.nearestNameField] as string | undefined
 }
@@ -180,9 +185,10 @@ export function getStoreNearestName(
 export function getStoreSource(
   properties: AreaProperties,
   supermarketMode: AmenityMode,
+  storeOptions: StoreOption[],
   selectedStores: StorePreferenceKey[],
 ) {
-  const option = getSingleStoreOption(selectedStores)
+  const option = getSingleStoreOption(storeOptions, selectedStores)
   const distanceSource = option
     ? (properties[option.nearestSourceField] as string | undefined)
     : properties.nearest_supermarket_source
@@ -243,6 +249,7 @@ export function scoreModeSummary(
   workMode: WorkMode,
   supermarketMode: AmenityMode,
   gymMode: AmenityMode,
+  storeOptions: StoreOption[],
   selectedStores: StorePreferenceKey[],
   selectedTransitAccess: TransitAccessKey[],
 ) {
@@ -251,16 +258,16 @@ export function scoreModeSummary(
     return `Work scored by ${mode.toLocaleLowerCase()}`
   }
   if (selectedMetric === 'supermarkets') {
-    return `Stores scored by ${supermarketMode}; brands ${selectedStoreLabel(selectedStores)}`
+    return `Stores scored by ${supermarketMode}; brands ${selectedStoreLabel(storeOptions, selectedStores)}`
   }
   if (selectedMetric === 'gyms') {
     return `Gyms scored by ${gymMode}`
   }
   if (selectedMetric === 'transitCommute') {
-    return 'Transit commute scored by offline Apimetro stop-pair approximation'
+    return 'Transit commute scored by offline stop-pair approximation'
   }
   if (selectedMetric === 'combined') {
-    return `Combined score using work ${workMode}, transit ${selectedTransitLabel(selectedTransitAccess)}, stores ${supermarketMode} (${selectedStoreLabel(selectedStores)}), gyms ${gymMode}`
+    return `Combined score using work ${workMode}, transit ${selectedTransitLabel(selectedTransitAccess)}, stores ${supermarketMode} (${selectedStoreLabel(storeOptions, selectedStores)}), gyms ${gymMode}`
   }
   if (selectedMetric === 'transit') {
     return `Transit access scored by ${selectedTransitLabel(selectedTransitAccess)}`

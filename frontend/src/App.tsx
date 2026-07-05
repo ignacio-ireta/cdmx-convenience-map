@@ -115,6 +115,14 @@ function App() {
   const selectedGeography =
     city.geographies.find((geography) => geography.unit === selectedAreaUnit) ?? city.geographies[0]
   const selectedWorkMode = WORK_MODES.find((mode) => mode.key === workMode) ?? WORK_MODES[0]
+  // Safety is only a real dimension for cities that score crime; cities like Oslo
+  // (safetySource "Not scored") hide it from the metric, weight, and detail UI.
+  const visibleMetrics = city.scoresSafety
+    ? METRICS
+    : METRICS.filter((metric) => metric.key !== 'safety')
+  const visibleWeightKeys = (Object.keys(city.weights) as WeightKey[]).filter(
+    (key) => city.scoresSafety || key !== 'safety',
+  )
 
   useEffect(() => {
     const cached = datasets[selectedAreaUnit]
@@ -159,6 +167,10 @@ function App() {
       .then((payload: ScoreMetadata | null) => setMetadata(payload))
       .catch(() => setMetadata(null))
   }, [city, selectedAreaUnit])
+
+  useEffect(() => {
+    document.title = `${city.name} Convenience Map`
+  }, [city])
 
   const workFeature = useMemo(() => {
     if (!postalData || !workPostalCode) return null
@@ -216,8 +228,8 @@ function App() {
       : haversineWorkModel
 
   const preferenceScoreModel = useMemo(() => {
-    return data ? buildPreferenceScoreModel(data) : null
-  }, [data])
+    return data ? buildPreferenceScoreModel(data, city.stores) : null
+  }, [data, city.stores])
 
   const selectedScore = selected
     ? getScore(
@@ -308,7 +320,7 @@ function App() {
     const workplaceLabel =
       workModel?.displayName ||
       (metadata?.workplace?.postal_code
-        ? `CP ${metadata.workplace.postal_code}`
+        ? `${city.postalPrefix}${metadata.workplace.postal_code}`
         : metadata?.workplace?.name) ||
       'configured workplace'
     const rows = sortedTopAreas.map((feature, index) => {
@@ -326,10 +338,10 @@ function App() {
           selectedTransitAccess,
         ),
       )
-      return `${index + 1}\t${areaFullLabel(feature.properties)}\t${areaUnitLabel(feature.properties.area_unit)}\t${score}`
+      return `${index + 1}\t${areaFullLabel(feature.properties, city.postalPrefix)}\t${areaUnitLabel(feature.properties.area_unit)}\t${score}`
     })
     const lines = [
-      'CDMX convenience map experiment',
+      `${city.name} convenience map experiment`,
       '',
       'Summary',
       `Geography: ${selectedGeography.label}`,
@@ -339,27 +351,33 @@ function App() {
         workMode,
         supermarketMode,
         gymMode,
+        city.stores,
         selectedStores,
         selectedTransitAccess,
       )}`,
       `Work location: ${workplaceLabel}`,
       `Weights: ${weightSummary(weights)}`,
-      `Store brands: ${selectedStoreLabel(selectedStores)}`,
+      `Store brands: ${selectedStoreLabel(city.stores, selectedStores)}`,
       `Transit access methods: ${selectedTransitLabel(selectedTransitAccess)}`,
       `Search query: ${trimmedSearchQuery || 'all areas'}`,
       `Copied results: top ${rows.length} of ${data?.features.length ?? rows.length} ${selectedGeography.pluralLabel.toLocaleLowerCase()}`,
-      `Transit data: Apimetro (${metadata?.point_counts?.transit_stops ?? 'n/a'} points)`,
+      `Transit data: ${city.transitSourceLabel} (${metadata?.point_counts?.transit_stops ?? 'n/a'} points)`,
       `Stores: ${metadata?.point_counts?.supermarkets ?? 'n/a'} OSM/seed points; mode ${supermarketMode}`,
       `Gyms: ${metadata?.point_counts?.gyms ?? 'n/a'} OSM/seed points; mode ${gymMode}`,
       `Amenity travel time: ${formatSource(metadata?.amenity_travel_time?.source)}`,
       `Work travel time: ${formatSource(metadata?.travel_time?.source)}`,
-      `Crime window: ${metadata?.crime?.recent_start_date ?? 'n/a'} to ${metadata?.crime?.latest_date ?? 'n/a'}`,
+      `Crime window: ${
+        city.scoresSafety
+          ? `${metadata?.crime?.recent_start_date ?? 'n/a'} to ${metadata?.crime?.latest_date ?? 'n/a'}`
+          : city.safetySource
+      }`,
       '',
       'Rank\tArea\tType\tScore',
       ...rows,
     ]
     return lines.join('\n')
   }, [
+    city,
     data,
     gymMode,
     metadata,
@@ -438,9 +456,12 @@ function App() {
     layer.on({
       click: () => focusAreaFeature(feature),
       mouseover: () => {
-        layer.bindTooltip(`${areaFullLabel(feature.properties)} · ${scoreText(score)}`, {
-          sticky: true,
-        })
+        layer.bindTooltip(
+          `${areaFullLabel(feature.properties, city.postalPrefix)} · ${scoreText(score)}`,
+          {
+            sticky: true,
+          },
+        )
       },
     })
   }
@@ -616,7 +637,7 @@ function App() {
                       type="button"
                     >
                       <span>
-                        <strong>{areaResultLabel(feature.properties)}</strong>
+                        <strong>{areaResultLabel(feature.properties, city.postalPrefix)}</strong>
                         <small>{areaUnitLabel(feature.properties.area_unit)}</small>
                       </span>
                       <em>
@@ -671,7 +692,7 @@ function App() {
               {workModel
                 ? workModel.displayName
                 : metadata?.workplace?.postal_code
-                  ? `CP ${metadata.workplace.postal_code}`
+                  ? `${city.postalPrefix}${metadata.workplace.postal_code}`
                   : 'configured'}
             </span>
           </div>
@@ -691,7 +712,7 @@ function App() {
           </form>
           <div className="work-actions">
             <button onClick={useSelectedForWork} type="button">
-              Use selected CP
+              Use selected area
             </button>
             <button onClick={clearWorkPostalCode} type="button">
               Reset default
@@ -720,7 +741,7 @@ function App() {
         <section className="panel-section">
           <h2>Metric</h2>
           <div className="metric-grid">
-            {METRICS.map((metric) => {
+            {visibleMetrics.map((metric) => {
               const Icon = metric.icon
               return (
                 <button
@@ -766,21 +787,23 @@ function App() {
                 ))}
               </div>
             </div>
-            <div className="amenity-mode-row preference-row">
-              <span>Transit</span>
-              <div className="option-checkboxes transit-options">
-                {city.transit.map((option) => (
-                  <label className="option-checkbox" key={option.key}>
-                    <input
-                      checked={selectedTransitAccess.includes(option.key)}
-                      onChange={() => toggleTransitPreference(option.key)}
-                      type="checkbox"
-                    />
-                    <span>{option.shortLabel}</span>
-                  </label>
-                ))}
+            {city.transit.length > 0 ? (
+              <div className="amenity-mode-row preference-row">
+                <span>Transit</span>
+                <div className="option-checkboxes transit-options">
+                  {city.transit.map((option) => (
+                    <label className="option-checkbox" key={option.key}>
+                      <input
+                        checked={selectedTransitAccess.includes(option.key)}
+                        onChange={() => toggleTransitPreference(option.key)}
+                        type="checkbox"
+                      />
+                      <span>{option.shortLabel}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
             <div className="amenity-mode-row">
               <span>Gyms</span>
               <div className="amenity-mode-buttons">
@@ -814,7 +837,7 @@ function App() {
             <div>
               <dt>Transit</dt>
               <dd>
-                Apimetro · {metadata?.point_counts?.transit_stops ?? 'n/a'} points
+                {city.transitSourceLabel} · {metadata?.point_counts?.transit_stops ?? 'n/a'} points
                 {metadata?.point_counts?.transit_core_points != null &&
                 metadata?.point_counts?.transit_surface_points != null
                   ? ` (${metadata.point_counts.transit_core_points} core, ${metadata.point_counts.transit_surface_points} surface)`
@@ -844,7 +867,7 @@ function App() {
               <dd>
                 {formatSource(metadata?.travel_time?.source)} ·{' '}
                 {metadata?.workplace?.postal_code
-                  ? `CP ${metadata.workplace.postal_code}`
+                  ? `${city.postalPrefix}${metadata.workplace.postal_code}`
                   : 'configured workplace'}
               </dd>
             </div>
@@ -869,7 +892,7 @@ function App() {
             <h2>Weights</h2>
             <span>Combined</span>
           </div>
-          {(Object.keys(city.weights) as WeightKey[]).map((key) => (
+          {visibleWeightKeys.map((key) => (
             <label className="weight-row" key={key}>
               <span>{METRICS.find((metric) => metric.key === key)?.label}</span>
               <input
@@ -895,7 +918,9 @@ function App() {
             <>
               <div className="score-header">
                 <div>
-                  <p className="area-title">{areaFullLabel(selected.properties)}</p>
+                  <p className="area-title">
+                    {areaFullLabel(selected.properties, city.postalPrefix)}
+                  </p>
                   <p className="muted">
                     {areaUnitLabel(selected.properties.area_unit)} ·{' '}
                     {METRICS.find((metric) => metric.key === selectedMetric)?.label}
@@ -922,7 +947,11 @@ function App() {
                   source={getWorkSource(selected.properties, workModel, workMode)}
                 />
                 <MetricRow
-                  label={`Transit access (${selectedTransitLabel(selectedTransitAccess)})`}
+                  label={
+                    city.transit.length > 0
+                      ? `Transit access (${selectedTransitLabel(selectedTransitAccess)})`
+                      : 'Transit access'
+                  }
                   score={getTransitAccessScore(
                     selected.properties,
                     preferenceScoreModel,
@@ -942,16 +971,26 @@ function App() {
                   />
                 ) : null}
                 <MetricRow
-                  label={`Stores (${selectedStoreLabel(selectedStores)})`}
+                  label={`Stores (${selectedStoreLabel(city.stores, selectedStores)})`}
                   score={getSupermarketScore(
                     selected.properties,
                     supermarketMode,
                     preferenceScoreModel,
                     selectedStores,
                   )}
-                  value={getStoreDetailValue(selected.properties, supermarketMode, selectedStores)}
-                  nearest={getStoreNearestName(selected.properties, selectedStores)}
-                  source={getStoreSource(selected.properties, supermarketMode, selectedStores)}
+                  value={getStoreDetailValue(
+                    selected.properties,
+                    supermarketMode,
+                    city.stores,
+                    selectedStores,
+                  )}
+                  nearest={getStoreNearestName(selected.properties, city.stores, selectedStores)}
+                  source={getStoreSource(
+                    selected.properties,
+                    supermarketMode,
+                    city.stores,
+                    selectedStores,
+                  )}
                 />
                 <MetricRow
                   label={`Gyms (${gymMode === 'time' ? 'Time' : 'Distance'})`}
@@ -967,38 +1006,32 @@ function App() {
                     selected.properties.nearest_gym_source,
                   )}
                 />
-                <MetricRow
-                  label="Safety"
-                  score={selected.properties.score_safety}
-                  value={`${selected.properties.crime_incidents_recent_12m ?? 0} recent incidents`}
-                  nearest={
-                    selected.properties.crime_top_category_recent_12m || 'No recent category'
-                  }
-                  source={selected.properties.crime_source}
-                />
+                {city.scoresSafety ? (
+                  <MetricRow
+                    label="Safety"
+                    score={selected.properties.score_safety}
+                    value={`${selected.properties.crime_incidents_recent_12m ?? 0} recent incidents`}
+                    nearest={
+                      selected.properties.crime_top_category_recent_12m || 'No recent category'
+                    }
+                    source={selected.properties.crime_source}
+                  />
+                ) : null}
               </div>
 
               <dl className="raw-distances">
-                <div>
-                  <dt>Costco</dt>
-                  <dd>
-                    {formatAmenityDetail(
-                      selected.properties.nearest_costco_name,
-                      selected.properties.dist_costco_m,
-                      selected.properties.time_costco_min,
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Walmart</dt>
-                  <dd>
-                    {formatAmenityDetail(
-                      selected.properties.nearest_walmart_name,
-                      selected.properties.dist_walmart_m,
-                      selected.properties.time_walmart_min,
-                    )}
-                  </dd>
-                </div>
+                {city.stores.map((option) => (
+                  <div key={option.key}>
+                    <dt>{option.label}</dt>
+                    <dd>
+                      {formatAmenityDetail(
+                        selected.properties[option.nearestNameField] as string | undefined,
+                        selected.properties[option.distanceField] as number | undefined,
+                        selected.properties[option.timeField] as number | undefined,
+                      )}
+                    </dd>
+                  </div>
+                ))}
                 <div>
                   <dt>Core transit</dt>
                   <dd>{formatMeters(selected.properties.dist_core_transit_m)}</dd>
@@ -1067,13 +1100,15 @@ function App() {
                     </div>
                   </>
                 ) : null}
-                <div>
-                  <dt>Crime density</dt>
-                  <dd>
-                    {(selected.properties.crime_density_recent_12m_per_km2 ?? 0).toFixed(1)}
-                    /km2
-                  </dd>
-                </div>
+                {city.scoresSafety ? (
+                  <div>
+                    <dt>Crime density</dt>
+                    <dd>
+                      {(selected.properties.crime_density_recent_12m_per_km2 ?? 0).toFixed(1)}
+                      /km2
+                    </dd>
+                  </div>
+                ) : null}
                 <div>
                   <dt>Drive to work</dt>
                   <dd>{formatMinutes(selected.properties.time_work_driving_min)}</dd>
@@ -1086,10 +1121,12 @@ function App() {
                   <dt>Bike to work</dt>
                   <dd>{formatMinutes(selected.properties.time_work_biking_min)}</dd>
                 </div>
-                <div>
-                  <dt>All FGJ records</dt>
-                  <dd>{selected.properties.crime_incidents_total ?? 0}</dd>
-                </div>
+                {city.scoresSafety ? (
+                  <div>
+                    <dt>All FGJ records</dt>
+                    <dd>{selected.properties.crime_incidents_total ?? 0}</dd>
+                  </div>
+                ) : null}
               </dl>
             </>
           ) : (
@@ -1162,7 +1199,7 @@ function App() {
                   type="button"
                 >
                   <span className="rank">{index + 1}</span>
-                  <span>{areaFullLabel(feature.properties)}</span>
+                  <span>{areaFullLabel(feature.properties, city.postalPrefix)}</span>
                   <em>
                     {scoreText(
                       getScore(
