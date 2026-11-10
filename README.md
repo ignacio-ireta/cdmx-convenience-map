@@ -1,6 +1,40 @@
-# CDMX Postal-Code Convenience Map
+# Multi-City Convenience Map — Norway & Mexico
 
-Working prototype for evaluating where to start an apartment search in Mexico City by area convenience. The current map unit is postal code; the frontend and scoring schema are prepared for additional area units such as colonia. The frontend is a static React + Leaflet choropleth; Python scripts precompute straight-line distance scores into enriched GeoJSON.
+**Where should an apartment search start?** This project scores every postal area of a city on commute, transit, groceries, and gyms, and draws the result as an interactive map. It covers **five Norwegian cities — Oslo, Bergen, Stavanger, Trondheim, and Drammen —** and two Mexican ones, Mexico City and Morelia.
+
+A typed Python pipeline does the geospatial work offline and writes enriched GeoJSON. A static React + Leaflet frontend renders it and re-scores in the browser as you change weights, workplace, or travel mode. There is no backend.
+
+> The repository and package keep the name `cdmx-convenience-map` / `cdmxmap` because the project began with Mexico City (CDMX). The pipeline has been city-agnostic since the Oslo release.
+
+## Live maps
+
+| City | Open | Areas scored | Area and point data |
+|---|---|---:|---|
+| **Oslo** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/?city=oslo) | 505 postal areas | Kartverket postnummerområder (Geonorge WFS) · OpenStreetMap |
+| **Bergen** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/?city=bergen) | 145 postal areas | Kartverket · OpenStreetMap |
+| **Trondheim** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/?city=trondheim) | 77 postal areas | Kartverket · OpenStreetMap |
+| **Stavanger** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/?city=stavanger) | 59 postal areas | Kartverket · OpenStreetMap |
+| **Drammen** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/?city=drammen) | 46 postal areas | Kartverket · OpenStreetMap |
+| **Mexico City** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/) | 1,215 postal codes · 1,837 colonias | CDMX open data · Apimetro · OpenStreetMap · FGJ crime records |
+| **Morelia** | [map](https://ignacio-ireta.github.io/projects/cdmx-map/?city=morelia) | 154 postal codes | SEPOMEX (open-mexico) · OpenStreetMap |
+
+Area counts are from the published `score_metadata_postal_code.json` of each city (generated 2026-07-05).
+
+## What it demonstrates
+
+- **One pipeline, seven cities.** A city is a profile (`data/cities/<id>/city.json`), not a fork. Adding a Norwegian city means setting its Kartverket `municipality_code`, bounding box, and reference workplace.
+- **Norwegian open geodata handled properly.** The national postal-area dataset is fetched once from the Geonorge WFS, validated before it is cached, and trimmed per municipality; distances are computed in EPSG:25832 (ETRS89 / UTM 32N). Grocery scoring knows the local chains (Rema 1000, Kiwi, Coop, Meny, Joker, Bunnpris).
+- **Explainable scores.** Each area shows its raw distances, nearest places, and score breakdown; a data-audit panel shows source counts. Weights are sliders, not constants.
+- **Honest travel times.** The published maps use straight-line and stop-pair estimates, labeled as such. Offline road routing with Valhalla (`--travel-router valhalla`) and a schedule-aware r5py transit overlay are opt-in, with a per-feature fallback, and their output is labeled by source.
+- **Engineering discipline.** `uv` with pinned geospatial dependencies, `ruff`, `mypy`, unit, integration, and end-to-end tests, a written [data contract](docs/data-contract.md), resumable runs with a manifest, atomic writes, and CI on Python 3.11 and 3.12 plus the frontend.
+
+```
+city profile + open data ──▶ sources/ ──▶ scoring/ ──▶ output/ (GeoJSON + metadata + manifest)
+                                                            │
+                                React + TypeScript + Leaflet ◀┘  re-scores in the browser, static hosting
+```
+
+Details: [`docs/architecture.md`](docs/architecture.md).
 
 ## Quick Start
 
@@ -50,9 +84,10 @@ cd frontend && npm run lint && npm run typecheck && npm run build   # frontend g
 
 ## What Is Included
 
-- CDMX postal-code polygons colored by selected convenience score.
+- A city switcher (or `?city=<id>` in the URL) across the seven city profiles.
+- Postal-area polygons colored by the selected convenience score, for every city.
 - CDMX colonia polygons as a second geography layer.
-- Geography selector for postal code and colonia.
+- Geography selector for postal code and colonia (CDMX).
 - Metric selector for combined, work, transit, supermarkets, gyms, and safety.
 - Area detail panel with raw distances, nearest known point, and score breakdown.
 - Editable work postal code; the browser recalculates work distance and combined score from that postal code's representative point.
@@ -63,6 +98,16 @@ cd frontend && npm run lint && npm run typecheck && npm run build   # frontend g
 - Offline scoring pipeline with replaceable raw data sources.
 
 ## Data Notes
+
+### Norway
+
+- Postal-area polygons (postnummerområder) come from Kartverket through the [Geonorge WFS](https://kartkatalog.geonorge.no/metadata/postnummeromrader/462a5297-33ef-438a-82a5-07fff5799be3). The service returns the whole country, so the pipeline downloads it once to a shared cache and each city trims it by municipality code.
+- Transit stops, supermarkets, and gyms come from OpenStreetMap through the [Overpass API](https://overpass-api.de/api/interpreter). Stops are grouped into rail (core) and bus (surface). Oslo, for example, is scored against 5,039 stops, 440 supermarkets, and 119 gyms.
+- The transit commute is an OpenStreetMap stop-pair approximation, not a timetable query.
+- There is no safety component for Norwegian cities: its weight is 0 because no comparable open crime dataset is used.
+- The default workplace is a configured reference point per city (Oslo S for Oslo) in `data/cities/<id>/places.json`.
+
+### Mexico
 
 - Postal-code polygons come from CDMX open data: [Códigos Postales de la Ciudad de México](https://datos.cdmx.gob.mx/dataset/codigos-postales).
 - Colonia polygons come from Opendatasoft's [Colonias de CDMX - Mexico](https://public.opendatasoft.com/explore/dataset/georef-mexico-colonia/export/) dataset, sourced from IECM cartography.
@@ -75,9 +120,9 @@ cd frontend && npm run lint && npm run typecheck && npm run build   # frontend g
 - Amenity travel times use straight-line nearest-candidate narrowing, then route those candidates and pick the genuinely fastest destination when routing is enabled.
 - Safety score is lower-is-better recent crime density. It uses the latest 12 months available in the FGJ CSV, not the current calendar date.
 
-## Multi-City Evolution
+## Adding a City
 
-The pipeline is already `--city` profile-driven. Alongside CDMX it ships five
+The pipeline is `--city` profile-driven. Alongside CDMX it ships five
 Norwegian cities — **Oslo**, **Bergen**, **Trondheim**, **Stavanger**, and
 **Drammen** — and a second Mexican city, **Morelia** (postal-code polygons from
 the open-mexico SEPOMEX dataset, OpenStreetMap transit/grocery/gym, no crime
