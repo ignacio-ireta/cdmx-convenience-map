@@ -6,10 +6,10 @@ only renders pre-computed GeoJSON. There is no runtime backend.
 
 ```
                  ┌──────────────────────── Python pipeline (src/cdmxmap) ───────────────────────┐
- city.json  ──▶  │  sources/        scoring/            output/           pipeline/             │
- places.json     │  fetch+normalize → engine over    → geojson +        → runner / state /     │
- open data  ──▶  │  each source       typed model       metadata +         manifest / progress  │
-                 │  (Overpass,        (distance,         manifest                                │
+ city.json  ──▶  │  sources/        scoring/            output/           pipeline.py           │
+ places.json     │  fetch+normalize → engine over    → geojson +        → run orchestration,   │
+ open data  ──▶  │  each source       typed model       metadata           resume, run manifest │
+                 │  (Overpass,        (distance,                                                 │
                  │   Apimetro,         density,                                                  │
                  │   CDMX, FGJ)        crime, transit)                                           │
                  └──────────────────────────────────────────────┬──────────────────────────────┘
@@ -35,17 +35,21 @@ GeoJSON.
   bounded retries and committed-seed fallback for OSM sources.
 - **`scoring/`** — `areas` (load/normalize geometries), `points` (nearest /
   candidate routing), `metrics` (distance & inverse-density scores, travel-time
-  estimates), `crime` (spatial aggregation), `transit/` (Apimetro approximation +
-  optional r5py overlay), and `engine.score_areas()` which assembles the contract.
+  estimates), `crime` (spatial aggregation), `transit` (stop-pair approximation +
+  optional r5py overlay, with the commute models in `transit_commute/`), and
+  `engine.score_areas()` which assembles the contract.
 - **`routing/`** — opt-in offline road routing for work/amenity travel times: a
   `Router` Protocol, the `ValhallaRouter` adapter (in-process `pyvalhalla`), a
   keyed `RoutingCache`, and the area-to-area matrix codec/builder. Off by default
   (straight-line fallback); separate from schedule-aware transit. See
   `docs/road-routing.md`.
-- **`output/`** — `geojson` (atomic writes), `metadata`, `manifest`.
-- **`pipeline/`** — `runner` orchestrates a city run with per-source isolation;
-  `state` tracks the manifest (hashing, skip-unchanged, resume); `progress`
-  renders rich progress.
+- **`output/`** — `geojson` (atomic writes) and `metadata`.
+- **`pipeline.py`** — `run_pipeline` orchestrates a city run: per-source failure
+  isolation (one failed source does not stop the rest unless `--fail-fast`),
+  `--resume` (skip sources whose output already exists), clean handling of
+  Ctrl-C, and meaningful exit codes.
+- **`manifest.py`** — the run manifest written to `runs/<run_id>/`: per-source
+  and per-area status, source SHA-256, output paths, timings, plus `errors.json`.
 - **`cli.py / config.py / models.py / errors.py / logging_config.py`** — entry
   point, config loading, pydantic models (the intermediate model + validated
   config), domain exceptions, logging setup.
