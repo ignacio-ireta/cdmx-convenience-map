@@ -28,6 +28,8 @@ from cdmxmap.sources.io import (
 
 CDMX_CITY_ID = "cdmx"
 CRIME_MODE_INCIDENT_POINTS = "incident_points"
+CRIME_MODE_CITY_STATISTICS = "city_statistics"
+CRIME_STATISTICS_FILENAME = "crime_statistics.csv"
 DEFAULT_CORE_WEIGHT = 0.70
 DEFAULT_SURFACE_WEIGHT = 0.30
 
