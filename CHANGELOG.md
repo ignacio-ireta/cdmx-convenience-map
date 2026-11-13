@@ -9,6 +9,12 @@ published.
 
 ### Added
 
+- Per-city colour themes for the map page chrome (side panel, cards, buttons,
+  accents), replacing the shared beige and teal: rosa mexicano for CDMX, cantera
+  rosa for Morelia, fjord indigo for Oslo, Bryggen red for Bergen, verdigris
+  green for Trondheim, North Sea petrol for Stavanger, and river steel-blue for
+  Drammen. Each theme is a `theme` block on the city's `CityConfig`, applied as
+  CSS custom properties; the score colour ramp stays shared across cities.
 - Two more cities: **Drammen** (Norway) and **Morelia** (Michoacán, Mexico), each
   a full Oslo-equivalent map viewable via the city switcher or `?city=<id>`.
   - **Drammen** reuses the Norway-generic path end to end: a

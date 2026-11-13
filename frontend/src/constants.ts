@@ -230,9 +230,22 @@ export type CityAssets = {
   matrixIndex: Record<AreaUnit, string>
 }
 
+// Chrome colours for one city's map page. Applied as CSS custom properties on
+// the app shell (see App.css); the score ramp stays shared so a colour means
+// the same score in every city.
+export type CityTheme = {
+  accent: string
+  accentStrong: string
+  accentSoft: string
+  canvas: string
+  panel: string
+  border: string
+}
+
 export type CityConfig = {
   id: string
   name: string
+  theme: CityTheme
   eyebrow: string
   postalWidth: number
   postalPlaceholder: string
@@ -385,11 +398,13 @@ function norwegianCity(opts: {
   name: string
   mapCenter: L.LatLngExpression
   postalPlaceholder: string
+  theme: CityTheme
   mapZoom?: number
 }): CityConfig {
   return {
     id: opts.id,
     name: opts.name,
+    theme: opts.theme,
     eyebrow: `${opts.name} apartment search`,
     postalWidth: 4,
     postalPlaceholder: opts.postalPlaceholder,
@@ -411,6 +426,15 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
   cdmx: {
     id: 'cdmx',
     name: 'CDMX',
+    // Rosa mexicano and jacaranda bloom.
+    theme: {
+      accent: '#b5126f',
+      accentStrong: '#7d0c4d',
+      accentSoft: '#fbe4f0',
+      canvas: '#f6e9f1',
+      panel: '#fcf4f9',
+      border: '#e3c9d8',
+    },
     eyebrow: 'CDMX apartment search',
     postalWidth: 5,
     postalPlaceholder: 'e.g. 06600',
@@ -431,34 +455,88 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
     name: 'Oslo',
     mapCenter: [59.9139, 10.7522],
     postalPlaceholder: 'e.g. 0150',
+    // Oslo-blue fjord indigo.
+    theme: {
+      accent: '#3a36a0',
+      accentStrong: '#2a2859',
+      accentSoft: '#e6e5fa',
+      canvas: '#eae9f7',
+      panel: '#f6f5fc',
+      border: '#cfcde8',
+    },
   }),
   bergen: norwegianCity({
     id: 'bergen',
     name: 'Bergen',
     mapCenter: [60.3913, 5.3221],
     postalPlaceholder: 'e.g. 5003',
+    // Bryggen wharf red against rain-grey skies.
+    theme: {
+      accent: '#a8322b',
+      accentStrong: '#7b211c',
+      accentSoft: '#f8e1de',
+      canvas: '#e9edf0',
+      panel: '#f5f7f8',
+      border: '#cdd5da',
+    },
   }),
   trondheim: norwegianCity({
     id: 'trondheim',
     name: 'Trondheim',
     mapCenter: [63.4305, 10.3951],
     postalPlaceholder: 'e.g. 7010',
+    // Verdigris copper of Nidarosdomen's roof.
+    theme: {
+      accent: '#1c7358',
+      accentStrong: '#114d3b',
+      accentSoft: '#dcf2e9',
+      canvas: '#e4f0ea',
+      panel: '#f3f9f6',
+      border: '#c2d9ce',
+    },
   }),
   stavanger: norwegianCity({
     id: 'stavanger',
     name: 'Stavanger',
     mapCenter: [58.97, 5.7331],
     postalPlaceholder: 'e.g. 4006',
+    // North Sea petrol.
+    theme: {
+      accent: '#0b6a86',
+      accentStrong: '#074a5e',
+      accentSoft: '#dbf0f6',
+      canvas: '#e2f0f4',
+      panel: '#f2f9fb',
+      border: '#bdd8e0',
+    },
   }),
   drammen: norwegianCity({
     id: 'drammen',
     name: 'Drammen',
     mapCenter: [59.744, 10.2045],
     postalPlaceholder: 'e.g. 3015',
+    // Drammenselva river steel-blue.
+    theme: {
+      accent: '#2f6190',
+      accentStrong: '#1f4263',
+      accentSoft: '#dfebf7',
+      canvas: '#e5edf5',
+      panel: '#f4f7fb',
+      border: '#c4d2e0',
+    },
   }),
   morelia: {
     id: 'morelia',
     name: 'Morelia',
+    // Cantera rosa, the pink stone of the historic centre.
+    theme: {
+      accent: '#a4493d',
+      accentStrong: '#7a3229',
+      accentSoft: '#f9e3dc',
+      canvas: '#f5e4dd',
+      panel: '#fcf3ef',
+      border: '#e2c6bb',
+    },
     eyebrow: 'Morelia apartment search',
     postalWidth: 5,
     postalPlaceholder: 'e.g. 58000',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Check, ClipboardCopy, Database, MapPinned, Search } from 'lucide-react'
 import L, { type Layer, type PathOptions } from 'leaflet'
 import { GeoJSON, MapContainer, TileLayer } from 'react-leaflet'
@@ -582,7 +582,19 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main
+      className="app-shell"
+      style={
+        {
+          '--accent': city.theme.accent,
+          '--accent-strong': city.theme.accentStrong,
+          '--accent-soft': city.theme.accentSoft,
+          '--canvas': city.theme.canvas,
+          '--panel': city.theme.panel,
+          '--border': city.theme.border,
+        } as CSSProperties
+      }
+    >
       <aside className="control-panel" aria-label="Map controls">
         <header className="app-header">
           <div className="title-row">
