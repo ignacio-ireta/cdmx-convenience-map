@@ -1,15 +1,28 @@
+/*
+ * A cartographer's sheet: each city in its own ink.
+ *
+ * Structure comes from type and hairline rules, not from cards. Only controls
+ * (inputs, segmented buttons) and figures (the map, the locator inset) are
+ * drawn as objects. See the portfolio's docs/design-language.md.
+ */
+
 .app-shell {
-  /* --accent, --accent-strong, --accent-soft, --canvas, --panel and --border
-     come from the active city's theme (CityConfig.theme), set inline. */
-  --control: color-mix(in srgb, var(--canvas) 55%, #ffffff);
-  --divider: color-mix(in srgb, var(--border) 55%, #ffffff);
+  /* --accent, --accent-strong, --accent-soft, --counter, --canvas, --panel and
+     --border come from the active city's theme (CityConfig.theme), set inline. */
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --field: color-mix(in srgb, var(--panel) 40%, #ffffff);
+  --rule: var(--border);
+  --rule-faint: color-mix(in srgb, var(--border) 55%, var(--panel));
+  --rule-ink: color-mix(in srgb, var(--accent-strong) 78%, var(--panel));
   --track: color-mix(in srgb, var(--border) 60%, var(--canvas));
   --ink: #1b1e22;
   --ink-soft: #383d43;
-  --muted: #555c64;
-  --subtle: #636a73;
+  --muted: #4f565e;
+  --subtle: #5a6169;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   display: grid;
-  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  grid-template-columns: minmax(330px, 400px) minmax(0, 1fr);
   height: 100svh;
   min-height: 100svh;
   width: 100%;
@@ -18,98 +31,187 @@
   color: var(--ink);
 }
 
+/* Labels, counts, scores, units: instrument output. */
+.eyebrow,
+.sheet-spec span,
+.sheet-spec small,
+.sheet-spec p,
+.section-heading,
+.search-results-meta,
+.work-location-form label,
+.amenity-mode-row > span,
+.data-audit-panel dt,
+.metric-source,
+.locator figcaption,
+.legend,
+.top-list-header,
+.map-readout {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Sidebar: the sheet's margin ---------- */
+
 .control-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   overflow-y: auto;
-  padding: 18px;
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.app-header,
-.panel-section,
-.search-form,
-.search-results {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #ffffff;
+  padding: 26px 26px 40px;
+  border-right: 1px solid var(--rule);
+  /* Paper under raking light: brightest by the title, falling off downward. */
+  background:
+    radial-gradient(
+      140% 520px at 0% 0%,
+      color-mix(in srgb, var(--panel) 35%, #ffffff),
+      transparent 70%
+    ),
+    linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 55%, var(--canvas)));
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
 }
 
 .app-header {
-  padding: 16px;
-}
-
-.title-row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-
-.title-row svg {
-  width: 32px;
-  height: 32px;
-  color: var(--accent);
-}
-
-.eyebrow,
-.muted,
-.status-line {
-  color: var(--subtle);
-  font-size: 13px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+  padding-bottom: 18px;
 }
 
 .eyebrow {
-  margin-bottom: 4px;
+  margin-bottom: 10px;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-weight: 700;
-}
-
-.status-line {
-  margin-top: 12px;
-}
-
-.city-picker {
-  display: grid;
-  gap: 6px;
-  margin-top: 14px;
-}
-
-.city-picker span {
-  color: var(--subtle);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.city-picker select {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 9px 11px;
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 24px;
+  color: var(--accent-strong);
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.locator {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  margin: 0;
+}
+
+.locator svg {
+  display: block;
+  overflow: visible;
+}
+
+.locator-mesh {
+  fill: var(--accent-soft);
+  fill-rule: evenodd;
+  stroke: var(--accent);
+  stroke-linejoin: round;
+  stroke-opacity: 0.55;
+  stroke-width: 0.35;
+}
+
+.locator-selected {
+  fill: var(--counter);
+  stroke: var(--counter);
+  stroke-width: 0.6;
+}
+
+.locator-mark {
+  fill: none;
+  stroke: var(--counter);
+  stroke-width: 1;
+  transition: transform 0.5s var(--ease);
+}
+
+.locator figcaption {
+  max-width: 132px;
+  overflow: hidden;
+  color: var(--subtle);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Ruled spec list under the title: city, centre, coverage. */
+.sheet-spec {
+  border-top: 1px solid var(--rule-ink);
+  box-shadow:
+    0 -3px 0 var(--panel),
+    0 -4px 0 var(--rule-ink);
+}
+
+.sheet-spec > * {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 34px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.sheet-spec span,
+.sheet-spec small {
+  color: var(--subtle);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sheet-spec p {
+  grid-column: 2 / -1;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.city-picker select {
+  min-width: 0;
+  margin: -4px 0 -4px -4px;
+  border: 0;
+  border-radius: 3px;
+  padding: 2px 4px;
+  color: var(--accent-strong);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: 21px;
   line-height: 1.1;
+}
+
+.city-picker select:hover {
+  background: var(--accent-soft);
 }
 
 .search-form {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 16px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 12px;
+  gap: 10px;
+  height: 46px;
+  margin-top: 6px;
+  border-bottom: 1px solid var(--ink-soft);
+  transition: border-color 0.2s var(--ease);
+}
+
+.search-form:focus-within {
+  border-bottom-color: var(--accent);
+  box-shadow: 0 1px 0 var(--accent);
 }
 
 .search-form svg {
   color: var(--muted);
-  height: 18px;
-  width: 18px;
+  height: 16px;
+  width: 16px;
 }
 
 .search-form input {
@@ -119,53 +221,61 @@
   color: var(--ink);
   background: transparent;
   font: inherit;
+  font-size: 15px;
+}
+
+.search-form input::placeholder,
+.work-location-form input::placeholder {
+  color: var(--subtle);
+  opacity: 1;
 }
 
 .search-results {
-  display: grid;
-  gap: 8px;
-  margin-top: -8px;
-  padding: 10px;
+  padding-top: 12px;
 }
 
 .search-results-meta {
+  padding-bottom: 6px;
   color: var(--subtle);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .search-result-list {
-  display: grid;
-  gap: 6px;
   max-height: 282px;
   overflow-y: auto;
+  border-top: 1px solid var(--rule);
 }
 
 .search-result-list button {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  min-height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--rule-faint);
+  padding: 8px 6px 8px 0;
   color: var(--ink);
-  background: var(--control);
+  background: transparent;
   cursor: pointer;
   font: inherit;
   text-align: left;
+  transition:
+    background-color 0.18s var(--ease),
+    padding 0.18s var(--ease);
 }
 
 .search-result-list button:hover {
-  border-color: var(--accent);
+  padding-left: 6px;
   background: var(--accent-soft);
 }
 
 .search-result-list button > span {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -177,7 +287,8 @@
 }
 
 .search-result-list strong {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .search-result-list small,
@@ -189,121 +300,136 @@
 .search-result-list em {
   flex: 0 0 auto;
   color: var(--accent-strong);
+  font-family: var(--mono);
+  font-size: 13px;
   font-style: normal;
-  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .search-empty {
   margin: 0;
-  line-height: 1.35;
+  line-height: 1.4;
 }
+
+/* ---------- Sections: a rule, a numbered label, then the content ---------- */
 
 .panel-section {
-  padding: 14px;
-}
-
-.panel-section h2 {
-  margin: 0 0 12px;
-  font-size: 15px;
-  line-height: 1.2;
+  margin-top: 30px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
 }
 
 .section-heading {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
-}
-
-.section-heading h2 {
-  margin: 0;
-}
-
-.section-heading span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--subtle);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.metric-grid,
-.geography-grid,
-.work-mode-grid {
+.section-heading h2 {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.section-heading h2 span {
+  margin-right: 10px;
+  color: var(--counter);
+  font-weight: 400;
+}
+
+.section-heading > span {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Segmented control: one object with hairline divisions, not a row of boxes. */
+.segmented {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--rule);
 }
 
-.metric-grid button,
-.geography-grid button,
-.work-mode-grid button,
-.top-list button,
-.work-actions button,
-.work-location-form button {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--control);
-  color: var(--ink);
-  cursor: pointer;
-  font: inherit;
-}
-
-.metric-grid button,
-.geography-grid button,
-.work-mode-grid button {
+.segmented button {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 10px;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.metric-grid button:hover,
-.metric-grid button.active,
-.geography-grid button:hover,
-.geography-grid button.active,
-.work-mode-grid button:hover,
-.work-mode-grid button.active,
-.top-list button:hover,
-.work-actions button:hover,
-.work-location-form button:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.metric-grid svg {
-  flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-}
-
-.weight-row {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) 32px;
-  align-items: center;
-  gap: 10px;
-  min-height: 34px;
+  gap: 9px;
+  min-height: 38px;
+  border: 0;
+  padding: 8px 12px;
   color: var(--ink-soft);
-  font-size: 13px;
+  background: var(--field);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    background-color 0.18s var(--ease),
+    color 0.18s var(--ease),
+    box-shadow 0.18s var(--ease);
 }
 
-.weight-row input {
-  width: 100%;
-  accent-color: var(--accent);
+.segmented button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
-.weight-row strong {
-  text-align: right;
-  font-size: 13px;
+.segmented button:hover {
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--field));
+}
+
+.segmented button.active {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  font-weight: 650;
+}
+
+.segmented svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.6;
+}
+
+.work-mode-grid.segmented {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.work-mode-grid.segmented button,
+.amenity-mode-buttons.segmented button {
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 4px;
+  font-size: 12.5px;
+}
+
+.work-mode-grid.segmented button:last-child:nth-child(odd) {
+  grid-column: auto;
 }
 
 .work-location-panel {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+}
+
+.work-location-panel .section-heading {
+  margin-bottom: 2px;
 }
 
 .work-location-form {
@@ -311,130 +437,123 @@
   gap: 6px;
 }
 
-.work-location-form label {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+.work-location-form label,
+.amenity-mode-row > span,
+.data-audit-panel dt {
+  color: var(--subtle);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .work-location-form div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 78px;
+  grid-template-columns: minmax(0, 1fr) 84px;
   gap: 8px;
 }
 
 .work-location-form input {
   min-width: 0;
   height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0 11px;
   color: var(--ink);
-  background: #ffffff;
+  background: var(--field);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
-.work-location-form button,
-.work-actions button {
+/* The one primary button. */
+.work-location-form button {
   min-height: 38px;
-  padding: 0 10px;
+  border: 1px solid var(--accent-strong);
+  border-radius: 4px;
+  color: #ffffff;
+  background: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
+  transition: background-color 0.18s var(--ease);
 }
 
+.work-location-form button:hover {
+  background: var(--accent);
+}
+
+/* Secondary actions are links. */
 .work-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
 }
 
-.work-mode-grid button {
-  min-height: 34px;
-  font-size: 12px;
-  text-align: center;
-  justify-content: center;
+.work-actions button,
+.top-list-header button {
+  border: 0;
+  padding: 2px 0;
+  color: var(--accent-strong);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.18s var(--ease);
+}
+
+.work-actions button:hover,
+.top-list-header button:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 
 .amenity-mode-panel {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--divider);
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .amenity-mode-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 74px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
+  gap: 10px;
 }
 
 .amenity-mode-row.preference-row {
   align-items: start;
-}
-
-.amenity-mode-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.amenity-mode-buttons button {
-  min-height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--ink);
-  background: var(--control);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: none;
-}
-
-.amenity-mode-buttons button:hover,
-.amenity-mode-buttons button.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  padding: 2px 0;
 }
 
 .option-checkboxes {
-  display: grid;
-  gap: 6px;
-}
-
-.store-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.transit-options {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
 }
 
 .option-checkbox {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 5px 7px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--ink);
-  background: var(--control);
+  gap: 7px;
+  color: var(--ink-soft);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: none;
+  font-size: 13px;
+  transition: color 0.18s var(--ease);
 }
 
 .option-checkbox:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.option-checkbox:hover {
+  color: var(--accent-strong);
 }
 
 .option-checkbox input {
@@ -445,52 +564,62 @@
   accent-color: var(--accent);
 }
 
-.option-checkbox span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.form-note {
+.form-note,
+.muted {
   color: var(--subtle);
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .form-note.error {
   color: #b42318;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.data-audit-panel .section-heading svg {
-  width: 17px;
-  height: 17px;
-  color: var(--accent);
-}
-
+/* Ruled spec list. */
 .data-audit-panel dl {
-  display: grid;
-  gap: 8px;
   margin: 0;
+  border-top: 1px solid var(--rule-faint);
 }
 
 .data-audit-panel dl > div {
   display: grid;
-  gap: 2px;
-}
-
-.data-audit-panel dt {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule-faint);
 }
 
 .data-audit-panel dd {
   margin: 0;
-  color: var(--ink);
+  color: var(--ink-soft);
   font-size: 13px;
+  line-height: 1.4;
+}
+
+.weight-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 26px;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.weight-row input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.weight-row strong {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: right;
 }
 
 .details-panel {
@@ -499,58 +628,97 @@
 
 .score-header {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--divider);
+  gap: 14px;
+  padding-bottom: 16px;
 }
 
 .area-title {
-  color: #101418;
-  font-size: 32px;
-  font-weight: 800;
-  line-height: 1;
+  color: var(--accent-strong);
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+}
+
+.area-title + .muted {
+  margin-top: 6px;
 }
 
 .score-header strong {
-  color: #101418;
-  font-size: 34px;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.03em;
   line-height: 1;
+}
+
+/* The colour this score is printed in on the map. */
+.score-header strong i {
+  width: 10px;
+  height: 26px;
+  background: var(--track);
+  transition: background-color 0.35s var(--ease);
 }
 
 .breakdown {
   display: grid;
-  gap: 12px;
-  padding: 14px 0;
+  border-top: 1px solid var(--rule);
 }
 
 .metric-row {
   display: grid;
   gap: 6px;
+  padding: 11px 0 10px;
+  border-bottom: 1px solid var(--rule-faint);
 }
 
 .metric-row-top,
 .metric-row-bottom,
 .raw-distances div {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
 .metric-row-top {
   color: var(--ink);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+}
+
+.metric-row-top strong {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .metric-row-bottom {
   color: var(--subtle);
+  font-size: 12.5px;
+}
+
+.metric-row-bottom span:first-child {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+  font-family: var(--mono);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-row-bottom span:last-child {
   overflow: hidden;
-  max-width: 180px;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -559,69 +727,79 @@
 .metric-source {
   justify-self: end;
   max-width: 100%;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.25;
+  color: var(--subtle);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
   text-align: right;
   text-transform: uppercase;
 }
 
+/* Routed vs estimate: a marked label, not a pill. */
 .source-badge {
-  display: inline-block;
-  margin-right: 5px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 10px;
+  margin-right: 8px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  vertical-align: middle;
+}
+
+.source-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  background: currentColor;
+  vertical-align: 1px;
 }
 
 .source-badge-routed {
-  background: #d3f9d8;
   color: #1b5e20;
 }
 
 .source-badge-estimate {
-  background: #fff3bf;
-  color: #8a6d00;
+  color: #7a5f00;
 }
 
+.source-badge-estimate::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+/* A ruled gauge: hairline baseline with the score drawn on it in the city ink. */
 .score-bar {
-  height: 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--track);
+  height: 4px;
+  background: linear-gradient(var(--track), var(--track)) bottom / 100% 1px no-repeat;
 }
 
 .score-bar i {
   display: block;
   height: 100%;
-  border-radius: inherit;
   background: var(--accent);
+  transition: width 0.45s var(--ease);
 }
 
 .raw-distances {
   display: grid;
-  gap: 8px;
   margin: 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--divider);
+  padding-top: 6px;
 }
 
 .raw-distances div {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule-faint);
   font-size: 13px;
 }
 
 .raw-distances dt {
+  flex: 0 0 auto;
   color: var(--subtle);
 }
 
 .raw-distances dd {
   margin: 0;
   color: var(--ink);
-  font-weight: 700;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   text-align: right;
 }
@@ -633,11 +811,13 @@
 
 .raw-distances .raw-note dd {
   color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
   text-align: left;
 }
+
+/* ---------- The map sheet ---------- */
 
 .map-area {
   position: relative;
@@ -645,151 +825,453 @@
   height: 100%;
 }
 
+.map-sheet {
+  position: relative;
+  height: 100%;
+}
+
+/* Neatline: the double rule a printed sheet is framed with. */
+.map-sheet::after {
+  content: '';
+  position: absolute;
+  z-index: 450;
+  inset: 10px;
+  border: 1px solid var(--rule-ink);
+  outline: 1px solid color-mix(in srgb, var(--accent-strong) 35%, transparent);
+  outline-offset: 3px;
+  pointer-events: none;
+}
+
 .leaflet-map {
   min-height: 0;
   height: 100%;
   width: 100%;
-  background: var(--track);
+  background: var(--canvas);
+  font-family: inherit;
+}
+
+/* Base map printed in grey on the city's paper, so the score ramp is the only
+   saturated colour on the sheet. */
+.leaflet-map .leaflet-tile-pane {
+  filter: grayscale(1) contrast(0.94) brightness(1.04);
+  opacity: 0.8;
+}
+
+/* Areas answer the pointer. Leaflet writes fill-opacity and stroke as
+   presentation attributes, which CSS overrides and can transition. The
+   [stroke='#ffffff'] test leaves the selected area (dark outline, set in
+   areaStyle) alone. */
+.leaflet-map path.leaflet-interactive {
+  transition:
+    fill-opacity 0.2s var(--ease),
+    stroke 0.2s var(--ease),
+    stroke-width 0.2s var(--ease);
+}
+
+.leaflet-map path.leaflet-interactive[stroke='#ffffff']:hover {
+  fill-opacity: 0.96;
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+}
+
+.leaflet-map .leaflet-top.leaflet-left .leaflet-control,
+.leaflet-map .leaflet-bottom.leaflet-left .leaflet-control {
+  margin-left: 26px;
+}
+
+.leaflet-map .leaflet-top .leaflet-control {
+  margin-top: 26px;
+}
+
+.leaflet-map .leaflet-bar {
+  border: 1px solid var(--rule-ink);
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.leaflet-map .leaflet-bar a {
+  color: var(--accent-strong);
+  background: var(--panel);
+  border-bottom-color: var(--rule);
+  font-family: var(--mono);
+  font-weight: 400;
+  transition: background-color 0.18s var(--ease);
+}
+
+.leaflet-map .leaflet-bar a:hover {
+  background: var(--accent-soft);
+}
+
+.leaflet-map .leaflet-control-scale {
+  margin-bottom: 24px;
+}
+
+.leaflet-map .leaflet-control-scale-line {
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  box-shadow:
+    inset 1px 0 0 var(--ink),
+    inset -1px 0 0 var(--ink);
+  padding: 0 0 3px;
+  color: var(--ink);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow:
+    0 0 3px var(--panel),
+    0 0 3px var(--panel),
+    0 0 6px var(--panel);
+}
+
+.leaflet-map .leaflet-control-attribution {
+  margin: 0 19px 19px 0;
+  padding: 1px 6px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  font-size: 10px;
+}
+
+.leaflet-map .leaflet-tooltip {
+  border: 0;
+  border-radius: 2px;
+  padding: 5px 9px;
+  color: var(--panel);
+  background: var(--accent-strong);
+  box-shadow: none;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.leaflet-map .leaflet-tooltip::before {
+  display: none;
+}
+
+.map-readout {
+  position: absolute;
+  z-index: 620;
+  right: 22px;
+  bottom: 40px;
+  color: var(--ink);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  text-shadow:
+    0 0 3px var(--panel),
+    0 0 3px var(--panel),
+    0 0 6px var(--panel);
+  white-space: nowrap;
+}
+
+.map-readout span {
+  margin: 0 7px 0 14px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .map-message {
   display: grid;
-  min-height: 100svh;
+  height: 100%;
+  min-height: 62svh;
   place-items: center;
   color: var(--muted);
-  font-weight: 700;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.map-overlay {
-  position: absolute;
-  z-index: 500;
-  right: 18px;
-  bottom: 18px;
-  display: grid;
-  gap: 10px;
-  width: min(330px, calc(100% - 36px));
-  pointer-events: none;
-}
-
+/* Map furniture sits in a clearing in the sheet, not in a bordered panel: the
+   paper colour, feathered out by a same-colour shadow. */
 .legend,
 .top-list {
-  border: 1px solid rgba(24, 32, 29, 0.16);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 30px rgba(16, 20, 24, 0.12);
-  pointer-events: auto;
+  --clearing: color-mix(in srgb, var(--panel) 93%, transparent);
+  position: absolute;
+  z-index: 500;
+  background: var(--clearing);
+  box-shadow: 0 0 14px 10px var(--clearing);
 }
 
 .legend {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-  padding: 10px;
-}
-
-.legend span {
-  display: grid;
-  gap: 4px;
+  left: 34px;
+  bottom: 78px;
+  width: 294px;
+  padding: 4px 10px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
+}
+
+.legend-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.legend-selected {
+  overflow: hidden;
+  color: var(--counter);
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+}
+
+.legend-selected b {
   font-weight: 700;
-  text-align: center;
 }
 
-.legend i {
-  height: 9px;
-  border-radius: 999px;
+.legend-ramp {
+  position: relative;
+  display: flex;
+  height: 11px;
+  margin-top: 13px;
+  box-shadow: 0 0 0 1px var(--ink);
 }
 
+.legend-ramp i {
+  flex: 0 0 0;
+}
+
+.legend-ramp i + i {
+  box-shadow: inset 1px 0 0 rgb(16 20 24 / 55%);
+}
+
+/* The selected area's score, read off the ramp. */
+.legend-pointer {
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top: 7px solid var(--counter);
+  border-bottom: 0;
+  transition: left 0.45s var(--ease);
+}
+
+.legend-pointer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -0.5px;
+  width: 1px;
+  height: 12px;
+  background: var(--ink);
+}
+
+.legend-ticks {
+  position: relative;
+  height: 22px;
+}
+
+.legend-ticks span {
+  position: absolute;
+  top: 0;
+  padding-top: 7px;
+  transform: translateX(-50%);
+}
+
+.legend-ticks span::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 5px;
+  background: var(--ink);
+}
+
+/* The ranking: a numbered index list. */
 .top-list {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
+  top: 34px;
+  right: 34px;
+  display: flex;
+  flex-direction: column;
+  width: 292px;
+  max-height: min(54%, 520px);
+  padding: 4px 6px;
 }
 
 .top-list-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--rule-ink);
 }
 
 .top-list-header > div {
   display: grid;
-  gap: 1px;
+  gap: 3px;
   min-width: 0;
 }
 
-.top-list strong {
-  font-size: 12px;
+.top-list-header strong {
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .top-list-header span {
   color: var(--subtle);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
 }
 
 .top-list-header button {
+  display: inline-flex;
   flex: 0 0 auto;
-  gap: 6px;
-  min-height: 30px;
-  padding: 5px 8px;
-  color: var(--accent-strong);
-  font-size: 12px;
-  font-weight: 800;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.top-list-header button span {
+  color: inherit;
+  letter-spacing: inherit;
 }
 
 .top-list-header button.copied {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  color: #1b5e20;
 }
 
 .top-list-header svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .top-list-results {
-  display: grid;
-  gap: 5px;
-  max-height: min(48svh, 440px);
+  min-height: 0;
+  margin: 0;
   overflow-y: auto;
-  padding-right: 2px;
+  padding: 0;
+  list-style: none;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
 }
 
 .top-list-results button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 8px 40px;
+  align-items: baseline;
   gap: 8px;
-  min-height: 30px;
-  padding: 6px 8px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--rule-faint);
+  padding: 6px 4px 6px 2px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
   font-size: 13px;
+  text-align: left;
+  transition: background-color 0.16s var(--ease);
 }
 
-.top-list em {
-  margin-left: auto;
-  font-style: normal;
-  font-weight: 800;
+.top-list-results button:hover {
+  background: var(--accent-soft);
 }
 
-.top-list .rank {
-  display: inline-grid;
-  flex: 0 0 26px;
-  width: 26px;
-  height: 18px;
-  place-items: center;
-  border-radius: 999px;
-  color: var(--muted);
-  background: var(--track);
+.top-list-results button[aria-current='true'] {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--counter);
+}
+
+.top-list-results .rank {
+  color: var(--subtle);
+  font-family: var(--mono);
   font-size: 11px;
-  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
-.leaflet-control-attribution {
-  font-size: 10px;
+.top-list-results button[aria-current='true'] .rank {
+  color: var(--counter);
+}
+
+.top-list-results .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-list-results i {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+}
+
+.top-list-results em {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------- Focus ---------- */
+
+.app-shell :is(button, select, input, a):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.search-form input:focus-visible {
+  outline: 0;
+}
+
+/* ---------- Narrower sheets ---------- */
+
+/* Not enough map to float the ranking over it: it follows the sheet instead,
+   set in columns. */
+@media (max-width: 1180px) {
+  .map-area {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .map-sheet {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+  }
+
+  .top-list {
+    position: static;
+    flex: 0 0 auto;
+    width: auto;
+    max-height: 34%;
+    padding: 16px 26px 14px;
+    border-top: 1px solid var(--rule);
+    background: var(--panel);
+    box-shadow: none;
+  }
+
+  .top-list-results {
+    columns: 2;
+    column-gap: 28px;
+  }
+
+  .top-list-results li {
+    break-inside: avoid;
+  }
+
+  .map-readout {
+    display: none;
+  }
 }
 
 @media (max-width: 880px) {
@@ -800,40 +1282,72 @@
   }
 
   .control-panel {
-    max-height: none;
+    overflow: visible;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--rule);
   }
 
-  .map-area,
-  .leaflet-map,
-  .map-message {
+  .map-area {
     height: auto;
-    min-height: 62svh;
+  }
+
+  .map-sheet {
+    height: 68svh;
+    min-height: 420px;
+  }
+
+  .map-sheet {
+    flex: 0 0 auto;
+  }
+
+  .top-list {
+    max-height: 70svh;
+    padding: 22px 26px 30px;
+    border-top: 0;
   }
 }
 
 @media (max-width: 520px) {
   .control-panel {
-    padding: 12px;
+    padding: 20px 16px 32px;
   }
 
   .app-header h1 {
-    font-size: 21px;
+    font-size: 31px;
   }
 
-  .metric-grid {
-    grid-template-columns: 1fr;
+  .locator svg {
+    width: auto;
+    height: 96px;
   }
 
-  .geography-grid,
-  .work-mode-grid {
-    grid-template-columns: 1fr;
+  .area-title {
+    font-size: 28px;
   }
 
-  .map-overlay {
-    right: 12px;
-    bottom: 12px;
-    width: calc(100% - 24px);
+  .legend {
+    left: 22px;
+    width: min(294px, calc(100% - 44px));
+  }
+
+  .top-list-results {
+    columns: 1;
+  }
+
+  .leaflet-map .leaflet-top.leaflet-left .leaflet-control,
+  .leaflet-map .leaflet-bottom.leaflet-left .leaflet-control {
+    margin-left: 22px;
+  }
+
+  .top-list {
+    padding: 20px 16px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   colorForScore,
+  formatCoordinates,
   formatDistanceAndTime,
   formatMeters,
   formatMinutes,
@@ -11,12 +12,14 @@ import {
   isRoutedSource,
   numberFrom,
   optionalString,
+  scoreFigure,
   scoreText,
   sourceBadge,
   stringFrom,
   transitStopLabel,
   verdict,
 } from './format'
+import { LEGEND_STEPS } from '../constants'
 
 describe('value coercion', () => {
   it('trims strings and stringifies finite numbers', () => {
@@ -109,5 +112,32 @@ describe('classifiers', () => {
     expect(transitStopLabel(undefined, undefined)).toBe('n/a')
     expect(formatTransitComplexity('same_line')).toBe('Same line')
     expect(formatTransitComplexity('different_system')).toBe('Different systems')
+  })
+})
+
+describe('map furniture figures', () => {
+  it('keeps one decimal so score columns align', () => {
+    expect(scoreFigure(95)).toBe('95.0')
+    expect(scoreFigure(93.64)).toBe('93.6')
+    expect(scoreFigure(Number.NaN)).toBe('0.0')
+    expect(scoreFigure(undefined)).toBe('0.0')
+  })
+
+  it('prints coordinates with hemisphere letters', () => {
+    expect(formatCoordinates(59.9139, 10.7522)).toBe('59.9139° N 10.7522° E')
+    expect(formatCoordinates(19.4326, -99.1332, 2)).toBe('19.43° N 99.13° W')
+    expect(formatCoordinates(-33.9, 18.4, 1)).toBe('33.9° S 18.4° E')
+    expect(formatCoordinates(Number.NaN, 0)).toBe('n/a')
+  })
+
+  it('draws the legend from the same class breaks the map is coloured with', () => {
+    const ascending = [...LEGEND_STEPS].reverse()
+    expect(ascending[0].from).toBe(0)
+    ascending.forEach((step, index) => {
+      expect(colorForScore(step.from)).toBe(step.color)
+      const upper = ascending[index + 1]?.from ?? 100
+      expect(upper).toBeGreaterThan(step.from)
+      expect(colorForScore(upper - 0.01)).toBe(step.color)
+    })
   })
 })

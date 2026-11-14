@@ -66,6 +66,22 @@ export function scoreText(value?: number) {
   return `${Math.round(score * 10) / 10}`
 }
 
+// Fixed one-decimal score for columns of figures, so decimal points line up
+// under tabular numerals. `scoreText` stays the compact form for prose and the
+// copied report.
+export function scoreFigure(value?: number) {
+  const score = typeof value === 'number' && Number.isFinite(value) ? value : 0
+  return (Math.round(score * 10) / 10).toFixed(1)
+}
+
+// "59.9139° N 10.7522° E", as printed in a map's margin.
+export function formatCoordinates(lat: number, lon: number, digits = 4) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return 'n/a'
+  const part = (value: number, positive: string, negative: string) =>
+    `${Math.abs(value).toFixed(digits)}° ${value < 0 ? negative : positive}`
+  return `${part(lat, 'N', 'S')} ${part(lon, 'E', 'W')}`
+}
+
 export function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }

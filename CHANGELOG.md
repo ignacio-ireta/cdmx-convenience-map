@@ -113,6 +113,35 @@ published.
 
 ### Changed
 
+- Frontend restyled as "a cartographer's sheet: each city in its own ink",
+  following the portfolio's design language. Scoring, data contracts and
+  `?city=` URLs are unchanged.
+  - Sidebar: the nested white cards are gone. Sections are separated by hairline
+    rules with numbered monospaced labels; option groups are single segmented
+    controls; the data audit and raw distances are ruled spec lists; "Use
+    selected area", "Reset default" and "Copy" are links, leaving "Apply" as the
+    one primary button.
+  - Type: a serif for the title, city and area names, the sans for reading, and
+    a monospace with tabular figures for labels, counts, scores and units. Score
+    columns print one fixed decimal (`scoreFigure`) so they align; the copied
+    report and tooltips keep the compact `scoreText`.
+  - Map furniture: a metric Leaflet scale bar, a neatline frame, a pointer/centre
+    coordinate and zoom readout, and a legend drawn to scale (each class as wide
+    as its score range, ticks at the class breaks, a pointer at the selected
+    area's score). The top list is a numbered index with the map colour beside
+    each score; below 1180px it follows the map instead of covering it.
+  - A locator inset in the title block draws the city's scored areas as a mesh
+    and marks the selected area (`lib/locator.ts`).
+  - The OpenStreetMap base layer is desaturated on the city's paper colour so
+    the score ramp is the only saturated colour on the map. The ramp itself is
+    unchanged.
+  - Each `CityTheme` gains a `counter` ink of the opposite temperature to its
+    accent (for example brick against Oslo's indigo, jacaranda against CDMX's
+    rosa), used for markers and section numerals. All text inks pass WCAG AA on
+    their surfaces.
+  - Hover and selection transitions on areas, score gauges and the legend
+    pointer, disabled under `prefers-reduced-motion`.
+
 - The standalone `scripts/build_scores.py`, `run_city.py`,
   `validate_processed.py`, `common.py`, the `fetch_*` scripts, and the
   `transit_commute` package moved into `src/cdmxmap/`; use the `cdmxmap` CLI.

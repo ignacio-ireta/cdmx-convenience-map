@@ -76,6 +76,12 @@ Then verify:
 - Search `roma` on the colonia layer finds and opens Roma results.
 - Details panel shows distances, time estimates, nearest amenities, safety fields, and score breakdown.
 - Top-100 list scrolls and the Copy button is visible.
+- The legend pointer and the locator inset both move to the selected area.
+- The scale bar and the coordinate/zoom readout update when the map is zoomed.
+- At 900px wide the top list sits below the map in two columns; at 390px it
+  follows the map in one column.
+- Each city (`?city=oslo`, `?city=bergen`, …) loads in its own colours with the
+  same score ramp.
 - Browser console has no app errors.
 
 ## Static Deploy Checks

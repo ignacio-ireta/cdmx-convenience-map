@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { Check, ClipboardCopy, Database, MapPinned, Search } from 'lucide-react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { Check, ClipboardCopy, Search } from 'lucide-react'
 import L, { type Layer, type PathOptions } from 'leaflet'
-import { GeoJSON, MapContainer, TileLayer } from 'react-leaflet'
+import { GeoJSON, MapContainer, ScaleControl, TileLayer } from 'react-leaflet'
 import type { Feature, Geometry } from 'geojson'
 import './App.css'
+
+import { LocatorInset } from './components/LocatorInset'
+import { MapReadout } from './components/MapReadout'
+import { ScoreLegend } from './components/ScoreLegend'
 
 import {
   AMENITY_MODES,
   CITY_CONFIGS,
   DATA_FOCUS_PADDING,
-  LEGEND_STEPS,
   METRICS,
   SELECTED_AREA_FOCUS_PADDING,
   SELECTED_AREA_MAX_ZOOM,
@@ -35,16 +38,19 @@ import type {
 import {
   colorForScore,
   formatAmenityDetail,
+  formatCoordinates,
   formatDistanceAndTime,
   formatMeters,
   formatMinutes,
   formatSource,
   formatTransitComplexity,
+  scoreFigure,
   scoreText,
   sourceBadge,
   transitStopLabel,
   verdict,
 } from './lib/format'
+import { buildLocator } from './lib/locator'
 import { normalizeAreaCollection, normalizePostalCode } from './lib/normalize'
 import { fetchRoutedWorkTimes, loadMatrixIndex } from './lib/routingMatrix'
 import {
@@ -232,6 +238,14 @@ function App() {
   const preferenceScoreModel = useMemo(() => {
     return data ? buildPreferenceScoreModel(data, city.stores) : null
   }, [data, city.stores])
+
+  const locator = useMemo(() => (data ? buildLocator(data) : null), [data])
+  const selectedMetricLabel =
+    METRICS.find((metric) => metric.key === selectedMetric)?.label ?? selectedMetric
+  const cityIds = Object.keys(CITY_CONFIGS)
+  const sheetNumber = `${String(cityIds.indexOf(city.id) + 1).padStart(2, '0')} / ${String(cityIds.length).padStart(2, '0')}`
+  const sheetCentre = L.latLng(city.mapCenter)
+  const pluralAreas = selectedGeography.pluralLabel.toLocaleLowerCase()
 
   const selectedScore = selected
     ? getScore(
@@ -589,6 +603,7 @@ function App() {
           '--accent': city.theme.accent,
           '--accent-strong': city.theme.accentStrong,
           '--accent-soft': city.theme.accentSoft,
+          '--counter': city.theme.counter,
           '--canvas': city.theme.canvas,
           '--panel': city.theme.panel,
           '--border': city.theme.border,
@@ -597,36 +612,52 @@ function App() {
     >
       <aside className="control-panel" aria-label="Map controls">
         <header className="app-header">
-          <div className="title-row">
-            <MapPinned aria-hidden="true" />
-            <div>
-              <p className="eyebrow">{city.eyebrow}</p>
-              <h1>Area convenience map</h1>
-            </div>
+          <div className="title-block">
+            <p className="eyebrow">{city.eyebrow}</p>
+            <h1>Area convenience map</h1>
           </div>
-          <p className="status-line">
-            {data
-              ? `${data.features.length} ${selectedGeography.pluralLabel.toLocaleLowerCase()} scored`
-              : `Loading ${selectedGeography.pluralLabel.toLocaleLowerCase()}`}
-          </p>
+          {locator ? (
+            <LocatorInset
+              caption={
+                selected
+                  ? `Locator · ${areaFullLabel(selected.properties, city.postalPrefix)}`
+                  : `Locator · ${city.name}`
+              }
+              locator={locator}
+              selected={selected}
+            />
+          ) : null}
         </header>
 
-        <label className="city-picker">
-          <span>City</span>
-          <select
-            value={city.id}
-            onChange={(event) => {
-              const next = event.target.value
-              window.location.search = next === 'cdmx' ? '' : `?city=${next}`
-            }}
-          >
-            {Object.values(CITY_CONFIGS).map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="sheet-spec">
+          <label className="city-picker">
+            <span>City</span>
+            <select
+              value={city.id}
+              onChange={(event) => {
+                const next = event.target.value
+                window.location.search = next === 'cdmx' ? '' : `?city=${next}`
+              }}
+            >
+              {Object.values(CITY_CONFIGS).map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+            <small>Sheet {sheetNumber}</small>
+          </label>
+          <div>
+            <span>Centre</span>
+            <p>{formatCoordinates(sheetCentre.lat, sheetCentre.lng)}</p>
+          </div>
+          <div>
+            <span>Scored</span>
+            <p className="status-line">
+              {data ? `${data.features.length} ${pluralAreas} scored` : `Loading ${pluralAreas}`}
+            </p>
+          </div>
+        </div>
 
         <form className="search-form" onSubmit={handleSearch}>
           <Search aria-hidden="true" />
@@ -659,7 +690,7 @@ function App() {
                         <small>{areaUnitLabel(feature.properties.area_unit)}</small>
                       </span>
                       <em>
-                        {scoreText(
+                        {scoreFigure(
                           getScore(
                             feature.properties,
                             selectedMetric,
@@ -688,8 +719,8 @@ function App() {
         ) : null}
 
         <section className="panel-section">
-          <h2>Geography</h2>
-          <div className="geography-grid">
+          <SectionHeading index={1} title="Geography" />
+          <div className="geography-grid segmented">
             {city.geographies.map((geography) => (
               <button
                 className={selectedAreaUnit === geography.unit ? 'active' : ''}
@@ -704,16 +735,13 @@ function App() {
         </section>
 
         <section className="panel-section work-location-panel">
-          <div className="section-heading">
-            <h2>Work location</h2>
-            <span>
-              {workModel
-                ? workModel.displayName
-                : metadata?.workplace?.postal_code
-                  ? `${city.postalPrefix}${metadata.workplace.postal_code}`
-                  : 'configured'}
-            </span>
-          </div>
+          <SectionHeading index={2} title="Work location">
+            {workModel
+              ? workModel.displayName
+              : metadata?.workplace?.postal_code
+                ? `${city.postalPrefix}${metadata.workplace.postal_code}`
+                : 'configured'}
+          </SectionHeading>
           <form className="work-location-form" onSubmit={applyWorkPostalCode}>
             <label htmlFor="work-postal-code">Work postal code</label>
             <div>
@@ -736,7 +764,7 @@ function App() {
               Reset default
             </button>
           </div>
-          <div className="work-mode-grid" aria-label="Work score mode">
+          <div className="work-mode-grid segmented" role="group" aria-label="Work score mode">
             {WORK_MODES.map((mode) => (
               <button
                 className={workMode === mode.key ? 'active' : ''}
@@ -757,8 +785,8 @@ function App() {
         </section>
 
         <section className="panel-section">
-          <h2>Metric</h2>
-          <div className="metric-grid">
+          <SectionHeading index={3} title="Metric" />
+          <div className="metric-grid segmented">
             {visibleMetrics.map((metric) => {
               const Icon = metric.icon
               return (
@@ -777,7 +805,7 @@ function App() {
           <div className="amenity-mode-panel">
             <div className="amenity-mode-row">
               <span>Stores</span>
-              <div className="amenity-mode-buttons">
+              <div className="amenity-mode-buttons segmented">
                 {AMENITY_MODES.map((mode) => (
                   <button
                     className={supermarketMode === mode.key ? 'active' : ''}
@@ -824,7 +852,7 @@ function App() {
             ) : null}
             <div className="amenity-mode-row">
               <span>Gyms</span>
-              <div className="amenity-mode-buttons">
+              <div className="amenity-mode-buttons segmented">
                 {AMENITY_MODES.map((mode) => (
                   <button
                     className={gymMode === mode.key ? 'active' : ''}
@@ -841,10 +869,9 @@ function App() {
         </section>
 
         <section className="panel-section data-audit-panel">
-          <div className="section-heading">
-            <h2>Data audit</h2>
-            <Database aria-hidden="true" />
-          </div>
+          <SectionHeading index={4} title="Data audit">
+            Sources
+          </SectionHeading>
           <dl>
             <div>
               <dt>{selectedGeography.pluralLabel}</dt>
@@ -906,10 +933,9 @@ function App() {
         </section>
 
         <section className="panel-section">
-          <div className="section-heading">
-            <h2>Weights</h2>
-            <span>Combined</span>
-          </div>
+          <SectionHeading index={5} title="Weights">
+            Combined
+          </SectionHeading>
           {visibleWeightKeys.map((key) => (
             <label className="weight-row" key={key}>
               <span>{METRICS.find((metric) => metric.key === key)?.label}</span>
@@ -928,10 +954,9 @@ function App() {
         </section>
 
         <section className="panel-section details-panel">
-          <div className="section-heading">
-            <h2>Area</h2>
-            <span>{selected ? verdict(selectedScore) : 'No selection'}</span>
-          </div>
+          <SectionHeading index={6} title="Area">
+            {selected ? verdict(selectedScore) : 'No selection'}
+          </SectionHeading>
           {selected ? (
             <>
               <div className="score-header">
@@ -940,11 +965,13 @@ function App() {
                     {areaFullLabel(selected.properties, city.postalPrefix)}
                   </p>
                   <p className="muted">
-                    {areaUnitLabel(selected.properties.area_unit)} ·{' '}
-                    {METRICS.find((metric) => metric.key === selectedMetric)?.label}
+                    {areaUnitLabel(selected.properties.area_unit)} · {selectedMetricLabel}
                   </p>
                 </div>
-                <strong>{scoreText(selectedScore)}</strong>
+                <strong>
+                  <i aria-hidden="true" style={{ backgroundColor: colorForScore(selectedScore) }} />
+                  {scoreFigure(selectedScore)}
+                </strong>
               </div>
 
               <div className="breakdown">
@@ -1154,93 +1181,123 @@ function App() {
       </aside>
 
       <section className="map-area" aria-label="Area map">
-        {loadError ? (
-          <div className="map-message">{loadError}</div>
-        ) : data ? (
-          <MapContainer
-            className="leaflet-map"
-            key={mapInstanceKey}
-            maxZoom={16}
-            minZoom={9}
-            {...(mapBounds
-              ? { bounds: mapBounds, boundsOptions: mapBoundsOptions }
-              : { center: city.mapCenter, zoom: city.mapZoom })}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <GeoJSON data={data} key={mapKey} onEachFeature={onEachArea} style={areaStyle} />
-          </MapContainer>
-        ) : (
-          <div className="map-message">
-            Loading scored {selectedGeography.pluralLabel.toLocaleLowerCase()}
-          </div>
-        )}
+        <div className="map-sheet">
+          {loadError ? (
+            <div className="map-message">{loadError}</div>
+          ) : data ? (
+            <MapContainer
+              className="leaflet-map"
+              key={mapInstanceKey}
+              maxZoom={16}
+              minZoom={9}
+              {...(mapBounds
+                ? { bounds: mapBounds, boundsOptions: mapBoundsOptions }
+                : { center: city.mapCenter, zoom: city.mapZoom })}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <GeoJSON data={data} key={mapKey} onEachFeature={onEachArea} style={areaStyle} />
+              <ScaleControl imperial={false} maxWidth={120} position="bottomleft" />
+              <MapReadout />
+            </MapContainer>
+          ) : (
+            <div className="map-message">Loading scored {pluralAreas}</div>
+          )}
 
-        <div className="map-overlay">
-          <div className="legend">
-            {LEGEND_STEPS.map((step) => (
-              <span key={step.label}>
-                <i style={{ backgroundColor: step.color }} />
-                {step.label}
+          <ScoreLegend
+            metricLabel={selectedMetricLabel}
+            score={selected ? selectedScore : null}
+            selectedLabel={
+              selected ? areaFullLabel(selected.properties, city.postalPrefix) : undefined
+            }
+          />
+        </div>
+
+        <div className="top-list">
+          <div className="top-list-header">
+            <div>
+              <strong>Top {pluralAreas}</strong>
+              <span>
+                {sortedTopAreas.length} results · {selectedMetricLabel}
               </span>
-            ))}
-          </div>
-          <div className="top-list">
-            <div className="top-list-header">
-              <div>
-                <strong>Top {selectedGeography.pluralLabel.toLocaleLowerCase()}</strong>
-                <span>{sortedTopAreas.length} results</span>
-              </div>
-              <button
-                className={copyStatus === 'copied' ? 'copied' : ''}
-                onClick={copyTopList}
-                title="Copy current top area results"
-                type="button"
-              >
-                {copyStatus === 'copied' ? (
-                  <Check aria-hidden="true" />
-                ) : (
-                  <ClipboardCopy aria-hidden="true" />
-                )}
-                <span>
-                  {copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Failed' : 'Copy'}
-                </span>
-              </button>
             </div>
-            <div className="top-list-results">
-              {sortedTopAreas.map((feature, index) => (
-                <button
-                  key={`${feature.properties.area_unit}-${feature.properties.area_id}`}
-                  onClick={() => focusAreaFeature(feature)}
-                  type="button"
-                >
-                  <span className="rank">{index + 1}</span>
-                  <span>{areaFullLabel(feature.properties, city.postalPrefix)}</span>
-                  <em>
-                    {scoreText(
-                      getScore(
-                        feature.properties,
-                        selectedMetric,
-                        weights,
-                        workModel,
-                        workMode,
-                        supermarketMode,
-                        gymMode,
-                        preferenceScoreModel,
-                        selectedStores,
-                        selectedTransitAccess,
-                      ),
-                    )}
-                  </em>
-                </button>
-              ))}
-            </div>
+            <button
+              className={copyStatus === 'copied' ? 'copied' : ''}
+              onClick={copyTopList}
+              title="Copy current top area results"
+              type="button"
+            >
+              {copyStatus === 'copied' ? (
+                <Check aria-hidden="true" />
+              ) : (
+                <ClipboardCopy aria-hidden="true" />
+              )}
+              <span>
+                {copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Failed' : 'Copy'}
+              </span>
+            </button>
           </div>
+          <ol className="top-list-results">
+            {sortedTopAreas.map((feature, index) => {
+              const score = getScore(
+                feature.properties,
+                selectedMetric,
+                weights,
+                workModel,
+                workMode,
+                supermarketMode,
+                gymMode,
+                preferenceScoreModel,
+                selectedStores,
+                selectedTransitAccess,
+              )
+              return (
+                <li key={`${feature.properties.area_unit}-${feature.properties.area_id}`}>
+                  <button
+                    aria-current={
+                      feature.properties.area_id === selected?.properties.area_id
+                        ? 'true'
+                        : undefined
+                    }
+                    onClick={() => focusAreaFeature(feature)}
+                    type="button"
+                  >
+                    <span className="rank">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="name">
+                      {areaFullLabel(feature.properties, city.postalPrefix)}
+                    </span>
+                    <i aria-hidden="true" style={{ backgroundColor: colorForScore(score) }} />
+                    <em>{scoreFigure(score)}</em>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
         </div>
       </section>
     </main>
+  )
+}
+
+function SectionHeading({
+  children,
+  index,
+  title,
+}: {
+  children?: ReactNode
+  index: number
+  title: string
+}) {
+  return (
+    <div className="section-heading">
+      <h2>
+        <span aria-hidden="true">{String(index).padStart(2, '0')}</span>
+        {title}
+      </h2>
+      {children ? <span>{children}</span> : null}
+    </div>
   )
 }
 
@@ -1267,7 +1324,7 @@ function MetricRow({
     <div className="metric-row">
       <div className="metric-row-top">
         <span>{label}</span>
-        <strong>{scoreText(boundedScore)}</strong>
+        <strong>{scoreFigure(boundedScore)}</strong>
       </div>
       <div className="score-bar" aria-hidden="true">
         <i style={{ width: `${boundedScore}%` }} />

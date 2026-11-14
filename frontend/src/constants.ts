@@ -209,13 +209,16 @@ export const SCORE_FIELDS: Record<WeightKey, keyof AreaProperties> = {
   safety: 'score_safety',
 }
 
+// One entry per colour class of the shared score ramp, highest first. `from` is
+// the class's inclusive lower bound and must agree with `colorForScore`
+// (lib/format.ts); format.test.ts checks that they do.
 export const LEGEND_STEPS = [
-  { label: '85+', color: '#166534' },
-  { label: '70', color: '#2f9e44' },
-  { label: '55', color: '#9ac43e' },
-  { label: '40', color: '#f2c94c' },
-  { label: '25', color: '#f2994a' },
-  { label: '0', color: '#d94841' },
+  { label: '85+', from: 85, color: '#166534' },
+  { label: '70', from: 70, color: '#2f9e44' },
+  { label: '55', from: 55, color: '#9ac43e' },
+  { label: '40', from: 40, color: '#f2c94c' },
+  { label: '25', from: 25, color: '#f2994a' },
+  { label: '0', from: 0, color: '#d94841' },
 ]
 
 export const SELECTED_AREA_MAX_ZOOM = 14
@@ -233,10 +236,16 @@ export type CityAssets = {
 // Chrome colours for one city's map page. Applied as CSS custom properties on
 // the app shell (see App.css); the score ramp stays shared so a colour means
 // the same score in every city.
+//
+// `accent*` is the city's ink. `counter` is a second ink of the opposite
+// temperature (warm against a cool city, cool against a warm one), used
+// sparingly for markers and section numerals. Every ink used for text passes
+// WCAG AA (4.5:1) on `panel`, `canvas` and `accentSoft`.
 export type CityTheme = {
   accent: string
   accentStrong: string
   accentSoft: string
+  counter: string
   canvas: string
   panel: string
   border: string
@@ -431,6 +440,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#b5126f',
       accentStrong: '#7d0c4d',
       accentSoft: '#fbe4f0',
+      // Jacaranda blue-violet, the cool against the rosa.
+      counter: '#3f4a9a',
       canvas: '#f6e9f1',
       panel: '#fcf4f9',
       border: '#e3c9d8',
@@ -460,6 +471,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#3a36a0',
       accentStrong: '#2a2859',
       accentSoft: '#e6e5fa',
+      // Fired brick of the Rådhuset, the warm against the fjord.
+      counter: '#9c4a2c',
       canvas: '#eae9f7',
       panel: '#f6f5fc',
       border: '#cfcde8',
@@ -475,6 +488,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#a8322b',
       accentStrong: '#7b211c',
       accentSoft: '#f8e1de',
+      // Fjord slate, the cool against the wharf red.
+      counter: '#2c5a73',
       canvas: '#e9edf0',
       panel: '#f5f7f8',
       border: '#cdd5da',
@@ -490,6 +505,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#1c7358',
       accentStrong: '#114d3b',
       accentSoft: '#dcf2e9',
+      // Bare copper, what the roof was before it turned.
+      counter: '#96501c',
       canvas: '#e4f0ea',
       panel: '#f3f9f6',
       border: '#c2d9ce',
@@ -505,6 +522,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#0b6a86',
       accentStrong: '#074a5e',
       accentSoft: '#dbf0f6',
+      // Flare orange against the petrol.
+      counter: '#a04a1e',
       canvas: '#e2f0f4',
       panel: '#f2f9fb',
       border: '#bdd8e0',
@@ -520,6 +539,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#2f6190',
       accentStrong: '#1f4263',
       accentSoft: '#dfebf7',
+      // Brick of the riverside mills.
+      counter: '#96502a',
       canvas: '#e5edf5',
       panel: '#f4f7fb',
       border: '#c4d2e0',
@@ -533,6 +554,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
       accent: '#a4493d',
       accentStrong: '#7a3229',
       accentSoft: '#f9e3dc',
+      // Aqueduct-shadow teal, the cool against the pink stone.
+      counter: '#2f6170',
       canvas: '#f5e4dd',
       panel: '#fcf3ef',
       border: '#e2c6bb',
