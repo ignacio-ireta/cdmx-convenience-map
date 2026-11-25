@@ -1,0 +1,408 @@
+{
+  "generated_at": "2026-11-25T12:15:24+00:00",
+  "city_id": "monterrey",
+  "area_unit": "postal_code",
+  "feature_count": 658,
+  "weights": {
+    "work": 0.32,
+    "transit": 0.26,
+    "supermarkets": 0.2,
+    "gyms": 0.12,
+    "safety": 0.1
+  },
+  "point_counts": {
+    "transit_stops": 9650,
+    "transit_core_points": 98,
+    "transit_surface_points": 9552,
+    "transit_system_points": {
+      "metro": 41,
+      "brt": 57,
+      "transmetro": 1382,
+      "rutas": 8170
+    },
+    "supermarkets": 368,
+    "gyms": 1483,
+    "workplaces": 1,
+    "crime_records": 0,
+    "crime_statistics_units": 51
+  },
+  "crime": {
+    "mode": "city_statistics",
+    "scope": "municipality",
+    "source": "sesnsp_municipal",
+    "source_label": "SESNSP \u00b7 incidencia delictiva municipal (fuero com\u00fan)",
+    "scored_label": "robbery and violent crime",
+    "scored_definition": "All robbery, intentional homicide and feminicide (including attempts), intentional injury, kidnapping, extortion and rape",
+    "scored_offenses": [
+      "Robo",
+      "Homicidio doloso",
+      "Tentativa de homicidio doloso",
+      "Feminicidio",
+      "Lesiones dolosas",
+      "Secuestro",
+      "Extorsi\u00f3n",
+      "Violaci\u00f3n",
+      "Violaci\u00f3n simple",
+      "Violaci\u00f3n equiparada"
+    ],
+    "score_method": "min_max_across_units",
+    "population_source": "INEGI Censo de Poblaci\u00f3n y Vivienda 2020",
+    "period_start": "2025-11-01",
+    "period_end": "2026-10-31",
+    "recent_start_date": "2025-11-01",
+    "latest_date": "2026-10-31",
+    "records_total": 67903,
+    "records_recent_12m": 67903,
+    "units": [
+      {
+        "key": "19006",
+        "name": "Apodaca",
+        "population": 656464,
+        "incidents_12m": 7416,
+        "scored_incidents_12m": 1213,
+        "rate_per_100k": 184.8,
+        "total_rate_per_100k": 1129.7,
+        "areas": 35
+      },
+      {
+        "key": "19010",
+        "name": "El Carmen",
+        "population": 104478,
+        "incidents_12m": 1872,
+        "scored_incidents_12m": 209,
+        "rate_per_100k": 200.0,
+        "total_rate_per_100k": 1791.8,
+        "areas": 12
+      },
+      {
+        "key": "19018",
+        "name": "Garc\u00eda",
+        "population": 397205,
+        "incidents_12m": 5811,
+        "scored_incidents_12m": 952,
+        "rate_per_100k": 239.7,
+        "total_rate_per_100k": 1463.0,
+        "areas": 30
+      },
+      {
+        "key": "19019",
+        "name": "San Pedro Garza Garc\u00eda",
+        "population": 132169,
+        "incidents_12m": 2168,
+        "scored_incidents_12m": 277,
+        "rate_per_100k": 209.6,
+        "total_rate_per_100k": 1640.3,
+        "areas": 56
+      },
+      {
+        "key": "19021",
+        "name": "General Escobedo",
+        "population": 481213,
+        "incidents_12m": 5381,
+        "scored_incidents_12m": 929,
+        "rate_per_100k": 193.1,
+        "total_rate_per_100k": 1118.2,
+        "areas": 24
+      },
+      {
+        "key": "19026",
+        "name": "Guadalupe",
+        "population": 643143,
+        "incidents_12m": 7324,
+        "scored_incidents_12m": 1319,
+        "rate_per_100k": 205.1,
+        "total_rate_per_100k": 1138.8,
+        "areas": 64
+      },
+      {
+        "key": "19031",
+        "name": "Ju\u00e1rez",
+        "population": 471523,
+        "incidents_12m": 7277,
+        "scored_incidents_12m": 1100,
+        "rate_per_100k": 233.3,
+        "total_rate_per_100k": 1543.3,
+        "areas": 29
+      },
+      {
+        "key": "19039",
+        "name": "Monterrey",
+        "population": 1142994,
+        "incidents_12m": 20377,
+        "scored_incidents_12m": 3785,
+        "rate_per_100k": 331.1,
+        "total_rate_per_100k": 1782.8,
+        "areas": 222
+      },
+      {
+        "key": "19045",
+        "name": "Salinas Victoria",
+        "population": 86766,
+        "incidents_12m": 1917,
+        "scored_incidents_12m": 324,
+        "rate_per_100k": 373.4,
+        "total_rate_per_100k": 2209.4,
+        "areas": 26
+      },
+      {
+        "key": "19046",
+        "name": "San Nicol\u00e1s de los Garza",
+        "population": 412199,
+        "incidents_12m": 4432,
+        "scored_incidents_12m": 738,
+        "rate_per_100k": 179.0,
+        "total_rate_per_100k": 1075.2,
+        "areas": 56
+      },
+      {
+        "key": "19048",
+        "name": "Santa Catarina",
+        "population": 306322,
+        "incidents_12m": 2972,
+        "scored_incidents_12m": 541,
+        "rate_per_100k": 176.6,
+        "total_rate_per_100k": 970.2,
+        "areas": 70
+      },
+      {
+        "key": "19049",
+        "name": "Santiago",
+        "population": 46784,
+        "incidents_12m": 956,
+        "scored_incidents_12m": 138,
+        "rate_per_100k": 295.0,
+        "total_rate_per_100k": 2043.4,
+        "areas": 34
+      }
+    ],
+    "areas_matched": 658,
+    "areas_unmatched": 0
+  },
+  "workplace": {
+    "name": "Default Workplace - CP 66260 (Valle Oriente)",
+    "postal_code": "66260",
+    "source": "places_config"
+  },
+  "travel_time": {
+    "source": "valhalla_free_flow",
+    "fallback_source": "fallback_straight_line_estimate",
+    "modes": [
+      "driving",
+      "walking",
+      "biking"
+    ],
+    "speeds_kmh": {
+      "driving": 24.0,
+      "walking": 4.8,
+      "biking": 14.0
+    },
+    "detour_factors": {
+      "driving": 1.35,
+      "walking": 1.15,
+      "biking": 1.25
+    }
+  },
+  "road_routing": {
+    "engine": "valhalla",
+    "version": "pyvalhalla 3.7.0",
+    "source": "valhalla_free_flow",
+    "modes": [
+      "driving",
+      "walking",
+      "biking"
+    ],
+    "profiles": {
+      "driving": "auto",
+      "walking": "pedestrian",
+      "biking": "bicycle"
+    },
+    "osm_source": "https://download.geofabrik.de/north-america/mexico/mexico-261124.osm.pbf",
+    "osm_md5": "7140e40aaf94d08ebc0551a8880f3d9e",
+    "osm_date": "2026-11-24",
+    "search_filter": {
+      "min_road_class": "residential"
+    },
+    "work": {
+      "routed_count": {
+        "driving": 655,
+        "walking": 656,
+        "biking": 656
+      },
+      "fallback_count": {
+        "driving": 3,
+        "walking": 2,
+        "biking": 2
+      },
+      "error_count": 3,
+      "routed": true
+    },
+    "amenities": {
+      "supermarkets": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "heb": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "soriana": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "walmart": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "aurrera": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "s_mart": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "sams": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "costco": {
+        "routed_count": 656,
+        "fallback_count": 2
+      },
+      "gyms": {
+        "routed_count": 656,
+        "fallback_count": 2
+      }
+    },
+    "cache": {
+      "hits": 30573,
+      "misses": 353,
+      "entries": 225162
+    },
+    "generated_at": "2026-11-25T12:15:24+00:00"
+  },
+  "amenity_travel_time": {
+    "source": "valhalla_free_flow",
+    "fallback_source": "fallback_straight_line_estimate",
+    "mode": "walking",
+    "candidate_count": 5,
+    "candidate_pairs": {
+      "supermarkets": 3290,
+      "heb": 3290,
+      "soriana": 3290,
+      "walmart": 3290,
+      "aurrera": 3290,
+      "s_mart": 3290,
+      "sams": 3290,
+      "costco": 2632,
+      "gyms": 3290
+    },
+    "estimated_pairs": {
+      "supermarkets": 10,
+      "heb": 10,
+      "soriana": 10,
+      "walmart": 10,
+      "aurrera": 10,
+      "s_mart": 10,
+      "sams": 10,
+      "costco": 8,
+      "gyms": 10
+    }
+  },
+  "transit_commute_source": "nl_open_data_stop_pair_approximation",
+  "transit_commute": {
+    "source": "nl_open_data_stop_pair_approximation",
+    "candidate_stop_count": 5,
+    "walking_speed_kmh": 4.8,
+    "speeds_kmh": {
+      "metro": 28.0,
+      "metrobus": 18.0,
+      "bus": 14.0,
+      "trolleybus": 14.0,
+      "default_transit": 16.0,
+      "systems": {
+        "METRO": 28.0,
+        "BRT": 18.0,
+        "TRANSMETRO": 14.0,
+        "BUS": 14.0
+      }
+    },
+    "penalties_min": {
+      "same_line": 2.0,
+      "same_system_different_or_unknown_line": 8.0,
+      "different_system": 12.0
+    },
+    "max_walk_m": {
+      "origin": 1200.0,
+      "destination": 1200.0
+    },
+    "has_line_data": true,
+    "priority_candidates": {
+      "systems": [
+        "METRO",
+        "BRT"
+      ],
+      "stop_count": 3
+    },
+    "known_limitations": [
+      "Uses Nuevo Le\u00f3n open data (STC Metrorrey, IMA) stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
+      "Line ids come from Nuevo Le\u00f3n open data (STC Metrorrey, IMA); stops served by several routes list them joined by '|', and a pair counts as same-line when they share any route.",
+      "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
+      "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
+      "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
+    ],
+    "generated_at": "2026-11-25T12:15:24+00:00",
+    "engine": "stop_pair_approximation",
+    "router": {
+      "engine": "stop_pair_approximation",
+      "source": "nl_open_data_stop_pair_approximation",
+      "routed_count": 658,
+      "failed_count": 0
+    },
+    "transit_commute_source": "nl_open_data_stop_pair_approximation",
+    "estimated_areas": 658,
+    "failed_areas": 0,
+    "source_counts": {
+      "nl_open_data_stop_pair_approximation": 658
+    }
+  },
+  "source_urls": {
+    "postal_codes": "https://raw.githubusercontent.com/open-mexico/mexico-geojson/main/19-NL.geojson",
+    "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
+    "colonias": "https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/delimitaciones/794551163078/19_nuevoleon.zip",
+    "municipalities": "https://gaia.inegi.org.mx/wscatgeo/v2/geo/mgem/19",
+    "transit": "https://catalogodatos.nl.gob.mx/dataset/paradas-y-recorridos-2025-2026-stcmetrorrey",
+    "transit_buses": "https://catalogodatos.nl.gob.mx/dataset/paradas-y-recorridos-2025-2026-ima",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "gyms": "https://www.inegi.org.mx/app/mapa/denue/",
+    "safety": "https://www.gob.mx/sesnsp/acciones-y-programas/datos-abiertos-de-incidencia-delictiva"
+  },
+  "sources": {
+    "areas": "data/raw/monterrey/postal_codes.geojson",
+    "postal_code": "data/raw/monterrey/postal_codes.geojson",
+    "places_config": "data/cities/monterrey/places.json",
+    "transit_stops": "data/processed/monterrey/transit_stops.csv",
+    "supermarkets": "data/processed/monterrey/supermarkets.csv",
+    "gyms": "data/processed/monterrey/gyms.csv",
+    "workplaces_legacy_csv": "data/raw/monterrey/workplaces.csv",
+    "crime_points": "data/processed/monterrey/crime_points.csv",
+    "crime_statistics": "data/processed/monterrey/crime_statistics.csv"
+  },
+  "outputs": {
+    "processed": "data/processed/monterrey/scores_postal_code.geojson",
+    "public": "frontend/public/data/monterrey/scores_postal_code.geojson",
+    "legacy_processed": [],
+    "legacy_public": []
+  },
+  "notes": [
+    "Distances are straight-line representative-point-to-point distances in meters.",
+    "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
+    "Distance, time and transit scores are closer-is-better and clipped at the 95th percentile per metric; the safety score is a within-metro ranking of municipalities (see the safety note).",
+    "Work and amenity travel times use offline valhalla_free_flow road routing (free-flow, not live traffic) where the point routes, with a straight-line estimate fallback labeled per feature.",
+    "Work transit commute uses an offline Nuevo Le\u00f3n open data (STC Metrorrey, IMA) stop-pair approximation and is not schedule-aware.",
+    "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
+    "Transit score is 70% nearest Metrorrey / TransMetro BRT and 30% nearest TransMetro / Rutas urbanas.",
+    "System-specific transit distance and score fields support client-side transit method filters.",
+    "Safety score ranks the municipalities within the metro by robbery and violent crime per 100k residents (SESNSP \u00b7 incidencia delictiva municipal (fuero com\u00fan)): the lowest rate scores 100 and the highest 0, linearly; every area in a municipality shares its municipality's score."
+  ]
+}

@@ -1,0 +1,351 @@
+{
+ "version": 0.6,
+ "generator": "synthetic test fixture (not real OSM data)",
+ "osm3s": {
+  "timestamp_osm_base": "2026-11-24T00:00:00Z"
+ },
+ "elements": [
+  {
+   "type": "way",
+   "id": 101,
+   "center": {
+    "lat": 25.7,
+    "lon": -100.3
+   },
+   "tags": {
+    "shop": "supermarket",
+    "name": "Bodega Aurrerá",
+    "operator": "Walmart de México"
+   }
+  },
+  {
+   "type": "node",
+   "id": 102,
+   "lat": 25.7003,
+   "lon": -100.3,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Bodega Aurrera",
+    "brand": "Bodega Aurrera"
+   }
+  },
+  {
+   "type": "node",
+   "id": 103,
+   "lat": 25.72,
+   "lon": -100.32,
+   "tags": {
+    "shop": "convenience",
+    "name": "Bodega Aurrerá Express",
+    "brand:wikidata": "Q3365858"
+   }
+  },
+  {
+   "type": "node",
+   "id": 104,
+   "lat": 25.73,
+   "lon": -100.33,
+   "tags": {
+    "shop": "convenience",
+    "name": "OXXO",
+    "brand": "OXXO"
+   }
+  },
+  {
+   "type": "way",
+   "id": 105,
+   "center": {
+    "lat": 25.6,
+    "lon": -100.4
+   },
+   "tags": {
+    "shop": "wholesale",
+    "name": "Sam's Club",
+    "operator": "Walmart",
+    "brand:wikidata": "Q1972120"
+   }
+  },
+  {
+   "type": "node",
+   "id": 106,
+   "lat": 25.6045,
+   "lon": -100.4,
+   "tags": {
+    "shop": "wholesale",
+    "name": "Sam’s Club Valle",
+    "brand": "Sam’s Club"
+   }
+  },
+  {
+   "type": "way",
+   "id": 107,
+   "center": {
+    "lat": 25.66,
+    "lon": -100.36
+   },
+   "tags": {
+    "shop": "department_store",
+    "name": "Walmart Supercenter",
+    "brand": "Walmart",
+    "brand:wikidata": "Q483551"
+   }
+  },
+  {
+   "type": "node",
+   "id": 108,
+   "lat": 25.68,
+   "lon": -100.28,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Walmart Express",
+    "brand:wikidata": "Q6135762"
+   }
+  },
+  {
+   "type": "node",
+   "id": 109,
+   "lat": 25.69,
+   "lon": -100.29,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Farmacia Walmart"
+   }
+  },
+  {
+   "type": "way",
+   "id": 110,
+   "center": {
+    "lat": 25.76,
+    "lon": -100.2
+   },
+   "tags": {
+    "shop": "supermarket",
+    "name": "Smart & Final",
+    "brand": "Smart & Final",
+    "brand:wikidata": "Q7543916"
+   }
+  },
+  {
+   "type": "node",
+   "id": 111,
+   "lat": 25.75,
+   "lon": -100.35,
+   "tags": {
+    "shop": "supermarket",
+    "name": "S-Mart (El Molinete)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 112,
+   "lat": 25.7502,
+   "lon": -100.35,
+   "tags": {
+    "shop": "supermarket",
+    "name": "SMART"
+   }
+  },
+  {
+   "type": "node",
+   "id": 113,
+   "lat": 25.61,
+   "lon": -100.21,
+   "tags": {
+    "shop": "supermarket",
+    "name": "La Comercial"
+   }
+  },
+  {
+   "type": "node",
+   "id": 114,
+   "lat": 25.62,
+   "lon": -100.22,
+   "tags": {
+    "shop": "supermarket",
+    "name": "City Market",
+    "brand:wikidata": "Q65090778"
+   }
+  },
+  {
+   "type": "node",
+   "id": 115,
+   "lat": 25.63,
+   "lon": -100.23,
+   "tags": {
+    "shop": "supermarket",
+    "name": "H-E-B",
+    "brand": "H-E-B",
+    "operator": "Soriana"
+   }
+  },
+  {
+   "type": "node",
+   "id": 116,
+   "lat": 25.64,
+   "lon": -100.24,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Hebe Supermercado"
+   }
+  },
+  {
+   "type": "node",
+   "id": 117,
+   "lat": 25.66,
+   "lon": -100.26,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Mi Tienda del Ahorro",
+    "brand": "H-E-B"
+   }
+  },
+  {
+   "type": "node",
+   "id": 118,
+   "lat": 25.68,
+   "lon": -100.28,
+   "tags": {
+    "shop": "supermarket",
+    "name": "SORIANA HÍPER"
+   }
+  },
+  {
+   "type": "node",
+   "id": 119,
+   "lat": 25.6505,
+   "lon": -100.25,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Mega Soriana"
+   }
+  },
+  {
+   "type": "way",
+   "id": 120,
+   "center": {
+    "lat": 25.65,
+    "lon": -100.25
+   },
+   "tags": {
+    "shop": "supermarket",
+    "name": "Soriana Súper",
+    "brand": "Soriana"
+   }
+  },
+  {
+   "type": "node",
+   "id": 121,
+   "lat": 25.67,
+   "lon": -100.45,
+   "tags": {
+    "shop": "wholesale",
+    "name": "Costco",
+    "brand:wikidata": "Q715583"
+   }
+  },
+  {
+   "type": "node",
+   "id": 122,
+   "lat": 25.671,
+   "lon": -100.46,
+   "tags": {
+    "shop": "wholesale",
+    "name": "Costco Gasolinera"
+   }
+  },
+  {
+   "type": "node",
+   "id": 123,
+   "lat": 25.69,
+   "lon": -100.47,
+   "tags": {
+    "shop": "department_store",
+    "name": "Coppel"
+   }
+  },
+  {
+   "type": "node",
+   "id": 124,
+   "lat": 25.7,
+   "lon": -100.48,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Merco"
+   }
+  },
+  {
+   "type": "node",
+   "id": 125,
+   "lat": 25.71,
+   "lon": -100.49,
+   "tags": {
+    "shop": "wholesale",
+    "name": "City Club",
+    "brand": "City Club",
+    "brand:wikidata": "Q5123101"
+   }
+  },
+  {
+   "type": "node",
+   "id": 126,
+   "lat": 25.72,
+   "lon": -100.5,
+   "tags": {
+    "shop": "pharmacy",
+    "name": "Farmacias Soriana"
+   }
+  },
+  {
+   "type": "way",
+   "id": 127,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Bodega Aurrera sin centro"
+   }
+  },
+  {
+   "type": "node",
+   "id": 128,
+   "lat": 25.74,
+   "lon": -100.52,
+   "tags": {
+    "shop": "supermarket",
+    "name": "BODEGA AURRERÁ"
+   }
+  },
+  {
+   "type": "node",
+   "id": 130,
+   "lat": 25.77,
+   "lon": -100.53,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Walmart",
+    "brand": "Bodega Aurrerá"
+   }
+  },
+  {
+   "type": "node",
+   "id": 131,
+   "lat": 25.78,
+   "lon": -100.54,
+   "tags": {
+    "shop": "supermarket",
+    "name": "Chedraui"
+   }
+  },
+  {
+   "type": "way",
+   "id": 101,
+   "center": {
+    "lat": 25.7,
+    "lon": -100.3
+   },
+   "tags": {
+    "shop": "supermarket",
+    "name": "Bodega Aurrerá",
+    "operator": "Walmart de México"
+   }
+  }
+ ]
+}

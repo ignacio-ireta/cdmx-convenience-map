@@ -1,0 +1,29 @@
+{
+  "workplace": {
+    "name": "Default Workplace - CP 66260 (Valle Oriente)",
+    "postal_code": "66260",
+    "latitude": 25.652996,
+    "longitude": -100.341421,
+    "source": "places_config",
+    "notes": "Representative point of SEPOMEX postal-code polygon 66260 (Valle Oriente, San Pedro Garza García), the metro's main business district."
+  },
+  "transit_commute": {
+    "source": "nl_open_data_stop_pair_approximation",
+    "stop_source_label": "Nuevo León open data (STC Metrorrey, IMA)",
+    "engine_label": "stop_pair_approximation",
+    "has_line_data": true,
+    "system_speeds_kmh": { "METRO": 28, "BRT": 18, "TRANSMETRO": 14, "BUS": 14 },
+    "priority_candidate_systems": ["METRO", "BRT"],
+    "priority_candidate_stop_count": 3
+  },
+  "road_routing": {
+    "engine": "valhalla",
+    "tiles_dir": "data/processed/valhalla_mx",
+    "modes": ["driving", "walking", "biking"],
+    "osm_source": "https://download.geofabrik.de/north-america/mexico/mexico-261124.osm.pbf",
+    "osm_md5": "7140e40aaf94d08ebc0551a8880f3d9e",
+    "osm_date": "2026-11-24",
+    "search_filter": { "min_road_class": "residential" },
+    "notes": "One national Mexico tileset shared by the Mexican cities. Free-flow (no traffic). Build with: cdmxmap build-tiles --pbf data/raw/osm/mexico-261124.osm.pbf --tiles-dir data/processed/valhalla_mx"
+  }
+}
