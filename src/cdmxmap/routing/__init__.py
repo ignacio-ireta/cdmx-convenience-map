@@ -8,6 +8,7 @@ pipeline keeps its deterministic straight-line fallback (honest source label
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from cdmxmap.errors import ConfigError
@@ -44,6 +45,7 @@ def get_road_router(
     tiles_dir: str | Path | None = None,
     version: str | None = None,
     config_path: str | Path | None = None,
+    search_filter: Mapping | None = None,
 ) -> Router | None:
     """Construct a road router by engine name; ``None``/``"none"`` -> no router.
 
@@ -62,5 +64,7 @@ def get_road_router(
             kwargs["version"] = version
         if config_path:
             kwargs["config_path"] = config_path
+        if search_filter:
+            kwargs["search_filter"] = search_filter
         return ValhallaRouter(**kwargs)
     raise ConfigError(f"Unknown road routing engine: {engine!r} (expected 'none' or 'valhalla')")

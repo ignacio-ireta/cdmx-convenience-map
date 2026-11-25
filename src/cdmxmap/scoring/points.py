@@ -9,7 +9,12 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-from cdmxmap.citycontext import CityContext, load_city_context
+from cdmxmap.citycontext import (
+    CRIME_MODE_CITY_STATISTICS,
+    CRIME_STATISTICS_FILENAME,
+    CityContext,
+    load_city_context,
+)
 from cdmxmap.config import (
     METRIC_CRS,
     WGS84_CRS,
@@ -22,7 +27,7 @@ from cdmxmap.models import (
 )
 from cdmxmap.routing.base import FALLBACK_STRAIGHT_LINE_SOURCE, LatLon, Router
 from cdmxmap.routing.cache import RouteCacheKey, RoutingCache
-from cdmxmap.scoring.crime import read_crimes
+from cdmxmap.scoring.crime import incident_crime_source, read_crime_statistics, read_crimes
 from cdmxmap.scoring.metrics import estimate_travel_minutes, nullable_number
 from cdmxmap.sources.io import DATA_RAW
 
@@ -402,18 +407,36 @@ def load_point_datasets(
     supermarkets = read_points(resolved_dir / "supermarkets.csv", metric_crs=ctx.metric_crs)
     gyms = read_points(resolved_dir / "gyms.csv", metric_crs=ctx.metric_crs)
     workplaces = load_workplaces(places_config, metric_crs=ctx.metric_crs, raw_dir=ctx.raw_dir)
-    crimes = read_crimes(resolved_dir / "crime_points.csv", metric_crs=ctx.metric_crs)
+    crimes = read_crimes(
+        resolved_dir / "crime_points.csv",
+        metric_crs=ctx.metric_crs,
+        source=incident_crime_source(ctx),
+    )
+    # The statistics mode scores per-unit aggregates; crime_points.csv stays optional.
+    crime_statistics = (
+        read_crime_statistics(resolved_dir / CRIME_STATISTICS_FILENAME)
+        if ctx.crime_mode == CRIME_MODE_CITY_STATISTICS
+        else None
+    )
 
     supermarket_brand = (
         supermarkets["brand"].fillna("").astype(str).str.lower()
         if "brand" in supermarkets.columns
         else pd.Series([""] * len(supermarkets), index=supermarkets.index)
     )
+    # Classifier-v2 profiles write the family slug itself into ``brand``, so a toggle
+    # selects its rows by exact slug: a substring match would let one family's token
+    # pick up another's slug (``chedraui`` inside ``chedraui_supercito``). Legacy
+    # profiles keep substring matching on the inferred brand name.
+    exact_slug_match = bool(ctx.profile.get("supermarket_classifier"))
     supermarkets_by_brand: dict[str, gpd.GeoDataFrame] = {}
     for brand in ctx.store_brands:
-        mask = pd.Series(False, index=supermarkets.index)
-        for token in brand.match:
-            mask = mask | supermarket_brand.str.contains(token, regex=False)
+        if exact_slug_match:
+            mask = supermarket_brand.isin(brand.match)
+        else:
+            mask = pd.Series(False, index=supermarkets.index)
+            for token in brand.match:
+                mask = mask | supermarket_brand.str.contains(token, regex=False)
         supermarkets_by_brand[brand.slug] = supermarkets[mask].copy()
 
     if "system" in transit.columns:
@@ -441,4 +464,5 @@ def load_point_datasets(
         gyms=gyms,
         workplaces=workplaces,
         crimes=crimes,
+        crime_statistics=crime_statistics,
     )

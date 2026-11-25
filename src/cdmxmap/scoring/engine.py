@@ -9,7 +9,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-from cdmxmap.citycontext import CityContext, load_city_context
+from cdmxmap.citycontext import CRIME_MODE_CITY_STATISTICS, CityContext, load_city_context
 from cdmxmap.config import (
     R5PY_TRANSIT_COMMUTE_SOURCE,
     TRANSIT_COMMUTE_OUTPUT_COLUMNS,
@@ -23,19 +23,29 @@ from cdmxmap.config import (
     transit_commute_config,
 )
 from cdmxmap.models import AreaConfig, PointDatasets, ScoredAreaResult
-from cdmxmap.routing.base import FALLBACK_STRAIGHT_LINE_SOURCE, Router
+from cdmxmap.routing.base import FALLBACK_STRAIGHT_LINE_SOURCE, Router, routing_inputs_hash
 from cdmxmap.routing.cache import RoutingCache
 from cdmxmap.scoring.areas import load_area_geometries, prepare_area_properties
-from cdmxmap.scoring.crime import aggregate_crime
+from cdmxmap.scoring.crime import (
+    CrimeStatisticsResult,
+    CrimeStatisticsSettings,
+    aggregate_crime,
+    aggregate_crime_statistics,
+    incident_crime_metadata,
+    incident_crime_source,
+    incident_density_buffer_m,
+)
 from cdmxmap.scoring.metrics import (
     distance_score,
     estimate_travel_minutes,
     inverse_density_score,
+    min_max_inverse_score,
     nullable_round_distance,
     round_distance,
     round_minutes,
     round_score,
 )
+from cdmxmap.scoring.notes import safety_score_note, score_scaling_note, transit_score_note
 from cdmxmap.scoring.points import (
     amenity_route_candidates,
     nearest,
@@ -86,8 +96,11 @@ def score_areas(
     inputs_hash = ""
     amenity_route_kwargs: dict = {}
     if router is not None:
-        inputs_hash = "|".join(
-            [router.engine, router.version, str(rr_config.get("osm_source") or "")]
+        inputs_hash = routing_inputs_hash(
+            router.engine,
+            router.version,
+            rr_config.get("osm_source"),
+            rr_config.get("search_filter"),
         )
         amenity_route_kwargs = {
             "router": router,
@@ -217,11 +230,33 @@ def score_areas(
     score_gyms = distance_score(nearest_gym.distances)
     score_supermarkets_time = distance_score(routed_supermarket.times)
     score_gyms_time = distance_score(routed_gym.times)
-    crime_aggregation, crime_metadata = aggregate_crime(areas_metric, point_datasets.crimes)
-    crime_aggregation = crime_aggregation.set_index("area_id").reindex(areas["area_id"])
-    score_safety = inverse_density_score(
-        crime_aggregation["crime_density_recent_12m_per_km2"].to_numpy(dtype=float)
-    )
+    crime_statistics: CrimeStatisticsResult | None = None
+    crime_buffer_m = 0
+    if ctx.crime_mode == CRIME_MODE_CITY_STATISTICS:
+        # One aggregate per administrative unit, shared by every area inside it.
+        crime_statistics = aggregate_crime_statistics(
+            areas,
+            point_datasets.crime_statistics,
+            CrimeStatisticsSettings.from_profile(ctx.profile),
+        )
+        crime_metadata = crime_statistics.metadata
+        # A dozen real unit rates, none of them noise: rank linearly between the
+        # safest (100) and the least safe (0) matched unit, without a p95 cap.
+        score_safety = min_max_inverse_score(crime_statistics.scored_rates)
+    else:
+        # 0 (the area polygon) unless a profile city opts into a density buffer.
+        crime_buffer_m = incident_density_buffer_m(ctx)
+        crime_aggregation, crime_metadata = aggregate_crime(
+            areas_metric,
+            point_datasets.crimes,
+            source=incident_crime_source(ctx),
+            buffer_m=crime_buffer_m,
+        )
+        crime_metadata = incident_crime_metadata(ctx, crime_metadata)
+        crime_aggregation = crime_aggregation.set_index("area_id").reindex(areas["area_id"])
+        score_safety = inverse_density_score(
+            crime_aggregation["crime_density_recent_12m_per_km2"].to_numpy(dtype=float)
+        )
     weights = ctx.weights
     combined = (
         weights["work"] * score_work
@@ -331,20 +366,27 @@ def score_areas(
             ]
         ].iterrows()
     ]
-    areas["crime_incidents_total"] = (
-        crime_aggregation["crime_incidents_total"].fillna(0).astype(int).tolist()
-    )
-    areas["crime_incidents_recent_12m"] = (
-        crime_aggregation["crime_incidents_recent_12m"].fillna(0).astype(int).tolist()
-    )
-    areas["crime_density_recent_12m_per_km2"] = np.round(
-        crime_aggregation["crime_density_recent_12m_per_km2"].fillna(0).to_numpy(dtype=float),
-        1,
-    ).tolist()
-    areas["crime_top_category_recent_12m"] = (
-        crime_aggregation["crime_top_category_recent_12m"].fillna("").astype(str).tolist()
-    )
-    areas["crime_source"] = crime_aggregation["crime_source"].fillna("").astype(str).tolist()
+    if crime_statistics is not None:
+        # Statistics mode: no per-area incident counts or densities (no fake zeros).
+        for column, column_values in crime_statistics.properties.items():
+            areas[column] = column_values
+    else:
+        areas["crime_incidents_total"] = (
+            crime_aggregation["crime_incidents_total"].fillna(0).astype(int).tolist()
+        )
+        areas["crime_incidents_recent_12m"] = (
+            crime_aggregation["crime_incidents_recent_12m"].fillna(0).astype(int).tolist()
+        )
+        areas["crime_density_recent_12m_per_km2"] = np.round(
+            crime_aggregation["crime_density_recent_12m_per_km2"].fillna(0).to_numpy(dtype=float),
+            1,
+        ).tolist()
+        if crime_buffer_m > 0:
+            areas["crime_buffer_m"] = [crime_buffer_m] * len(areas)
+        areas["crime_top_category_recent_12m"] = (
+            crime_aggregation["crime_top_category_recent_12m"].fillna("").astype(str).tolist()
+        )
+        areas["crime_source"] = crime_aggregation["crime_source"].fillna("").astype(str).tolist()
 
     output = areas.to_crs(WGS84_CRS)
     output["geometry"] = areas_metric.geometry.simplify(8, preserve_topology=True).to_crs(WGS84_CRS)
@@ -363,6 +405,12 @@ def score_areas(
             "modes": list(routing_modes),
             "profiles": {mode: router.profile(mode) for mode in routing_modes},
             "osm_source": rr_config.get("osm_source"),
+            # Opt-in provenance, present only when places.json declares it.
+            **{
+                key: rr_config[key]
+                for key in ("osm_md5", "osm_date", "search_filter")
+                if rr_config.get(key)
+            },
             "work": {
                 "routed_count": routed_work.routed_count if routed_work is not None else {},
                 "fallback_count": routed_work.fallback_count if routed_work is not None else {},
@@ -408,7 +456,9 @@ def score_areas(
         },
         "road_routing": road_routing_meta,
         "amenity_travel_time": {
-            "source": amenity_time_config["source"],
+            "source": (router.source if router is not None else amenity_time_config["source"]),
+            # Like travel_time: with a router, rows that could not route fall back.
+            **({"fallback_source": amenity_time_config["source"]} if router is not None else {}),
             "mode": amenity_time_config["mode"],
             "candidate_count": amenity_time_config["candidate_count"],
             "candidate_pairs": {
@@ -439,7 +489,7 @@ def score_areas(
         "notes": [
             "Distances are straight-line representative-point-to-point distances in meters.",
             "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
-            "Scores are closer-is-better and clipped at the 95th percentile per metric.",
+            score_scaling_note(ctx),
             (
                 f"Work and amenity travel times use offline {router.source} road routing "
                 "(free-flow, not live traffic) where the point routes, with a straight-line "
@@ -454,9 +504,9 @@ def score_areas(
                 else f"Work transit commute uses an offline {work_transit_config.stop_source_label} stop-pair approximation and is not schedule-aware."
             ),
             "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
-            "Transit score is 70% nearest Metro/Metrobus/Trolebus and 30% nearest RTP/Corredor Concesionado.",
+            transit_score_note(ctx),
             "System-specific transit distance and score fields support client-side transit method filters.",
-            "Safety score is lower-is-better crime density using the latest 12 months available in the FGJ file.",
+            safety_score_note(ctx),
         ],
     }
     return ScoredAreaResult(output=output, metadata=metadata)

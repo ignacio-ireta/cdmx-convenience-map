@@ -84,9 +84,13 @@ def build_matrix_index(
     osm_sha: str | None,
     osm_date: str | None,
     generated_at: str,
+    search_filter: dict | None = None,
 ) -> dict:
-    """Assemble the JSON sidecar describing the matrix binaries for one area unit."""
-    return {
+    """Assemble the JSON sidecar describing the matrix binaries for one area unit.
+
+    ``search_filter`` is recorded only when the build used one.
+    """
+    index = {
         "area_unit": area_unit,
         "n": len(area_ids),
         "dtype": MATRIX_DTYPE,
@@ -108,3 +112,6 @@ def build_matrix_index(
         "osm_date": osm_date,
         "generated_at": generated_at,
     }
+    if search_filter:
+        index["search_filter"] = dict(search_filter)
+    return index

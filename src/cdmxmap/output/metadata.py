@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cdmxmap.citycontext import CityContext, load_city_context
+from cdmxmap.citycontext import (
+    CRIME_MODE_CITY_STATISTICS,
+    CRIME_STATISTICS_FILENAME,
+    CityContext,
+    load_city_context,
+)
 from cdmxmap.models import AreaConfig, PointDatasets
 from cdmxmap.sources.io import DATA_CITIES, DATA_CONFIG, ROOT
 
@@ -23,6 +28,7 @@ def build_metadata(
     score_metadata: dict,
     places_config: dict,
     ctx: CityContext | None = None,
+    public_part_paths: list[Path] | None = None,
 ) -> dict:
     ctx = ctx or load_city_context()
 
@@ -45,25 +51,52 @@ def build_metadata(
     }
     source_urls = {key: value for key, value in source_urls.items() if value}
 
+    point_counts = {
+        "transit_stops": int(len(point_datasets.transit)),
+        "transit_core_points": int(len(point_datasets.core_transit)),
+        "transit_surface_points": int(len(point_datasets.surface_transit)),
+        "transit_system_points": {
+            slug: int(len(point_datasets.transit_by_system[code]))
+            for code, slug in ctx.transit_slugs.items()
+        },
+        "supermarkets": int(len(point_datasets.supermarkets)),
+        "gyms": int(len(point_datasets.gyms)),
+        "workplaces": int(len(point_datasets.workplaces)),
+        "crime_records": int(len(point_datasets.crimes)),
+    }
+    sources = {
+        "areas": repo_path(input_path),
+        config.area_unit: repo_path(input_path),
+        "places_config": repo_path(places_path),
+        "transit_stops": repo_path(ctx.data_dir / "transit_stops.csv"),
+        "supermarkets": repo_path(ctx.data_dir / "supermarkets.csv"),
+        "gyms": repo_path(ctx.data_dir / "gyms.csv"),
+        "workplaces_legacy_csv": repo_path(ctx.raw_dir / "workplaces.csv"),
+        "crime_points": repo_path(ctx.data_dir / "crime_points.csv"),
+    }
+    # Statistics-mode provenance only; incident-mode metadata keeps its exact keys.
+    if ctx.crime_mode == CRIME_MODE_CITY_STATISTICS:
+        statistics = point_datasets.crime_statistics
+        point_counts["crime_statistics_units"] = 0 if statistics is None else int(len(statistics))
+        sources["crime_statistics"] = repo_path(ctx.data_dir / CRIME_STATISTICS_FILENAME)
+
+    outputs: dict = {
+        "processed": repo_path(output_path),
+        "public": repo_path(public_output_path),
+        "legacy_processed": [repo_path(path) for path in legacy_output_paths],
+        "legacy_public": [repo_path(path) for path in public_legacy_output_paths],
+    }
+    # Parts-published units only: "public" is then the index; other units keep the exact keys.
+    if public_part_paths is not None:
+        outputs["public_parts"] = [repo_path(path) for path in public_part_paths]
+
     return {
         "generated_at": score_metadata["generated_at"],
         "city_id": ctx.city_id,
         "area_unit": config.area_unit,
         "feature_count": score_metadata["feature_count"],
         "weights": ctx.weights,
-        "point_counts": {
-            "transit_stops": int(len(point_datasets.transit)),
-            "transit_core_points": int(len(point_datasets.core_transit)),
-            "transit_surface_points": int(len(point_datasets.surface_transit)),
-            "transit_system_points": {
-                slug: int(len(point_datasets.transit_by_system[code]))
-                for code, slug in ctx.transit_slugs.items()
-            },
-            "supermarkets": int(len(point_datasets.supermarkets)),
-            "gyms": int(len(point_datasets.gyms)),
-            "workplaces": int(len(point_datasets.workplaces)),
-            "crime_records": int(len(point_datasets.crimes)),
-        },
+        "point_counts": point_counts,
         "crime": score_metadata["crime"],
         "workplace": score_metadata["workplace"],
         "travel_time": score_metadata["travel_time"],
@@ -72,21 +105,7 @@ def build_metadata(
         "transit_commute_source": score_metadata["transit_commute"]["transit_commute_source"],
         "transit_commute": score_metadata["transit_commute"],
         "source_urls": source_urls,
-        "sources": {
-            "areas": repo_path(input_path),
-            config.area_unit: repo_path(input_path),
-            "places_config": repo_path(places_path),
-            "transit_stops": repo_path(ctx.data_dir / "transit_stops.csv"),
-            "supermarkets": repo_path(ctx.data_dir / "supermarkets.csv"),
-            "gyms": repo_path(ctx.data_dir / "gyms.csv"),
-            "workplaces_legacy_csv": repo_path(ctx.raw_dir / "workplaces.csv"),
-            "crime_points": repo_path(ctx.data_dir / "crime_points.csv"),
-        },
-        "outputs": {
-            "processed": repo_path(output_path),
-            "public": repo_path(public_output_path),
-            "legacy_processed": [repo_path(path) for path in legacy_output_paths],
-            "legacy_public": [repo_path(path) for path in public_legacy_output_paths],
-        },
+        "sources": sources,
+        "outputs": outputs,
         "notes": score_metadata["notes"],
     }

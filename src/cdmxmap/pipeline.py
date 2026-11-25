@@ -18,7 +18,7 @@ from pathlib import Path
 
 from cdmxmap.citycontext import CityContext, load_city_context
 from cdmxmap.config import TRANSIT_ROUTER_APIMETRO, load_places_config
-from cdmxmap.errors import FetchError
+from cdmxmap.errors import ConfigError, FetchError
 from cdmxmap.logging_config import setup_logging
 from cdmxmap.manifest import (
     FAILED,
@@ -32,6 +32,7 @@ from cdmxmap.manifest import (
     sha256_file,
 )
 from cdmxmap.output import build_metadata, write_geojson
+from cdmxmap.output.parts import remove_geojson_parts, write_geojson_parts
 from cdmxmap.routing.base import Router
 from cdmxmap.routing.cache import RoutingCache
 from cdmxmap.scoring import score_areas
@@ -158,8 +159,27 @@ def build_area(
     )
 
     write_geojson(scored.output, resolved_output)
-    shutil.copyfile(resolved_output, public_output_path)
-    logger.info("Copied frontend asset to %s", public_output_path)
+    public_part_paths: list[Path] | None = None
+    if config.public_part_max_bytes:
+        if resolved_public_dir.resolve() == resolved_output.parent.resolve():
+            raise ConfigError(
+                "public_part_max_bytes needs a public directory apart from the processed output"
+            )
+        published = write_geojson_parts(
+            scored.output,
+            resolved_public_dir,
+            stem=resolved_output.stem,
+            area_unit=config.area_unit,
+            max_bytes=config.public_part_max_bytes,
+            size_hint=resolved_output.stat().st_size,
+        )
+        public_output_path = published.index_path
+        public_part_paths = published.part_paths
+    else:
+        shutil.copyfile(resolved_output, public_output_path)
+        logger.info("Copied frontend asset to %s", public_output_path)
+        # A unit that was published in parts before keeps no stale index behind.
+        remove_geojson_parts(resolved_public_dir, resolved_output.stem)
 
     legacy_output_paths: list[Path] = []
     public_legacy_output_paths: list[Path] = []
@@ -180,6 +200,7 @@ def build_area(
         public_output_path=public_output_path,
         legacy_output_paths=legacy_output_paths,
         public_legacy_output_paths=public_legacy_output_paths,
+        public_part_paths=public_part_paths,
         point_datasets=point_datasets,
         score_metadata=scored.metadata,
         places_config=places_config,

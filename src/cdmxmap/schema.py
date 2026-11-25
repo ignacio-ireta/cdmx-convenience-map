@@ -8,9 +8,13 @@ byte scored output — is unaffected; only malformed config is rejected.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from cdmxmap.errors import ConfigError
+
+PositiveSpeed = Annotated[float, Field(gt=0)]
 
 
 class BBox(BaseModel):
@@ -30,6 +34,53 @@ class BBox(BaseModel):
         return self
 
 
+class TransitSystemEntry(BaseModel):
+    """One ``transit_systems`` item; ``slug`` becomes part of output field names."""
+
+    model_config = ConfigDict(extra="allow")
+
+    code: str = Field(min_length=1)
+    slug: str = Field(pattern=r"^[a-z0-9_]+$")
+    group: Literal["core", "surface"] = "surface"
+    label: str = ""
+
+
+class CrimeStatisticsConfig(BaseModel):
+    """The ``crime_statistics`` block read by the ``city_statistics`` crime mode."""
+
+    model_config = ConfigDict(extra="allow")
+
+    scope: str | None = None
+    area_key_field: str | None = None
+    source: str | None = None
+    source_label: str | None = None
+    scored_label: str | None = None
+    population_source: str | None = None
+    scored_definition: str | None = None
+    scored_offenses: list[str] | None = None
+
+
+class CrimeSourceConfig(BaseModel):
+    """The ``crime_source`` block of an ``incident_points`` profile city."""
+
+    model_config = ConfigDict(extra="allow")
+
+    source: str | None = None
+    source_label: str | None = None
+    # Meters each area is buffered by before counting incidents; 0/absent = polygon.
+    density_buffer_m: int | None = Field(default=None, ge=0, strict=True)
+
+
+class AreaUnitEntry(BaseModel):
+    """One object entry of a profile's ``area_units`` (bare strings are CDMX-only)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    area_unit: str
+    # Publish the frontend copy in parts of at most this many bytes (output/parts.py).
+    public_part_max_bytes: int | None = Field(default=None, gt=0, strict=True)
+
+
 class CityProfile(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -41,6 +92,22 @@ class CityProfile(BaseModel):
     crs_metric_epsg: int | None = None
     amenity_brands: dict | None = None
     sources: dict | None = None
+    crime_mode: Literal["incident_points", "city_statistics"] | None = None
+    crime_statistics: CrimeStatisticsConfig | None = None
+    crime_source: CrimeSourceConfig | None = None
+    transit_systems: list[TransitSystemEntry] | None = None
+    area_units: list[AreaUnitEntry | str] | None = None
+
+    @model_validator(mode="after")
+    def _check_transit_systems_unique(self) -> CityProfile:
+        systems = self.transit_systems or []
+        codes = [system.code.strip().upper() for system in systems]
+        slugs = [system.slug for system in systems]
+        if len(set(codes)) != len(codes):
+            raise ValueError("transit_systems codes must be unique (case-insensitive)")
+        if len(set(slugs)) != len(slugs):
+            raise ValueError("transit_systems slugs must be unique")
+        return self
 
 
 class Workplace(BaseModel):
@@ -61,6 +128,21 @@ class TravelTimeConfig(BaseModel):
     detour_factors: dict[str, float] | None = None
 
 
+class TransitCommuteSettings(BaseModel):
+    """``places.json`` ``transit_commute``; every new key is opt-in (absent = CDMX)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    source: str | None = None
+    stop_source_label: str | None = None
+    engine_label: str | None = None
+    candidate_stop_count: int | None = None
+    has_line_data: bool | None = None
+    system_speeds_kmh: dict[str, PositiveSpeed] | None = None
+    priority_candidate_systems: list[str] | None = None
+    priority_candidate_stop_count: int | None = Field(default=None, ge=0)
+
+
 class RoadRoutingConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -70,6 +152,9 @@ class RoadRoutingConfig(BaseModel):
     candidate_count: int | None = None
     version: str | None = None
     osm_source: str | None = None
+    osm_md5: str | None = None
+    osm_date: str | None = None
+    search_filter: dict | None = None
 
 
 class PlacesConfig(BaseModel):
@@ -78,7 +163,7 @@ class PlacesConfig(BaseModel):
     workplace: Workplace | None = None
     travel_time: TravelTimeConfig | None = None
     amenity_travel_time: dict | None = None
-    transit_commute: dict | None = None
+    transit_commute: TransitCommuteSettings | None = None
     road_routing: RoadRoutingConfig | None = None
 
 

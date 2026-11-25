@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "d_codigo": "90001", "colonias_label": "Colonia Uno, Colonia Dos +1", "municipio": "Municipio Centro", "mun_code": "99001" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-100.33, 25.66], [-100.32, 25.66], [-100.32, 25.67], [-100.33, 25.67], [-100.33, 25.66]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "d_codigo": "90002", "colonias_label": "", "municipio": "Municipio Centro", "mun_code": "99001" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-100.32, 25.66], [-100.31, 25.66], [-100.31, 25.67], [-100.32, 25.67], [-100.32, 25.66]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "d_codigo": "90003", "colonias_label": "Colonia Oriente", "municipio": "Municipio Oriente", "mun_code": "99002" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-100.31, 25.66], [-100.30, 25.66], [-100.30, 25.67], [-100.31, 25.67], [-100.31, 25.66]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "d_codigo": "90004", "colonias_label": "Colonia Norte", "municipio": "Municipio Norte", "mun_code": "99003" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-100.33, 25.67], [-100.32, 25.67], [-100.32, 25.68], [-100.33, 25.68], [-100.33, 25.67]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "d_codigo": "90005", "colonias_label": "Colonia Sur", "municipio": "Municipio Sur", "mun_code": "99004" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-100.31, 25.67], [-100.30, 25.67], [-100.30, 25.68], [-100.31, 25.68], [-100.31, 25.67]]] }
+    }
+  ]
+}

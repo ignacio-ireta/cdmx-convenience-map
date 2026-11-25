@@ -1,0 +1,15 @@
+id,name,system,line,hierarchy,latitude,longitude,source
+m1,Metro Uno,METRO,1,station,25.6655,-100.3262,fixture_open_data
+m2,Metro Oficina,METRO,1,station,25.6560,-100.3440,fixture_open_data
+m3,Metro Transbordo,METRO,1,station,25.6700,-100.3100,fixture_open_data
+m3b,Metro Transbordo,METRO,2,station,25.67004,-100.30996,fixture_open_data
+m4,Metro Norte,METRO,2,station,25.6760,-100.3240,fixture_open_data
+b1,BRT Oriente,BRT,ECOVIA,station,25.6648,-100.3045,fixture_open_data
+b2,BRT Oficina,BRT,ECOVIA,station,25.6545,-100.3420,fixture_open_data
+r1,Parada Uno,BUS,107|214,stop,25.6652,-100.3248,fixture_open_data
+r2,Parada Dos,BUS,214,stop,25.6651,-100.3152,fixture_open_data
+r3,Parada Tres,BUS,300|107,stop,25.6649,-100.3052,fixture_open_data
+r4,Parada Cuatro,BUS,300,stop,25.6751,-100.3249,fixture_open_data
+r5,Parada Cinco,BUS,107,stop,25.6752,-100.3049,fixture_open_data
+r6,Parada Oficina,BUS,214|300,stop,25.6552,-100.3452,fixture_open_data
+r7,Parada Oficina Dos,BUS,500,stop,25.6551,-100.3448,fixture_open_data
