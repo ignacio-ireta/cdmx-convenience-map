@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { CITY_CONFIGS, DATA_ASSETS } from '../constants'
 import type { MatrixIndex } from '../types'
-import { fetchRoutedWorkTimes } from './routingMatrix'
+import { fetchRoutedWorkTimes, loadMatrixIndex, resolveMatrixAssetUrl } from './routingMatrix'
 
 function makeIndex(overrides: Partial<MatrixIndex> = {}): MatrixIndex {
   return {
@@ -80,5 +81,113 @@ describe('fetchRoutedWorkTimes', () => {
     stubFetch(404, new ArrayBuffer(0))
     const result = await fetchRoutedWorkTimes(makeIndex({ inputs_hash: 'h-404' }), 'A')
     expect(result).toBeNull()
+  })
+})
+
+describe('resolveMatrixAssetUrl', () => {
+  const page = 'https://example.org/convenience-map/?city=monterrey'
+
+  it("resolves a city's binaries next to that city's index", () => {
+    expect(
+      resolveMatrixAssetUrl(
+        './data/monterrey/routing_matrix_postal_code_index.json',
+        'routing_matrix_postal_code_driving_0123456789ab.bin',
+        page,
+      ),
+    ).toBe(
+      'https://example.org/convenience-map/data/monterrey/routing_matrix_postal_code_driving_0123456789ab.bin',
+    )
+  })
+
+  it("keeps CDMX's binaries under the flat data/ directory", () => {
+    expect(resolveMatrixAssetUrl('./data/routing_matrix_colonia_index.json', 'm.bin', page)).toBe(
+      'https://example.org/convenience-map/data/m.bin',
+    )
+    expect(
+      resolveMatrixAssetUrl('/data/routing_matrix_postal_code_index.json', 'm.bin', page),
+    ).toBe('https://example.org/data/m.bin')
+  })
+
+  it("refuses names that leave the index's directory", () => {
+    const index = './data/monterrey/routing_matrix_postal_code_index.json'
+    expect(resolveMatrixAssetUrl(index, '../cdmx/m.bin', page)).toBeNull()
+    expect(resolveMatrixAssetUrl(index, '/m.bin', page)).toBeNull()
+    expect(resolveMatrixAssetUrl(index, 'https://elsewhere.example/m.bin', page)).toBeNull()
+  })
+})
+
+describe('loadMatrixIndex', () => {
+  function stubIndexFetch(payload: unknown, ok = true) {
+    const fetchSpy = vi.fn(async (url: string) => {
+      void url
+      return { ok, json: async () => payload }
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    return fetchSpy
+  }
+
+  it("fetches the city's own index URL and caches it by URL", async () => {
+    const url = CITY_CONFIGS.monterrey.assets.matrixIndex.postal_code
+    const fetchSpy = stubIndexFetch(makeIndex({ inputs_hash: 'mty' }))
+    const first = await loadMatrixIndex(url)
+    const second = await loadMatrixIndex(url)
+    expect(first?.inputs_hash).toBe('mty')
+    expect(second).toBe(first)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy).toHaveBeenCalledWith(url)
+  })
+
+  it('keeps cities apart: same unit, different URL, different index', async () => {
+    const fetchSpy = stubIndexFetch(makeIndex({ inputs_hash: 'gdl' }))
+    const gdl = await loadMatrixIndex(CITY_CONFIGS.guadalajara.assets.matrixIndex.postal_code)
+    expect(gdl?.inputs_hash).toBe('gdl')
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${import.meta.env.BASE_URL}data/guadalajara/routing_matrix_postal_code_index.json`,
+    )
+  })
+
+  it('returns null (and caches the miss) when the index is absent or malformed', async () => {
+    const fetchSpy = stubIndexFetch(null, false)
+    const url = `${import.meta.env.BASE_URL}data/absent/routing_matrix_postal_code_index.json`
+    expect(await loadMatrixIndex(url)).toBeNull()
+    expect(await loadMatrixIndex(url)).toBeNull()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    stubIndexFetch({ area_ids: 'not-a-list' })
+    expect(
+      await loadMatrixIndex(
+        `${import.meta.env.BASE_URL}data/bad/routing_matrix_colonia_index.json`,
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('fetchRoutedWorkTimes with a city index', () => {
+  it("Range-fetches the binaries from the city's directory", async () => {
+    const fetchSpy = vi.fn(async (url: string) => {
+      void url
+      return { status: 206, arrayBuffer: async () => bytesFromDeci([0, 25]) }
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    const indexUrl = CITY_CONFIGS.guadalajara.assets.matrixIndex.postal_code
+    const result = await fetchRoutedWorkTimes(makeIndex({ inputs_hash: 'h-gdl' }), 'A', indexUrl)
+    expect(result!.walking.get('B')).toBeCloseTo(2.5, 5)
+    const urls = fetchSpy.mock.calls.map(([url]) => url)
+    expect(urls).toHaveLength(3)
+    for (const url of urls) {
+      expect(url).toMatch(/\/data\/guadalajara\/[dwb]\.bin$/)
+    }
+  })
+
+  it("defaults to CDMX's flat data/ directory for the index's unit", async () => {
+    const fetchSpy = vi.fn(async (url: string) => {
+      void url
+      return { status: 206, arrayBuffer: async () => bytesFromDeci([0, 25]) }
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    await fetchRoutedWorkTimes(makeIndex({ inputs_hash: 'h-cdmx-default' }), 'A')
+    const expected = resolveMatrixAssetUrl(DATA_ASSETS.matrixIndex.postal_code, 'd.bin')
+    expect(fetchSpy.mock.calls[0][0]).toBe(expected)
+    expect(expected).toMatch(/\/data\/d\.bin$/)
   })
 })

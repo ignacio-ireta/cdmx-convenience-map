@@ -17,8 +17,9 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+from cdmxmap.config import METRIC_CRS
 from cdmxmap.models import AreaConfig
-from cdmxmap.routing.base import Router
+from cdmxmap.routing.base import Router, routing_inputs_hash
 from cdmxmap.routing.matrix_codec import build_matrix_index, encode_matrix
 from cdmxmap.scoring.areas import area_representative_latlon
 
@@ -41,19 +42,24 @@ def build_area_matrix(
     osm_source: str | None = None,
     osm_sha: str | None = None,
     osm_date: str | None = None,
+    search_filter: dict | None = None,
+    metric_crs: str = METRIC_CRS,
     force: bool = False,
 ) -> dict:
     """Route the full N×N matrix per mode and write binary + index for one area unit.
 
     Returns a summary dict (counts, sizes, paths). When an up-to-date matrix already
     exists (same content hash) the build is skipped unless ``force``.
+    ``metric_crs`` must be the city's metric CRS so the representative points match
+    the scored output; ``search_filter`` (when the router applies one) is part of the
+    content hash.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     public_dir.mkdir(parents=True, exist_ok=True)
 
-    area_ids, latlon = area_representative_latlon(input_path, config)
+    area_ids, latlon = area_representative_latlon(input_path, config, metric_crs=metric_crs)
     n = len(area_ids)
-    inputs_hash = "|".join([router.engine, router.version, str(osm_source or "")])
+    inputs_hash = routing_inputs_hash(router.engine, router.version, osm_source, search_filter)
     content_hash = _content_hash(inputs_hash, area_ids)
     index_path = output_dir / f"routing_matrix_{config.area_unit}_index.json"
 
@@ -85,6 +91,7 @@ def build_area_matrix(
         osm_sha=osm_sha,
         osm_date=osm_date,
         generated_at=datetime.now(UTC).replace(microsecond=0).isoformat(),
+        search_filter=search_filter,
     )
     index_text = json.dumps(index, indent=2)
     index_path.write_text(index_text, encoding="utf-8")

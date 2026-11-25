@@ -1,0 +1,287 @@
+{
+  "city_id": "guadalajara",
+  "display_name": "Guadalajara",
+  "country_code": "MX",
+  "timezone": "America/Mexico_City",
+  "crs_metric_epsg": 32613,
+  "bbox": { "south": 20.35, "west": -103.67, "north": 21.0, "east": -103.08 },
+  "mx_area": {
+    "state_code": "14",
+    "state_name": "Jalisco",
+    "metro_definition": "Zona Metropolitana de Guadalajara 2020, all 7 municipalities (SEDATU/CONAPO/INEGI, Metrópolis de México 2020)",
+    "municipalities": ["039", "051", "070", "097", "098", "101", "120"]
+  },
+  "default_weights": {
+    "work": 0.3,
+    "transit": 0.25,
+    "supermarkets": 0.18,
+    "gyms": 0.12,
+    "safety": 0.15
+  },
+  "transit_core_weight": 0.7,
+  "transit_surface_weight": 0.3,
+  "transit_systems": [
+    { "code": "MITREN", "slug": "mitren", "group": "core", "label": "Mi Tren" },
+    { "code": "MIMACRO", "slug": "mimacro", "group": "core", "label": "Mi Macro" },
+    {
+      "code": "ALIMENTADORA",
+      "slug": "alimentadora",
+      "group": "surface",
+      "label": "Alimentadoras Mi Macro"
+    },
+    {
+      "code": "SITREN",
+      "slug": "sitren",
+      "group": "surface",
+      "label": "Mi Transporte Tren Ligero"
+    },
+    {
+      "code": "MITRANSPORTE",
+      "slug": "mitransporte",
+      "group": "surface",
+      "label": "Mi Transporte"
+    }
+  ],
+  "transit_source": {
+    "type": "gtfs",
+    "url": "https://files.mobilitydatabase.org/mdb-3632/latest.zip",
+    "producer_url": "https://ualabee.com/api/v3/cities/35/gtfs-feeds/public",
+    "feed_label": "SETRAN Jalisco GTFS (Mobility Database mdb-3632)",
+    "source": "setran_gtfs",
+    "exclude_agencies": ["LGM", "PV", "PVMT", "TEP", "ZAP"],
+    "core_merge_m": 200,
+    "subtract_match_m": 300,
+    "rules": [
+      {
+        "system": "MITREN",
+        "agency": ["MT"],
+        "route_type": ["0", "1", "2"],
+        "line_from_short_name": "TL-(\\d+)",
+        "line_format": "L{0}"
+      },
+      {
+        "system": "MIMACRO",
+        "line": "L6",
+        "agency": ["MM"],
+        "route_desc": "^Mi Macro Calzada$",
+        "station_routes": true
+      },
+      {
+        "system": "MIMACRO",
+        "line": "L7",
+        "agency": ["MM"],
+        "route_desc": "^Mi Macro Periférico - Troncal \\d+$",
+        "station_routes": true
+      },
+      {
+        "system": "MIMACRO",
+        "line": "L5",
+        "agency": ["MMA"],
+        "route_desc": "Línea 5 - Troncal 01$",
+        "station_routes": true,
+        "subtract_line": "L7"
+      },
+      {
+        "system": "MIMACRO",
+        "line": "L5",
+        "agency": ["MMA"],
+        "route_desc": "Línea 5",
+        "corridor_only": true,
+        "offcorridor_system": "ALIMENTADORA",
+        "offcorridor_line_prefix": "L5-"
+      },
+      { "system": "ALIMENTADORA", "agency": ["MM", "MMP"] },
+      { "system": "SITREN", "agency": ["ST"] },
+      { "system": "MITRANSPORTE", "agency": ["BUS", "ME"] }
+    ]
+  },
+  "store_brands": [
+    { "slug": "aurrera", "match": ["aurrera"] },
+    { "slug": "soriana", "match": ["soriana"] },
+    { "slug": "walmart", "match": ["walmart"] },
+    { "slug": "chedraui", "match": ["chedraui"] },
+    { "slug": "sams", "match": ["sams"] },
+    { "slug": "la_comer", "match": ["la_comer"] },
+    { "slug": "costco", "match": ["costco"] }
+  ],
+  "supermarket_classifier": {
+    "version": 2,
+    "shops": ["supermarket", "wholesale", "department_store"],
+    "dedupe_m": 150,
+    "families": [
+      {
+        "slug": "sams",
+        "label": "Sam's Club",
+        "wikidata": ["Q1972120"],
+        "match": ["sam's club", "sams club", "sam's"],
+        "exclude": ["gasolinera", "gas station", "farmacia"]
+      },
+      {
+        "slug": "costco",
+        "label": "Costco",
+        "wikidata": ["Q715583"],
+        "match": ["costco"],
+        "exclude": ["gasolinera", "costco gas", "farmacia"]
+      },
+      {
+        "slug": "aurrera",
+        "label": "Bodega Aurrerá",
+        "wikidata": ["Q3365858"],
+        "match": ["bodega aurrera", "mi bodega aurrera", "aurrera", "bodeguita aurrera"],
+        "exclude": ["farmacia", "banco"],
+        "extra_shops": ["convenience"]
+      },
+      {
+        "slug": "walmart",
+        "label": "Walmart",
+        "wikidata": ["Q483551", "Q6135762"],
+        "match": ["walmart", "wal-mart", "wal mart", "superama"],
+        "exclude": [
+          "sam's",
+          "sams",
+          "bodega",
+          "aurrera",
+          "farmacia",
+          "banco",
+          "gasolinera",
+          "suburbia",
+          "vips"
+        ]
+      },
+      {
+        "slug": "soriana",
+        "label": "Soriana",
+        "wikidata": ["Q735562"],
+        "match": ["soriana", "mega soriana"],
+        "exclude": ["farmacia", "fuente de sodas", "city club"]
+      },
+      {
+        "slug": "chedraui",
+        "label": "Chedraui",
+        "wikidata": ["Q2961952"],
+        "match": ["chedraui", "super che", "selecto chedraui"],
+        "exclude": ["farmacia", "supercito"]
+      },
+      {
+        "slug": "supercito",
+        "label": "Supercito Chedraui",
+        "pool_only": true,
+        "wikidata": [],
+        "match": ["supercito chedraui", "supercito"],
+        "exclude": []
+      },
+      {
+        "slug": "la_comer",
+        "label": "La Comer / City Market / Fresko",
+        "wikidata": ["Q26765126", "Q65090778", "Q123943865", "Q123741153"],
+        "match": ["la comer", "city market", "fresko", "sumesa"],
+        "exclude": []
+      },
+      {
+        "slug": "city_club",
+        "label": "City Club",
+        "pool_only": true,
+        "wikidata": ["Q5123101"],
+        "match": ["city club"],
+        "exclude": []
+      },
+      {
+        "slug": "smart_final",
+        "label": "Smart & Final",
+        "pool_only": true,
+        "wikidata": ["Q7543916"],
+        "match": ["smart & final", "smart and final"],
+        "exclude": []
+      },
+      {
+        "slug": "s_mart",
+        "label": "S-Mart",
+        "pool_only": true,
+        "wikidata": ["Q7387069"],
+        "match": ["s-mart", "s mart", "smart"],
+        "exclude": ["smart & final", "smart and final", "smart fit", "papeleria"]
+      },
+      {
+        "slug": "heb",
+        "label": "H-E-B",
+        "pool_only": true,
+        "wikidata": ["Q830621"],
+        "match": ["h-e-b", "heb", "h e b"],
+        "exclude": ["mi tienda", "gasolinera", "farmacia"]
+      },
+      {
+        "slug": "mi_tienda_ahorro",
+        "label": "Mi Tienda del Ahorro",
+        "pool_only": true,
+        "wikidata": [],
+        "match": ["mi tienda del ahorro"],
+        "exclude": []
+      },
+      {
+        "slug": "merco",
+        "label": "Merco",
+        "pool_only": true,
+        "wikidata": [],
+        "match": ["merco"],
+        "exclude": []
+      }
+    ]
+  },
+  "gyms_source": {
+    "type": "inegi_denue",
+    "url": "https://www.inegi.org.mx/contenidos/masiva/denue/denue_00_71_csv.zip",
+    "activity_codes": ["713943", "713944"],
+    "state_codes": ["14"]
+  },
+  "crime_mode": "incident_points",
+  "crime_source": {
+    "type": "iieg_jalisco",
+    "source": "iieg_jalisco_fge",
+    "source_label": "IIEG Jalisco · Fiscalía del Estado, incidencia delictiva (Región Centro)",
+    "index_url": "https://iieg.gob.mx/ns/?page_id=31143",
+    "link_text_pattern": "regi[oó]n\\s+Centro",
+    "fallback_url": "https://iieg.gob.mx/ns/wp-content/uploads/2025/09/historico_incidencia_delictiva_region_centro_jalisco_enero-2017_agosto2025.zip",
+    "zona_geografica": "AMG",
+    "density_buffer_m": 250
+  },
+  "area_units": [
+    {
+      "area_unit": "postal_code",
+      "default_input": "postal_codes.geojson",
+      "output_name": "scores_postal_code.geojson",
+      "id_fields": ["d_codigo"],
+      "name_fields": ["colonias_label"],
+      "source_url_key": "postal_codes",
+      "source_url": "https://github.com/open-mexico/mexico-geojson",
+      "postal_width": 5,
+      "display_prefix": "CP "
+    },
+    {
+      "area_unit": "colonia",
+      "default_input": "colonias.geojson",
+      "output_name": "scores_colonia.geojson",
+      "id_fields": ["area_id"],
+      "name_fields": ["colonia_name"],
+      "source_url_key": "colonias",
+      "source_url": "https://www.inegi.org.mx/programas/dcah/",
+      "public_part_max_bytes": 9000000
+    }
+  ],
+  "fetchers": [
+    { "module": "fetch_mx_colonias", "output": "colonias.geojson", "dir": "raw" },
+    { "module": "fetch_mx_postal_codes", "output": "postal_codes.geojson", "dir": "raw" },
+    { "module": "fetch_gtfs_transit", "output": "transit_stops.csv" },
+    { "module": "fetch_supermarkets", "output": "supermarkets.csv" },
+    { "module": "fetch_denue_gyms", "output": "gyms.csv" },
+    { "module": "fetch_iieg_crime", "output": "crime_points.csv" }
+  ],
+  "sources": {
+    "postal_codes": "https://raw.githubusercontent.com/open-mexico/mexico-geojson/main/14-Jal.geojson",
+    "colonias": "https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/delimitaciones/794551163078/14_jalisco.zip",
+    "municipalities": "https://gaia.inegi.org.mx/wscatgeo/v2/geo/mgem/14",
+    "transit": "https://mobilitydatabase.org/feeds/gtfs/mdb-3632",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "gyms": "https://www.inegi.org.mx/app/mapa/denue/",
+    "safety": "https://iieg.gob.mx/ns/?page_id=31143"
+  }
+}

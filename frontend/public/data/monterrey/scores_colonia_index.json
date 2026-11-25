@@ -1,0 +1,33 @@
+{
+  "type": "geojson_parts",
+  "version": 1,
+  "area_unit": "colonia",
+  "feature_count": 4698,
+  "max_part_bytes": 9000000,
+  "parts": [
+    {
+      "path": "scores_colonia.part-01.geojson",
+      "feature_count": 1175,
+      "bytes": 6870635,
+      "sha256": "59088bc822137dd6cc96cf97e4fc019f1d71c0c59711804c159111b022659d7b"
+    },
+    {
+      "path": "scores_colonia.part-02.geojson",
+      "feature_count": 1175,
+      "bytes": 6814375,
+      "sha256": "187690049936422e1196bb390ae2f616f79fb1f81d64326f6f9823df11df011b"
+    },
+    {
+      "path": "scores_colonia.part-03.geojson",
+      "feature_count": 1174,
+      "bytes": 6836094,
+      "sha256": "2ed90cf4b46aa3872ffbf242644444cfed47b570842183af5d1411477cfe6b88"
+    },
+    {
+      "path": "scores_colonia.part-04.geojson",
+      "feature_count": 1174,
+      "bytes": 6985719,
+      "sha256": "7820b6d912f4f9d995671c9fdc349657402e41f1e22a42bce8fdfb831366ecbf"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "city_id": "fixture_stats",
+  "display_name": "Fixture Stats",
+  "country_code": "MX",
+  "crs_metric_epsg": 32614,
+  "bbox": { "south": 25.6, "west": -100.4, "north": 25.75, "east": -100.25 },
+  "default_weights": {
+    "work": 0.3,
+    "transit": 0.25,
+    "supermarkets": 0.2,
+    "gyms": 0.1,
+    "safety": 0.15
+  },
+  "transit_core_weight": 0.7,
+  "transit_surface_weight": 0.3,
+  "transit_systems": [
+    { "code": "METRO", "slug": "metro", "group": "core", "label": "Fixture Metro" },
+    { "code": "BRT", "slug": "brt", "group": "core", "label": "Fixture BRT" },
+    { "code": "Bus", "slug": "rutas", "group": "surface", "label": "Fixture buses" }
+  ],
+  "store_brands": [
+    { "slug": "heb", "match": ["heb"] },
+    { "slug": "soriana", "match": ["soriana"] }
+  ],
+  "crime_mode": "city_statistics",
+  "crime_statistics": {
+    "scope": "municipality",
+    "area_key_field": "mun_code",
+    "source": "sesnsp_municipal",
+    "source_label": "Synthetic municipal crime statistics",
+    "scored_label": "robbery and violent crime",
+    "scored_definition": "Synthetic robbery and violent-crime subset",
+    "scored_offenses": ["Robo", "Lesiones dolosas"],
+    "population_source": "Synthetic census"
+  },
+  "area_units": [
+    {
+      "area_unit": "postal_code",
+      "default_input": "areas.geojson",
+      "output_name": "scores_postal_code.geojson",
+      "id_fields": ["d_codigo"],
+      "name_fields": ["colonias_label"],
+      "source_url_key": "postal_codes",
+      "source_url": "https://example.invalid/postal_codes",
+      "postal_width": 5,
+      "display_prefix": "CP "
+    }
+  ],
+  "sources": {}
+}

@@ -5,6 +5,7 @@ import type {
   FieldScoreMap,
   PreferenceScoreModel,
   StoreOption,
+  TransitAccessOption,
 } from '../types'
 
 export function percentile(values: number[], fraction: number) {
@@ -32,7 +33,10 @@ export function buildCloserScoreMap(
   const values = entries
     .map((entry) => entry.value)
     .filter((value) => Number.isFinite(value) && value >= 0)
-  if (!values.length) {
+  // All zeros means the field carries no information (e.g. a declared transit
+  // system with no stops is written as distance 0 everywhere); scoring it would
+  // give every area 100.
+  if (!values.length || !values.some((value) => value > 0)) {
     return { hasValues: false, scores: new Map() }
   }
 
@@ -59,6 +63,7 @@ export function buildScoreRecord<Key extends string>(
 export function buildPreferenceScoreModel(
   data: AreaFeatureCollection,
   storeOptions: StoreOption[] = STORE_OPTIONS,
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ): PreferenceScoreModel {
   return {
     storeDistanceScores: buildScoreRecord(
@@ -77,7 +82,7 @@ export function buildPreferenceScoreModel(
     ),
     transitAccessScores: buildScoreRecord(
       data,
-      TRANSIT_ACCESS_OPTIONS.map((option) => ({
+      transitOptions.map((option) => ({
         key: option.key,
         field: option.distanceField,
       })),

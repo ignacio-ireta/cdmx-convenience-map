@@ -114,8 +114,33 @@ export function formatSource(source?: string) {
     return 'No valid transit stop coordinates'
   }
   if (source === 'fgj_cdmx_victimas') return 'FGJ CDMX'
+  if (source === 'nl_stcm_metrorrey') return 'STC Metrorrey (NL open data)'
+  if (source === 'nl_ima') return 'IMA Nuevo León'
+  if (source === 'setran_gtfs') return 'SETRAN Jalisco GTFS'
+  if (source === 'inegi_denue') return 'INEGI DENUE'
+  if (source === 'iieg_jalisco_fge') return 'IIEG Jalisco (FGE)'
+  if (source === 'sesnsp_municipal') return 'SESNSP municipal'
+  if (source === 'inegi_dcah_2025') return 'INEGI colonias 2025'
+  if (source === 'open_mexico_sepomex') return 'SEPOMEX (open-mexico)'
+  if (source === 'nl_open_data_stop_pair_approximation') {
+    return 'Approximation from Nuevo León open-data stops; not schedule-aware'
+  }
+  if (source === 'setran_gtfs_stop_pair_approximation') {
+    return 'Approximation from SETRAN GTFS stops; not schedule-aware'
+  }
   if (source === 'seed') return 'seed fallback'
   return source
+}
+
+/**
+ * A metadata source with its fallback, for the audit rows and the copied report:
+ * "Valhalla (free-flow) · fallback estimate where unrouted" on a routed build.
+ * A fallback that is absent or the same as the source adds nothing.
+ */
+export function formatSourceWithFallback(source?: string, fallbackSource?: string) {
+  const label = formatSource(source)
+  if (!fallbackSource || fallbackSource === source) return label
+  return `${label} · ${formatSource(fallbackSource)} where unrouted`
 }
 
 // Real network-routed sources (street network or schedule-aware transit).
@@ -144,8 +169,19 @@ export function sourceBadge(source?: string): 'routed' | 'estimate' | null {
 
 export function transitStopLabel(system?: string, name?: string, line?: string) {
   if (!name) return 'n/a'
-  const prefix = [system, line].filter(Boolean).join(' ')
+  const prefix = [system, line?.includes('|') ? routeList(line) : line].filter(Boolean).join(' ')
   return prefix ? `${prefix} ${name}` : name
+}
+
+/** A stop served by several routes ("C54|C71|C120|T17") as "(C54, C71, C120 +1)". */
+function routeList(line: string, shown = 3) {
+  const routes = line
+    .split('|')
+    .map((route) => route.trim())
+    .filter(Boolean)
+  const head = routes.slice(0, shown).join(', ')
+  const rest = routes.length - shown
+  return `(${head}${rest > 0 ? ` +${rest}` : ''})`
 }
 
 export function formatTransitComplexity(value?: string) {

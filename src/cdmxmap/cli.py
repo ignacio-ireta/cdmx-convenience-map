@@ -73,7 +73,9 @@ def _road_router(
         return None, None
     ctx = load_city_context(city)
     config = road_routing_config(load_places_config(city))
-    router = get_road_router(travel_router, tiles_dir=config["tiles_dir"])
+    router = get_road_router(
+        travel_router, tiles_dir=config["tiles_dir"], search_filter=config["search_filter"]
+    )
     ensure_dirs()
     cache = RoutingCache(ctx.data_dir / "routing_cache" / "routes.json")
     return router, cache
@@ -223,6 +225,10 @@ def build_matrix(
             output_dir=ctx.data_dir,
             public_dir=ctx.public_dir,
             osm_source=rr_config.get("osm_source"),
+            osm_sha=rr_config.get("osm_md5"),
+            osm_date=rr_config.get("osm_date"),
+            search_filter=rr_config.get("search_filter"),
+            metric_crs=ctx.metric_crs,
             force=force,
         )
         typer.echo(json.dumps(summary, indent=2))

@@ -43,7 +43,8 @@ export function normalizeAreaProperties(raw: RawAreaProperties, postalWidth = 5)
     area_id: areaId,
     area_name: areaName,
     display_name: displayName,
-    alcaldia: optionalString(raw.alcaldia),
+    // Municipality name; the Mexican metro fetchers write it as `municipio`.
+    alcaldia: optionalString(raw.alcaldia) || optionalString(raw.municipio),
     d_cp: optionalString(raw.d_cp),
     postal_code: postalCode || undefined,
     postal_label: postalLabel,
@@ -138,6 +139,15 @@ export function normalizeAreaProperties(raw: RawAreaProperties, postalWidth = 5)
     crime_density_recent_12m_per_km2: numberFrom(raw.crime_density_recent_12m_per_km2),
     crime_top_category_recent_12m: optionalString(raw.crime_top_category_recent_12m),
     crime_source: optionalString(raw.crime_source),
+    crime_buffer_m: numberFrom(raw.crime_buffer_m),
+    crime_statistics_scope: optionalString(raw.crime_statistics_scope),
+    crime_statistics_area: optionalString(raw.crime_statistics_area),
+    crime_statistics_period: optionalString(raw.crime_statistics_period),
+    crime_scope_population: numberFrom(raw.crime_scope_population),
+    crime_scope_incidents_12m: numberFrom(raw.crime_scope_incidents_12m),
+    crime_scope_scored_incidents_12m: numberFrom(raw.crime_scope_scored_incidents_12m),
+    crime_rate_per_100k_12m: numberFrom(raw.crime_rate_per_100k_12m),
+    crime_total_rate_per_100k_12m: numberFrom(raw.crime_total_rate_per_100k_12m),
   }
 }
 

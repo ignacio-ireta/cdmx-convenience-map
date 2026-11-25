@@ -1,0 +1,264 @@
+{
+  "generated_at": "2026-11-25T12:16:33+00:00",
+  "city_id": "guadalajara",
+  "area_unit": "postal_code",
+  "feature_count": 401,
+  "weights": {
+    "work": 0.3,
+    "transit": 0.25,
+    "supermarkets": 0.18,
+    "gyms": 0.12,
+    "safety": 0.15
+  },
+  "point_counts": {
+    "transit_stops": 14488,
+    "transit_core_points": 140,
+    "transit_surface_points": 14348,
+    "transit_system_points": {
+      "mitren": 56,
+      "mimacro": 84,
+      "alimentadora": 1806,
+      "sitren": 675,
+      "mitransporte": 11867
+    },
+    "supermarkets": 173,
+    "gyms": 1414,
+    "workplaces": 1,
+    "crime_records": 489313
+  },
+  "crime": {
+    "records_total": 483408,
+    "records_recent_12m": 36645,
+    "latest_date": "2025-08-31",
+    "recent_start_date": "2024-08-31",
+    "source": "iieg_jalisco_fge",
+    "source_label": "IIEG Jalisco \u00b7 Fiscal\u00eda del Estado, incidencia delictiva (Regi\u00f3n Centro)",
+    "density_buffer_m": 250
+  },
+  "workplace": {
+    "name": "Default Workplace - CP 45116 (Andares / Puerta de Hierro)",
+    "postal_code": "45116",
+    "source": "places_config"
+  },
+  "travel_time": {
+    "source": "valhalla_free_flow",
+    "fallback_source": "fallback_straight_line_estimate",
+    "modes": [
+      "driving",
+      "walking",
+      "biking"
+    ],
+    "speeds_kmh": {
+      "driving": 24.0,
+      "walking": 4.8,
+      "biking": 14.0
+    },
+    "detour_factors": {
+      "driving": 1.35,
+      "walking": 1.15,
+      "biking": 1.25
+    }
+  },
+  "road_routing": {
+    "engine": "valhalla",
+    "version": "pyvalhalla 3.7.0",
+    "source": "valhalla_free_flow",
+    "modes": [
+      "driving",
+      "walking",
+      "biking"
+    ],
+    "profiles": {
+      "driving": "auto",
+      "walking": "pedestrian",
+      "biking": "bicycle"
+    },
+    "osm_source": "https://download.geofabrik.de/north-america/mexico/mexico-261124.osm.pbf",
+    "osm_md5": "7140e40aaf94d08ebc0551a8880f3d9e",
+    "osm_date": "2026-11-24",
+    "search_filter": {
+      "min_road_class": "residential"
+    },
+    "work": {
+      "routed_count": {
+        "driving": 399,
+        "walking": 401,
+        "biking": 400
+      },
+      "fallback_count": {
+        "driving": 2,
+        "walking": 0,
+        "biking": 1
+      },
+      "error_count": 2,
+      "routed": true
+    },
+    "amenities": {
+      "supermarkets": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "aurrera": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "soriana": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "walmart": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "chedraui": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "sams": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "la_comer": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "costco": {
+        "routed_count": 401,
+        "fallback_count": 0
+      },
+      "gyms": {
+        "routed_count": 401,
+        "fallback_count": 0
+      }
+    },
+    "cache": {
+      "hits": 18042,
+      "misses": 3,
+      "entries": 122690
+    },
+    "generated_at": "2026-11-25T12:16:33+00:00"
+  },
+  "amenity_travel_time": {
+    "source": "valhalla_free_flow",
+    "fallback_source": "fallback_straight_line_estimate",
+    "mode": "walking",
+    "candidate_count": 5,
+    "candidate_pairs": {
+      "supermarkets": 2005,
+      "aurrera": 2005,
+      "soriana": 2005,
+      "walmart": 2005,
+      "chedraui": 2005,
+      "sams": 2005,
+      "la_comer": 2005,
+      "costco": 802,
+      "gyms": 2005
+    },
+    "estimated_pairs": {
+      "supermarkets": 0,
+      "aurrera": 0,
+      "soriana": 0,
+      "walmart": 0,
+      "chedraui": 0,
+      "sams": 0,
+      "la_comer": 0,
+      "costco": 0,
+      "gyms": 0
+    }
+  },
+  "transit_commute_source": "setran_gtfs_stop_pair_approximation",
+  "transit_commute": {
+    "source": "setran_gtfs_stop_pair_approximation",
+    "candidate_stop_count": 5,
+    "walking_speed_kmh": 4.8,
+    "speeds_kmh": {
+      "metro": 28.0,
+      "metrobus": 18.0,
+      "bus": 14.0,
+      "trolleybus": 14.0,
+      "default_transit": 16.0,
+      "systems": {
+        "MITREN": 30.0,
+        "MIMACRO": 18.0,
+        "ALIMENTADORA": 14.0,
+        "SITREN": 14.0,
+        "MITRANSPORTE": 14.0
+      }
+    },
+    "penalties_min": {
+      "same_line": 2.0,
+      "same_system_different_or_unknown_line": 8.0,
+      "different_system": 12.0
+    },
+    "max_walk_m": {
+      "origin": 1200.0,
+      "destination": 1200.0
+    },
+    "has_line_data": true,
+    "priority_candidates": {
+      "systems": [
+        "MITREN",
+        "MIMACRO"
+      ],
+      "stop_count": 3
+    },
+    "known_limitations": [
+      "Uses SETRAN Jalisco GTFS stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
+      "Line ids come from SETRAN Jalisco GTFS; stops served by several routes list them joined by '|', and a pair counts as same-line when they share any route.",
+      "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
+      "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
+      "Different-line and different-system trips use fixed penalties instead of a real transfer graph."
+    ],
+    "generated_at": "2026-11-25T12:16:33+00:00",
+    "engine": "stop_pair_approximation",
+    "router": {
+      "engine": "stop_pair_approximation",
+      "source": "setran_gtfs_stop_pair_approximation",
+      "routed_count": 401,
+      "failed_count": 0
+    },
+    "transit_commute_source": "setran_gtfs_stop_pair_approximation",
+    "estimated_areas": 401,
+    "failed_areas": 0,
+    "source_counts": {
+      "setran_gtfs_stop_pair_approximation": 401
+    }
+  },
+  "source_urls": {
+    "postal_codes": "https://raw.githubusercontent.com/open-mexico/mexico-geojson/main/14-Jal.geojson",
+    "openstreetmap_overpass": "https://overpass-api.de/api/interpreter",
+    "colonias": "https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/delimitaciones/794551163078/14_jalisco.zip",
+    "municipalities": "https://gaia.inegi.org.mx/wscatgeo/v2/geo/mgem/14",
+    "transit": "https://mobilitydatabase.org/feeds/gtfs/mdb-3632",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "gyms": "https://www.inegi.org.mx/app/mapa/denue/",
+    "safety": "https://iieg.gob.mx/ns/?page_id=31143"
+  },
+  "sources": {
+    "areas": "data/raw/guadalajara/postal_codes.geojson",
+    "postal_code": "data/raw/guadalajara/postal_codes.geojson",
+    "places_config": "data/cities/guadalajara/places.json",
+    "transit_stops": "data/processed/guadalajara/transit_stops.csv",
+    "supermarkets": "data/processed/guadalajara/supermarkets.csv",
+    "gyms": "data/processed/guadalajara/gyms.csv",
+    "workplaces_legacy_csv": "data/raw/guadalajara/workplaces.csv",
+    "crime_points": "data/processed/guadalajara/crime_points.csv"
+  },
+  "outputs": {
+    "processed": "data/processed/guadalajara/scores_postal_code.geojson",
+    "public": "frontend/public/data/guadalajara/scores_postal_code.geojson",
+    "legacy_processed": [],
+    "legacy_public": []
+  },
+  "notes": [
+    "Distances are straight-line representative-point-to-point distances in meters.",
+    "The centroid_lat and centroid_lon properties are retained for compatibility and now store representative points.",
+    "Scores are closer-is-better and clipped at the 95th percentile per metric.",
+    "Work and amenity travel times use offline valhalla_free_flow road routing (free-flow, not live traffic) where the point routes, with a straight-line estimate fallback labeled per feature.",
+    "Work transit commute uses an offline SETRAN Jalisco GTFS stop-pair approximation and is not schedule-aware.",
+    "Amenity travel times consider only the nearest configured candidate POIs before routing or fallback estimation.",
+    "Transit score is 70% nearest Mi Tren / Mi Macro and 30% nearest Alimentadoras Mi Macro / Mi Transporte Tren Ligero / Mi Transporte.",
+    "System-specific transit distance and score fields support client-side transit method filters.",
+    "Safety score is lower-is-better incident density per km\u00b2 over each area plus a 250 m buffer, latest 12 months in the IIEG Jalisco \u00b7 Fiscal\u00eda del Estado, incidencia delictiva (Regi\u00f3n Centro) data."
+  ]
+}

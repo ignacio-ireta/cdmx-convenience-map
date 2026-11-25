@@ -9,6 +9,102 @@ published.
 
 ### Added
 
+- Two Mexican metro areas, **Monterrey** (Nuevo León) and **Guadalajara**
+  (Jalisco), viewable via the city switcher or `?city=monterrey` /
+  `?city=guadalajara`. Both have postal-code and colonia geographies, crime
+  scoring, per-system transit toggles, and published road routing; they are the
+  first cities whose published maps are routed.
+  - **Monterrey**: the 12 central municipalities of the Zona Metropolitana de
+    Monterrey 2020 (SEDATU/CONAPO/INEGI *Metrópolis de México 2020*), 658 postal
+    codes and 4,698 named colonias. Transit from Nuevo León open data (CC-BY):
+    Metrorrey (41 station-lines on Lines 1–3), TransMetro BRT (57 stations:
+    Ecovía 40, Av. México 17, named from OSM stations), TransMetro (1,382 stops)
+    and Rutas urbanas (8,170 IMA stops with route numbers). Store toggles H-E-B,
+    Soriana, Walmart, Bodega Aurrerá, S-Mart, Sam's Club and Costco (368
+    classified points); 1,483 DENUE gyms. Safety uses the new `city_statistics`
+    crime mode: SESNSP municipal incidence (fuero común) for 2025-11-01 to
+    2026-10-31, "robbery and violent crime" per 100k residents (Censo 2020),
+    ranked min–max across the 12 municipalities, weight 10%. Default workplace
+    CP 66260 (Valle Oriente, San Pedro Garza García).
+  - **Guadalajara**: all 7 municipalities of the Zona Metropolitana de
+    Guadalajara 2020, 401 postal codes and 2,648 named colonias. Transit from the
+    SETRAN Jalisco GTFS feed (Mobility Database `mdb-3632`, version of
+    2026-11-17): Mi Tren (56 station-lines, L1–L4), Mi Macro (84, L5–L7),
+    Alimentadoras (1,806), Mi Transporte Tren Ligero (675) and Mi Transporte
+    (11,867). Store toggles Bodega Aurrerá, Soriana, Walmart, Chedraui, Sam's
+    Club, La Comer / City Market / Fresko and Costco (173 points); 1,414 DENUE
+    gyms. Safety is incident density from IIEG Jalisco's Región Centro Fiscalía
+    microdata (16 high-impact crime types, 2017-01 to 2025-08), latest 12 months,
+    counted over each area plus a 250 m buffer; aggregates only. Default
+    workplace CP 45116 (Andares / Puerta de Hierro, Zapopan).
+  - Shared infrastructure:
+    - `sources/mx_common.py`: atomic, validated downloads; state-wide caches of
+      the open-mexico SEPOMEX polygons, INEGI municipalities with Censo 2020
+      population (wscatgeo `mgem`) and INEGI DCAH 2025 colonias; largest-overlap
+      assignment, Spanish title case and the unnamed-colonia filter.
+    - `fetch_mx_postal_codes` gains a municipality mode (profile `mx_area`):
+      SEPOMEX polygons are assigned to INEGI municipalities by largest overlap
+      and labelled with INEGI colonia names (`colonias_label`, e.g. "Colonia del
+      Valle, Jardines del Valle +6"), not the SEPOMEX catalog, whose terms forbid
+      redistribution. Morelia's range mode is unchanged.
+    - `fetch_mx_colonias`: INEGI DCAH 2025 colonias of the member
+      municipalities, unnamed placeholders dropped (411 in Monterrey, 91 in
+      Guadalajara).
+    - `fetch_nl_transit` (Nuevo León CKAN GeoPackages) and `fetch_gtfs_transit`
+      (a profile-driven GTFS reader with ordered route rules). Stops carry line
+      ids; a stop served by several routes lists them joined with `|`.
+    - `fetch_supermarkets` classifier v2 (profile `supermarket_classifier`):
+      `brand:wikidata` > `brand` > `name`, never `operator`; accent-insensitive
+      tokens matched at word boundaries, with per-family excludes; same-family
+      points within 150 m merged; `pool_only` families count toward the overall
+      supermarket score without a toggle. Live Overpass replies whose OSM data is
+      more than 30 days old are rejected.
+    - `fetch_denue_gyms`: gyms from INEGI DENUE (May 2026 release, SCIAN 713943
+      and 713944); OSM has only about 90 per metro.
+    - `fetch_sesnsp_crime_statistics` (writes `crime_statistics.csv`, one row
+      per municipality of the state) and `fetch_iieg_crime` (writes
+      `crime_points.csv`; prints counts only, never a row).
+    - Engine: the `city_statistics` crime mode (per-feature
+      `crime_statistics_*`, `crime_scope_*`, `crime_rate_per_100k_12m` and
+      `crime_total_rate_per_100k_12m`, no per-area incident counts, a hard error
+      for an area with no matching unit, and a `units` list in the metadata
+      `crime` block); `crime_source.density_buffer_m` for incident-mode profile
+      cities (per-feature `crime_buffer_m`); opt-in transit-commute keys
+      `has_line_data`, `system_speeds_kmh`, `priority_candidate_systems` and
+      `priority_candidate_stop_count`, with `|`-joined lines counting as the same
+      line when they share a route; opt-in `road_routing.search_filter`,
+      `osm_md5` and `osm_date`.
+    - Road routing for both cities from one national Mexico tileset (Geofabrik
+      `mexico-261124.osm.pbf`) with `search_filter: {"min_road_class":
+      "residential"}`: Valhalla free-flow work and amenity times for both
+      geographies, and dynamic-workplace postal-code matrices (Monterrey 3 ×
+      865,928 B, Guadalajara 3 × 321,602 B). Colonias have no matrix (Monterrey's
+      would be 3 × 44 MB).
+    - Validation: statistics-mode features must carry the statistics fields and
+      must not carry incident counts; every transit system a profile city
+      declares must be the nearest stop of at least one feature.
+    - Frontend: two `CityConfig` entries with their own themes (Monterrey: Faro
+      del Comercio orange with a Cerro de la Silla slate counter; Guadalajara:
+      Catedral tower-tile ochre with a Talavera cobalt counter; WCAG AA asserted
+      in a unit test), transit-system toggles for any city that declares them,
+      the postal-area label and municipality in the area header, a
+      statistics-mode safety panel (`lib/safety.ts`), a named crime window for
+      Guadalajara, and INEGI DENUE as the gym source label.
+    - Parts publishing (`output/parts.py`): an area unit with
+      `public_part_max_bytes` in its profile entry is published to the frontend
+      as `scores_<unit>.part-NN.geojson` FeatureCollections, each within that
+      budget, listed in order (with byte size, SHA-256 and feature count) by
+      `scores_<unit>_index.json`; the processed copy stays one file. Both
+      colonia layers use 9,000,000 bytes (Monterrey 4 parts, Guadalajara 2),
+      under the 10 MB pre-commit large-file limit. `cdmxmap validate --city`
+      checks the parts against the index and the processed file;
+      `lib/areaData.ts` fetches the parts in parallel and joins them; a test
+      keeps every file under `frontend/public/data/` within the pre-commit
+      limit, which CI does not otherwise run.
+    - Tests: CDMX goldens for the metadata, postal-code properties and property
+      order (`tests/integration/test_cdmx_goldens.py`), a statistics-mode
+      fixture city (`tests/fixtures/fixture_city_stats/`), and offline unit
+      tests for each new fetcher (network mocked).
 - Per-city colour themes for the map page chrome (side panel, cards, buttons,
   accents), replacing the shared beige and teal: rosa mexicano for CDMX, cantera
   rosa for Morelia, fjord indigo for Oslo, Bryggen red for Bergen, verdigris
@@ -113,6 +209,24 @@ published.
 
 ### Changed
 
+- The transit and safety notes in the score metadata are generated from each
+  profile city's own systems and crime source (for example "Transit score is 70%
+  nearest Metrorrey / TransMetro BRT and 30% nearest TransMetro / Rutas
+  urbanas."), and a city without safety scoring says "Safety is not scored.",
+  instead of every city carrying CDMX's Metro/FGJ wording. CDMX keeps its exact
+  strings. Morelia and the Norwegian cities pick this up the next time they are
+  regenerated; their committed assets were not regenerated.
+- The frontend loads the routing matrix of the selected city: `loadMatrixIndex`
+  takes the index URL (cached per URL) and resolves the binaries next to it. It
+  previously always loaded CDMX's index. `cityDataAssets(id, { colonia: true })`
+  gives a city real colonia paths, the transit-toggle helpers take the city's
+  own options (CDMX's by default), and the search box is labelled "Search
+  areas". CDMX renders as before.
+- On a routed build the metadata's `amenity_travel_time.source` names the
+  router (`valhalla_free_flow`) and keeps the straight-line label as
+  `fallback_source`, as `travel_time` already did.
+- The transit-commute metadata records `has_line_data`, `priority_candidates`
+  and `speeds_kmh.systems` when a city sets them; default metadata is unchanged.
 - Frontend restyled as "a cartographer's sheet: each city in its own ink",
   following the portfolio's design language. Scoring, data contracts and
   `?city=` URLs are unchanged.
@@ -151,5 +265,22 @@ published.
 - `deploy.yml` now runs the frontend quality gate (lint/type-check/test) before
   building, so a broken build is never published.
 - README quickstart switched to `uv`; manual test checklist updated.
+
+### Fixed
+
+- `fetch_supermarkets.infer_brand` broke ties between equal-length brand
+  tokens in set order, so the inferred brand depended on `PYTHONHASHSEED`. Ties
+  now break alphabetically (sort key `(-len(token), token)`); results that did
+  not tie are unchanged.
+- `retry_overpass` waited only 3 s between attempts. It now backs off 30 s per
+  attempt (longer when Overpass sends `Retry-After`), fails at once on a client
+  error other than HTTP 429, and treats a 200 reply whose `remark` reports an
+  Overpass runtime error (a partial result) as a failure. Rotation across
+  Overpass mirrors, with the 30-day staleness check, is opt-in and used only by
+  the Monterrey and Guadalajara fetchers.
+- `build-matrix` now passes the city's metric CRS to the representative-point
+  helper, so a matrix's points match the scored output outside UTM 14N, and
+  records `osm_sha`/`osm_date` in the matrix index when `places.json` declares
+  them (they were always null).
 
 [Unreleased]: https://github.com/ignacio-ireta/cdmx-convenience-map/commits/master

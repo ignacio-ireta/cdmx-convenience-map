@@ -1,0 +1,270 @@
+{
+  "city_id": "monterrey",
+  "display_name": "Monterrey",
+  "country_code": "MX",
+  "timezone": "America/Monterrey",
+  "crs_metric_epsg": 32614,
+  "bbox": { "south": 25.22, "west": -100.87, "north": 26.4, "east": -99.91 },
+  "mx_area": {
+    "state_code": "19",
+    "state_name": "Nuevo León",
+    "metro_definition": "Zona Metropolitana de Monterrey 2020, the 12 central municipalities (SEDATU/CONAPO/INEGI, Metrópolis de México 2020)",
+    "municipalities": [
+      "006",
+      "010",
+      "018",
+      "019",
+      "021",
+      "026",
+      "031",
+      "039",
+      "045",
+      "046",
+      "048",
+      "049"
+    ]
+  },
+  "default_weights": {
+    "work": 0.32,
+    "transit": 0.26,
+    "supermarkets": 0.2,
+    "gyms": 0.12,
+    "safety": 0.1
+  },
+  "transit_core_weight": 0.7,
+  "transit_surface_weight": 0.3,
+  "transit_systems": [
+    { "code": "METRO", "slug": "metro", "group": "core", "label": "Metrorrey" },
+    { "code": "BRT", "slug": "brt", "group": "core", "label": "TransMetro BRT" },
+    { "code": "TRANSMETRO", "slug": "transmetro", "group": "surface", "label": "TransMetro" },
+    { "code": "BUS", "slug": "rutas", "group": "surface", "label": "Rutas urbanas" }
+  ],
+  "transit_source": {
+    "type": "nl_open_data",
+    "ckan_api": "https://catalogodatos.nl.gob.mx/api/3/action",
+    "packages": {
+      "stcm": "paradas-y-recorridos-2025-2026-stcmetrorrey",
+      "ima": "paradas-y-recorridos-2025-2026-ima"
+    },
+    "package_search_fallback": "paradas y recorridos",
+    "resource_url_patterns": {
+      "stcm": "recorridosparadas_stcm_(\\d)t(\\d{4})\\.gpkg$",
+      "ima": "q(\\d)_(\\d{4})_recorridos_paradas_conjunto\\.gpkg$"
+    },
+    "layer_patterns": {
+      "metro_stations": "^estacioneslineasdemetro",
+      "transmetro_stops": "^paradasrutastransmetro",
+      "ima_stops": "^q\\d_\\d{4}_paradas",
+      "ima_routes": "^q\\d_\\d{4}_recorridos"
+    },
+    "brt_routes": {
+      "GARCIA - MONTERREY - GUADALUPE": "ECOVIA",
+      "EXPOSICIÓN - PABLO LIVAS": "AV_MEXICO"
+    },
+    "line_labels": { "ECOVIA": "Ecovía", "AV_MEXICO": "Av. México" },
+    "metro_name_fixes": {
+      "Cuahuctémoc": "Cuauhtémoc",
+      "Simón Bolivar": "Simón Bolívar",
+      "Ruiz Cortinez": "Ruiz Cortines"
+    },
+    "bus_route_buffer_m": 25,
+    "osm_brt_station_names": true,
+    "osm_brt_network": "Ecov[ií]a|Transmetro",
+    "osm_brt_name_radius_m": 200
+  },
+  "store_brands": [
+    { "slug": "heb", "match": ["heb"] },
+    { "slug": "soriana", "match": ["soriana"] },
+    { "slug": "walmart", "match": ["walmart"] },
+    { "slug": "aurrera", "match": ["aurrera"] },
+    { "slug": "s_mart", "match": ["s_mart"] },
+    { "slug": "sams", "match": ["sams"] },
+    { "slug": "costco", "match": ["costco"] }
+  ],
+  "supermarket_classifier": {
+    "version": 2,
+    "shops": ["supermarket", "wholesale", "department_store"],
+    "dedupe_m": 150,
+    "families": [
+      {
+        "slug": "sams",
+        "label": "Sam's Club",
+        "wikidata": ["Q1972120"],
+        "match": ["sam's club", "sams club", "sam's"],
+        "exclude": ["gasolinera", "gas station", "farmacia"]
+      },
+      {
+        "slug": "costco",
+        "label": "Costco",
+        "wikidata": ["Q715583"],
+        "match": ["costco"],
+        "exclude": ["gasolinera", "costco gas", "farmacia"]
+      },
+      {
+        "slug": "aurrera",
+        "label": "Bodega Aurrerá",
+        "wikidata": ["Q3365858"],
+        "match": ["bodega aurrera", "mi bodega aurrera", "aurrera", "bodeguita aurrera"],
+        "exclude": ["farmacia", "banco"],
+        "extra_shops": ["convenience"]
+      },
+      {
+        "slug": "walmart",
+        "label": "Walmart",
+        "wikidata": ["Q483551", "Q6135762"],
+        "match": ["walmart", "wal-mart", "wal mart", "superama"],
+        "exclude": [
+          "sam's",
+          "sams",
+          "bodega",
+          "aurrera",
+          "farmacia",
+          "banco",
+          "gasolinera",
+          "suburbia",
+          "vips"
+        ]
+      },
+      {
+        "slug": "heb",
+        "label": "H-E-B",
+        "wikidata": ["Q830621"],
+        "match": ["h-e-b", "heb", "h e b"],
+        "exclude": ["mi tienda", "gasolinera", "farmacia"]
+      },
+      {
+        "slug": "soriana",
+        "label": "Soriana",
+        "wikidata": ["Q735562"],
+        "match": ["soriana", "mega soriana"],
+        "exclude": ["farmacia", "fuente de sodas", "city club"]
+      },
+      {
+        "slug": "s_mart",
+        "label": "S-Mart",
+        "wikidata": ["Q7387069"],
+        "match": ["s-mart", "s mart", "smart"],
+        "exclude": ["smart & final", "smart and final", "smart fit", "papeleria"]
+      },
+      {
+        "slug": "mi_tienda_ahorro",
+        "label": "Mi Tienda del Ahorro",
+        "pool_only": true,
+        "wikidata": [],
+        "match": ["mi tienda del ahorro"],
+        "exclude": []
+      },
+      {
+        "slug": "city_club",
+        "label": "City Club",
+        "pool_only": true,
+        "wikidata": ["Q5123101"],
+        "match": ["city club"],
+        "exclude": []
+      },
+      {
+        "slug": "merco",
+        "label": "Merco",
+        "pool_only": true,
+        "wikidata": [],
+        "match": ["merco"],
+        "exclude": []
+      },
+      {
+        "slug": "la_comer",
+        "label": "La Comer / City Market / Fresko",
+        "pool_only": true,
+        "wikidata": ["Q26765126", "Q65090778", "Q123943865", "Q123741153"],
+        "match": ["la comer", "city market", "fresko", "sumesa"],
+        "exclude": []
+      },
+      {
+        "slug": "chedraui",
+        "label": "Chedraui",
+        "pool_only": true,
+        "wikidata": ["Q2961952"],
+        "match": ["chedraui", "super che", "supercito chedraui", "selecto chedraui"],
+        "exclude": ["farmacia"]
+      },
+      {
+        "slug": "smart_final",
+        "label": "Smart & Final",
+        "pool_only": true,
+        "wikidata": ["Q7543916"],
+        "match": ["smart & final", "smart and final"],
+        "exclude": []
+      }
+    ]
+  },
+  "gyms_source": {
+    "type": "inegi_denue",
+    "url": "https://www.inegi.org.mx/contenidos/masiva/denue/denue_00_71_csv.zip",
+    "activity_codes": ["713943", "713944"],
+    "state_codes": ["19"]
+  },
+  "crime_mode": "city_statistics",
+  "crime_statistics": {
+    "scope": "municipality",
+    "area_key_field": "mun_code",
+    "state_codes": ["19"],
+    "source": "sesnsp_municipal",
+    "source_label": "SESNSP · incidencia delictiva municipal (fuero común)",
+    "scored_label": "robbery and violent crime",
+    "scored_definition": "All robbery, intentional homicide and feminicide (including attempts), intentional injury, kidnapping, extortion and rape",
+    "scored_offenses": [
+      "Robo",
+      "Homicidio doloso",
+      "Tentativa de homicidio doloso",
+      "Feminicidio",
+      "Lesiones dolosas",
+      "Secuestro",
+      "Extorsión",
+      "Violación",
+      "Violación simple",
+      "Violación equiparada"
+    ],
+    "index_url": "https://www.gob.mx/sesnsp/acciones-y-programas/datos-abiertos-de-incidencia-delictiva",
+    "population_source": "INEGI Censo de Población y Vivienda 2020"
+  },
+  "area_units": [
+    {
+      "area_unit": "postal_code",
+      "default_input": "postal_codes.geojson",
+      "output_name": "scores_postal_code.geojson",
+      "id_fields": ["d_codigo"],
+      "name_fields": ["colonias_label"],
+      "source_url_key": "postal_codes",
+      "source_url": "https://github.com/open-mexico/mexico-geojson",
+      "postal_width": 5,
+      "display_prefix": "CP "
+    },
+    {
+      "area_unit": "colonia",
+      "default_input": "colonias.geojson",
+      "output_name": "scores_colonia.geojson",
+      "id_fields": ["area_id"],
+      "name_fields": ["colonia_name"],
+      "source_url_key": "colonias",
+      "source_url": "https://www.inegi.org.mx/programas/dcah/",
+      "public_part_max_bytes": 9000000
+    }
+  ],
+  "fetchers": [
+    { "module": "fetch_mx_colonias", "output": "colonias.geojson", "dir": "raw" },
+    { "module": "fetch_mx_postal_codes", "output": "postal_codes.geojson", "dir": "raw" },
+    { "module": "fetch_nl_transit", "output": "transit_stops.csv" },
+    { "module": "fetch_supermarkets", "output": "supermarkets.csv" },
+    { "module": "fetch_denue_gyms", "output": "gyms.csv" },
+    { "module": "fetch_sesnsp_crime_statistics", "output": "crime_statistics.csv" }
+  ],
+  "sources": {
+    "postal_codes": "https://raw.githubusercontent.com/open-mexico/mexico-geojson/main/19-NL.geojson",
+    "colonias": "https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/delimitaciones/794551163078/19_nuevoleon.zip",
+    "municipalities": "https://gaia.inegi.org.mx/wscatgeo/v2/geo/mgem/19",
+    "transit": "https://catalogodatos.nl.gob.mx/dataset/paradas-y-recorridos-2025-2026-stcmetrorrey",
+    "transit_buses": "https://catalogodatos.nl.gob.mx/dataset/paradas-y-recorridos-2025-2026-ima",
+    "amenities": "https://overpass-api.de/api/interpreter",
+    "gyms": "https://www.inegi.org.mx/app/mapa/denue/",
+    "safety": "https://www.gob.mx/sesnsp/acciones-y-programas/datos-abiertos-de-incidencia-delictiva"
+  }
+}

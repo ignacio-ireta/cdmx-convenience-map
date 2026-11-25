@@ -128,6 +128,58 @@ Amenity travel-time fields are also generated offline. The pipeline first narrow
 
 Existing distance fields and distance-based `score_supermarkets` / `score_gyms` are preserved for compatibility.
 
+## Mexican Metro Areas (Monterrey, Guadalajara)
+
+The sections above describe CDMX. Monterrey and Guadalajara are profile cities:
+their fetchers are listed in `data/cities/<id>/city.json` (`fetchers`), write raw
+inputs to `data/raw/<id>/` and processed inputs to `data/processed/<id>/`, and
+are run by the CLI:
+
+```bash
+uv run cdmxmap fetch --city monterrey     # or: cdmxmap run --city monterrey ...
+uv run cdmxmap run --city monterrey --area-unit postal_code --skip-fetch
+uv run cdmxmap score --city monterrey --area-unit colonia
+uv run cdmxmap validate --city monterrey
+```
+
+The published maps add `--travel-router valhalla`; the full routed sequence is
+in `docs/road-routing.md`.
+
+Fetchers, in profile order:
+
+| Module | Output | Source |
+|---|---|---|
+| `fetch_mx_colonias` | `raw/<id>/colonias.geojson` | INEGI DCAH 2025 colonias of the `mx_area` municipalities; unnamed placeholders dropped (411 in Monterrey, 91 in Guadalajara) |
+| `fetch_mx_postal_codes` | `raw/<id>/postal_codes.geojson` | open-mexico SEPOMEX polygons, assigned to INEGI municipalities by largest overlap and labelled with DCAH colonia names (municipality mode; Morelia keeps its `postal_code_range` mode) |
+| `fetch_nl_transit` (Monterrey) | `transit_stops.csv` | Nuevo León CKAN: STC Metrorrey and IMA quarterly GeoPackages; the newest file is chosen from the resource URL, never the resource name. BRT station names from OSM. |
+| `fetch_gtfs_transit` (Guadalajara) | `transit_stops.csv` | SETRAN Jalisco GTFS, classified by the profile's ordered `transit_source.rules`; `stop_times.txt` is streamed, never extracted |
+| `fetch_supermarkets` | `supermarkets.csv` | OpenStreetMap via Overpass, classifier v2 (`supermarket_classifier`), mirror rotation, replies older than 30 days rejected |
+| `fetch_denue_gyms` | `gyms.csv` | INEGI DENUE national sector-71 zip, SCIAN 713943 / 713944, profile states and bbox |
+| `fetch_sesnsp_crime_statistics` (Monterrey) | `crime_statistics.csv` | SESNSP municipal incidence: the RNID 2026 file and, while the window reaches back, the 2015–2025 file; Censo 2020 population |
+| `fetch_iieg_crime` (Guadalajara) | `crime_points.csv` | IIEG Jalisco Región Centro microdata (Fiscalía); `zona_geografica == AMG`; counts printed, never rows |
+
+Shared helpers live in `src/cdmxmap/sources/mx_common.py`:
+
+- `cached_download(url, target, validate=...)` downloads once into the gitignored
+  raw cache. The body is written to a temp file, validated (zip members, CSV
+  headers, GeoJSON parse), and only then moved into place with `os.replace`, so
+  an error page or a truncated download never poisons a later run.
+- State-wide inputs cached once under `data/raw/` and trimmed per city:
+  `load_state_postal_polygons` (open-mexico, `mx_<NN-State>.geojson`),
+  `load_state_municipalities` (INEGI wscatgeo `mgem`, with Censo 2020
+  `population`, `mx_inegi_mgem_<state>.geojson`), and `load_dcah` (INEGI DCAH
+  2025 shapefile zip, `mx_inegi_dcah2025_<state>.zip`).
+- Pure helpers: `assign_largest_overlap` (area-weighted zone assignment in a
+  metric CRS), `spanish_title_case` ("COLONIA DEL VALLE" → "Colonia del Valle"),
+  `is_unnamed_colonia`, and `profile_mx_area` (reads and checks the profile's
+  `mx_area` block).
+
+The national downloads (DENUE and both SESNSP files) are cached once under
+`data/raw/` and shared by every city that needs them; the GTFS zip is cached
+under `data/raw/gtfs/`. The raw and processed caches are gitignored; what is
+committed is the profiles and the scored outputs under
+`frontend/public/data/<id>/`. File contracts are in `docs/data-contract.md`.
+
 ## Apimetro
 
 [Apimetro](https://apimetro.dev/) is now the active transit source. It is an open-source CDMX mobility API at [galigaribaldi/Apimetro](https://github.com/galigaribaldi/Apimetro) with JSON and GeoJSON endpoints for stations, lines, and polygons.

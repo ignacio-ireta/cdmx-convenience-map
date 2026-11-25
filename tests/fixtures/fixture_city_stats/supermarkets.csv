@@ -1,0 +1,5 @@
+name,latitude,longitude,brand,source
+HEB Centro,25.6660,-100.3230,heb,openstreetmap
+HEB Norte,25.6770,-100.3060,heb,openstreetmap
+Soriana Oriente,25.6640,-100.3040,soriana,openstreetmap
+Super Local,25.6745,-100.3255,local,openstreetmap

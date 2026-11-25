@@ -2,11 +2,11 @@
 
 ## Positioning
 
-A profile-driven geospatial decision-support platform that turns heterogeneous open data into comparable neighborhood convenience scores. The project combines a Python data pipeline with a static React/Leaflet interface and now supports seven city profiles: CDMX, Morelia, Oslo, Bergen, Trondheim, Stavanger, and Drammen.
+A profile-driven geospatial decision-support platform that turns heterogeneous open data into comparable neighborhood convenience scores. The project combines a Python data pipeline with a static React/Leaflet interface and now supports nine city profiles: CDMX, Monterrey, Guadalajara, Morelia, Oslo, Bergen, Trondheim, Stavanger, and Drammen.
 
 ## Recommended Norway-facing pair
 
-- Built a profile-driven Python geospatial pipeline that integrates administrative boundaries, transit, amenities, routing, and safety data into auditable neighborhood convenience scores across seven Mexican and Norwegian cities.
+- Built a profile-driven Python geospatial pipeline that integrates administrative boundaries, transit, amenities, routing, and safety data into auditable neighborhood convenience scores across nine Mexican and Norwegian cities.
 - Developed a static React/Leaflet decision-support interface with city, geography, metric, travel-mode, and weight controls, enabling users to compare areas without a live backend or paid routing dependency.
 
 ## Role-targeted variants
@@ -14,7 +14,7 @@ A profile-driven geospatial decision-support platform that turns heterogeneous o
 ### Data / ML engineering
 
 - Packaged a reproducible geospatial scoring workflow as a typed Python CLI, separating source ingestion, feature construction, validation, and enriched GeoJSON generation.
-- Designed replaceable data-source adapters and city profiles so the same scoring pipeline could expand from CDMX to Morelia and five Norwegian cities without city-specific application forks.
+- Designed replaceable data-source adapters and city profiles so the same scoring pipeline could expand from CDMX to Monterrey, Guadalajara, Morelia, and five Norwegian cities without city-specific application forks.
 - Combined distance, travel-time, amenity, transit, and recent crime-density signals into transparent component scores with user-adjustable weights and visible source counts.
 
 ### Backend / platform engineering
@@ -37,7 +37,7 @@ A profile-driven geospatial decision-support platform that turns heterogeneous o
 
 ## Compact application summary
 
-Built an open-data geospatial decision-support platform that converts heterogeneous city data into explainable, user-adjustable neighborhood rankings. The system combines a typed Python pipeline, offline routing support, validated static artifacts, and a React/Leaflet interface across Mexico and five Norwegian cities.
+Built an open-data geospatial decision-support platform that converts heterogeneous city data into explainable, user-adjustable neighborhood rankings. The system combines a typed Python pipeline, offline routing support, validated static artifacts, and a React/Leaflet interface across four Mexican and five Norwegian cities.
 
 ## Evidence anchors
 
@@ -52,8 +52,8 @@ Use these repository artifacts when preparing an interview walkthrough:
 
 ## Claim boundary
 
-- The seven-city count and five Norwegian cities are current repository facts as of 2026-08-29; recount profiles before using the number later.
+- The nine-city count (four Mexican, five Norwegian) is a current repository fact as of 2026-11-25; recount profiles before using the number later.
 - Describe the output as **decision support** or **convenience scoring**, not an objective measure of neighborhood quality.
 - Do not imply live traffic: Valhalla routes use offline free-flow travel times.
-- Do not claim causal safety prediction; the safety component uses recent reported-crime density from the available source data.
+- Do not claim causal safety prediction; the safety component uses recent reported-crime density from the available source data or, in Monterrey, municipal reported-crime rates per 100k residents.
 - Keep source attribution visible. Open data does not mean provenance-free data.

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 
 from cdmxmap.config import (
     COLONIA_ID_FIELDS,
@@ -38,6 +39,9 @@ class AreaConfig:
     postal_width: int | None = None
     # Prefix for the postal display_name ("CP " for CDMX); ignored for named units.
     display_prefix: str = "CP "
+    # Publish the frontend copy as parts of at most this many bytes plus an index
+    # (see output/parts.py); ``None`` keeps the single public file.
+    public_part_max_bytes: int | None = None
 
 
 @dataclass(frozen=True)
@@ -96,6 +100,9 @@ class PointDatasets:
     gyms: gpd.GeoDataFrame
     workplaces: gpd.GeoDataFrame
     crimes: gpd.GeoDataFrame
+    # Per-unit aggregate crime statistics (``crime_mode == "city_statistics"`` only;
+    # rows of ``crime_statistics.csv``). ``None`` in the incident-points mode.
+    crime_statistics: pd.DataFrame | None = None
 
 
 @dataclass(frozen=True)
@@ -158,5 +165,6 @@ def build_area_configs(profile: dict, raw_dir: Path) -> dict[str, AreaConfig]:
             source_url=entry.get("source_url", ""),
             postal_width=entry.get("postal_width"),
             display_prefix=entry.get("display_prefix", "CP "),
+            public_part_max_bytes=entry.get("public_part_max_bytes"),
         )
     return configs

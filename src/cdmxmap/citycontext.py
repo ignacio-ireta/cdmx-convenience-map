@@ -38,9 +38,10 @@ DEFAULT_SURFACE_WEIGHT = 0.30
 class TransitSystemSpec:
     """One transit system: how it appears in data, its output slug, and grouping."""
 
-    code: str  # raw value of the "system" column in transit_stops.csv, e.g. "METRO"
+    code: str  # value of the "system" column in transit_stops.csv, upper-cased, e.g. "METRO"
     slug: str  # output-column slug, e.g. "metro" -> dist_metro_transit_m
     group: str  # "core" | "surface"
+    label: str = ""  # human-readable name for generated notes; "" falls back to the code
 
 
 @dataclass(frozen=True)
@@ -127,9 +128,11 @@ def _transit_systems_from_profile(profile: dict) -> tuple[TransitSystemSpec, ...
     specs = profile.get("transit_systems") or []
     return tuple(
         TransitSystemSpec(
-            code=str(spec["code"]),
+            # Upper-cased to match points.py, which upper-cases the data's system column.
+            code=str(spec["code"]).strip().upper(),
             slug=str(spec["slug"]),
             group=str(spec.get("group", "surface")),
+            label=str(spec.get("label") or ""),
         )
         for spec in specs
     )
@@ -181,7 +184,7 @@ def _profile_context(city: str, profile: dict) -> CityContext:
         store_brands=_store_brands_from_profile(profile),
         core_weight=float(profile.get("transit_core_weight", DEFAULT_CORE_WEIGHT)),
         surface_weight=float(profile.get("transit_surface_weight", DEFAULT_SURFACE_WEIGHT)),
-        crime_mode=str(profile.get("crime_mode", CRIME_MODE_INCIDENT_POINTS)),
+        crime_mode=str(profile.get("crime_mode") or CRIME_MODE_INCIDENT_POINTS),
         area_configs=area_configs,
         raw_dir=raw_dir,
         data_dir=_city_subdir(DATA_PROCESSED, city),

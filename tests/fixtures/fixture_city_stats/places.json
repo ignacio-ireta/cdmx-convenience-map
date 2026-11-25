@@ -1,0 +1,28 @@
+{
+  "workplace": {
+    "name": "Fixture Office",
+    "postal_code": "90009",
+    "latitude": 25.655,
+    "longitude": -100.345,
+    "source": "places_config"
+  },
+  "transit_commute": {
+    "source": "fixture_stop_pair_approximation",
+    "stop_source_label": "Fixture open data",
+    "engine_label": "stop_pair_approximation",
+    "candidate_stop_count": 2,
+    "has_line_data": true,
+    "system_speeds_kmh": { "METRO": 30, "BRT": 20, "BUS": 12 },
+    "priority_candidate_systems": ["METRO"],
+    "priority_candidate_stop_count": 1
+  },
+  "road_routing": {
+    "engine": "valhalla",
+    "tiles_dir": "data/processed/valhalla_fixture",
+    "modes": ["driving", "walking", "biking"],
+    "osm_source": "https://example.invalid/fixture.osm.pbf",
+    "osm_md5": "00000000000000000000000000000000",
+    "osm_date": "2026-11-24",
+    "search_filter": { "min_road_class": "residential" }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "workplace": {
+    "name": "Default Workplace - CP 45116 (Andares / Puerta de Hierro)",
+    "postal_code": "45116",
+    "latitude": 20.709683,
+    "longitude": -103.416922,
+    "source": "places_config",
+    "notes": "Representative point of SEPOMEX postal-code polygon 45116 (Puerta de Hierro, Zapopan), the metro's main corporate cluster."
+  },
+  "transit_commute": {
+    "source": "setran_gtfs_stop_pair_approximation",
+    "stop_source_label": "SETRAN Jalisco GTFS",
+    "engine_label": "stop_pair_approximation",
+    "has_line_data": true,
+    "system_speeds_kmh": {
+      "MITREN": 30,
+      "MIMACRO": 18,
+      "ALIMENTADORA": 14,
+      "SITREN": 14,
+      "MITRANSPORTE": 14
+    },
+    "priority_candidate_systems": ["MITREN", "MIMACRO"],
+    "priority_candidate_stop_count": 3
+  },
+  "road_routing": {
+    "engine": "valhalla",
+    "tiles_dir": "data/processed/valhalla_mx",
+    "modes": ["driving", "walking", "biking"],
+    "osm_source": "https://download.geofabrik.de/north-america/mexico/mexico-261124.osm.pbf",
+    "osm_md5": "7140e40aaf94d08ebc0551a8880f3d9e",
+    "osm_date": "2026-11-24",
+    "search_filter": { "min_road_class": "residential" },
+    "notes": "One national Mexico tileset shared by the Mexican cities. Free-flow (no traffic). Build with: cdmxmap build-tiles --pbf data/raw/osm/mexico-261124.osm.pbf --tiles-dir data/processed/valhalla_mx"
+  }
+}

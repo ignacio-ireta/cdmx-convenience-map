@@ -48,6 +48,27 @@ def inverse_density_score(values: np.ndarray) -> np.ndarray:
     return scores
 
 
+def min_max_inverse_score(values: np.ndarray) -> np.ndarray:
+    """Lower-is-better linear rescale between the observed extremes (no percentile cap).
+
+    ``100 * (max - value) / (max - min)`` over the finite values: the lowest scores
+    100 and the highest 0. Used when every value is a real unit aggregate (a dozen
+    municipal rates), so none is an outlier to clip. When every value is equal, all
+    score 100; non-finite values score 0.
+    """
+    values = np.asarray(values, dtype=float)
+    valid = np.unique(values[np.isfinite(values)])
+    if len(valid) == 0:
+        return np.zeros_like(values, dtype=float)
+    low, high = float(valid[0]), float(valid[-1])
+    if high <= low:
+        scores = np.full_like(values, 100.0, dtype=float)
+    else:
+        scores = 100.0 * (high - values) / (high - low)
+    scores[~np.isfinite(values)] = 0.0
+    return scores
+
+
 def round_distance(values: np.ndarray) -> list[int]:
     clean = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
     return np.rint(clean).astype(int).tolist()

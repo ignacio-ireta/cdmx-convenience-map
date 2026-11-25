@@ -109,6 +109,39 @@ export function buildWorkModel(
   }
 }
 
+/** The scored postal-code feature a workplace postal code names, or null. */
+export function findWorkPostalFeature(
+  postalData: AreaFeatureCollection,
+  postalCode: string,
+): AreaFeature | null {
+  return (
+    postalData.features.find(
+      (feature) =>
+        feature.properties.area_unit === 'postal_code' &&
+        feature.properties.postal_code === postalCode,
+    ) ?? null
+  )
+}
+
+/**
+ * "Use selected area": the selected area's postal code when the postal-code
+ * layer scores it, else the message to show. A colonia can carry a postal code
+ * that no scored postal-code polygon has; the workplace must not silently stay
+ * on the default then.
+ */
+export function selectedWorkPostalCode(
+  selected: AreaFeature,
+  postalData: AreaFeatureCollection | null,
+): { postalCode: string } | { error: string } {
+  const postalCode = selected.properties.postal_code
+  if (!postalCode) return { error: 'Selected area does not have a postal code' }
+  if (!postalData) return { error: 'Postal-code layer is still loading' }
+  if (!findWorkPostalFeature(postalData, postalCode)) {
+    return { error: `Postal code ${postalCode} is not in the scored postal-code layer` }
+  }
+  return { postalCode }
+}
+
 export function getWorkDistance(properties: AreaProperties, workModel: WorkModel | null) {
   return workModel?.distances.get(properties.area_id) ?? properties.dist_work_m
 }

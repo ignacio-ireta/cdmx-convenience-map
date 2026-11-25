@@ -14,7 +14,8 @@ caller can fall back to the straight-line estimate; a routed time is never 0
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -84,3 +85,26 @@ class Router(Protocol):
         pairs and snapping failures.
         """
         ...
+
+
+def canonical_search_filter(search_filter: Mapping) -> str:
+    """Stable JSON text of a Valhalla ``search_filter`` (for hashing)."""
+    return json.dumps(dict(search_filter), sort_keys=True, separators=(",", ":"))
+
+
+def routing_inputs_hash(
+    engine: str,
+    version: str,
+    osm_source: str | None,
+    search_filter: Mapping | None = None,
+) -> str:
+    """The routing-inputs key shared by the route cache and the matrix content hash.
+
+    ``search_filter`` changes which roads a point snaps to, so it is part of the
+    key, but only when declared: without one the key is the historical
+    ``engine|version|osm_source`` and existing caches/hashes stay valid.
+    """
+    parts = [engine, version, str(osm_source or "")]
+    if search_filter:
+        parts.append(canonical_search_filter(search_filter))
+    return "|".join(parts)

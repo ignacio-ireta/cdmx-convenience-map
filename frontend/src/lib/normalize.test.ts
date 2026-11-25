@@ -45,6 +45,56 @@ describe('normalizeAreaProperties', () => {
   })
 })
 
+describe('Mexican metro area properties', () => {
+  it('uses municipio as the municipality when alcaldia is absent', () => {
+    expect(normalizeAreaProperties({ d_codigo: '64000', municipio: 'Monterrey' }).alcaldia).toBe(
+      'Monterrey',
+    )
+    expect(
+      normalizeAreaProperties({ d_codigo: '64000', alcaldia: 'Guadalupe', municipio: 'Monterrey' })
+        .alcaldia,
+    ).toBe('Guadalupe')
+    expect(normalizeAreaProperties({ d_codigo: '06700' }).alcaldia).toBeUndefined()
+  })
+
+  it('keeps the postal label and coerces the statistics-mode safety fields', () => {
+    const result = normalizeAreaProperties({
+      area_unit: 'postal_code',
+      area_id: '64000',
+      d_codigo: '64000',
+      postal_label: 'Centro, Obrera +6',
+      crime_statistics_scope: 'municipality',
+      crime_statistics_area: 'Monterrey',
+      crime_statistics_period: '2025-10-01/2026-09-30',
+      crime_scope_population: '1142994',
+      crime_scope_incidents_12m: 41250,
+      crime_scope_scored_incidents_12m: 18734,
+      crime_rate_per_100k_12m: 1639,
+      crime_total_rate_per_100k_12m: 'n/a',
+    })
+    expect(result.postal_label).toBe('Centro, Obrera +6')
+    expect(result.crime_statistics_area).toBe('Monterrey')
+    expect(result.crime_statistics_period).toBe('2025-10-01/2026-09-30')
+    expect(result.crime_scope_population).toBe(1142994)
+    expect(result.crime_rate_per_100k_12m).toBe(1639)
+    expect(result.crime_total_rate_per_100k_12m).toBeUndefined()
+    // No incident-mode fields are invented for a statistics-mode area.
+    expect(result.crime_incidents_recent_12m).toBeUndefined()
+    expect(result.crime_density_recent_12m_per_km2).toBeUndefined()
+    expect(result.crime_buffer_m).toBeUndefined()
+  })
+
+  it('coerces the incident-mode crime buffer', () => {
+    expect(normalizeAreaProperties({ area_id: '44100', crime_buffer_m: 250 }).crime_buffer_m).toBe(
+      250,
+    )
+    expect(
+      normalizeAreaProperties({ area_id: '44100', crime_buffer_m: '250' }).crime_buffer_m,
+    ).toBe(250)
+    expect(normalizeAreaProperties({ area_id: '06700' }).crime_buffer_m).toBeUndefined()
+  })
+})
+
 describe('normalizeAreaCollection', () => {
   it('normalizes every feature and tolerates missing properties', () => {
     const raw: RawAreaFeatureCollection = {

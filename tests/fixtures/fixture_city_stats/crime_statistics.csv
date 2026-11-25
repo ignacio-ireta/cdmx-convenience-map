@@ -1,0 +1,6 @@
+unit_key,unit_name,population,population_source,period_start,period_end,incidents_12m,scored_incidents_12m,top_category_12m,source
+99001,Municipio Centro,500000,Synthetic census,2025-11-01,2026-10-31,9000,1500,Violencia familiar,sesnsp_municipal
+99002,Municipio Oriente,200000,Synthetic census,2025-11-01,2026-10-31,2400,300,Narcomenudeo,sesnsp_municipal
+99003,Municipio Norte,120000,Synthetic census,2025-11-01,2026-10-31,1300,210,Violencia familiar,sesnsp_municipal
+99004,Municipio Sur,80000,Synthetic census,2025-11-01,2026-10-31,700,90,Fraude,sesnsp_municipal
+99005,Municipio Lejano,30000,Synthetic census,2025-11-01,2026-10-31,400,60,Lesiones,sesnsp_municipal

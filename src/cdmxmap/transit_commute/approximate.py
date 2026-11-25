@@ -13,6 +13,8 @@ from .models import TransitCommuteConfig
 WGS84_CRS = "EPSG:4326"
 METRIC_CRS = "EPSG:32614"
 TRANSIT_COMMUTE_SOURCE = "apimetro_stop_pair_approximation"
+# Surface stops served by several routes carry their route ids joined by this.
+LINE_SEPARATOR = "|"
 
 
 OUTPUT_COLUMNS = [
@@ -112,22 +114,28 @@ def estimate_transit_commute_to_work(
 
     reference_points = areas_metric.geometry.make_valid().representative_point()
     workplace_point = _workplace_point(workplace_lat, workplace_lon, metric_crs)
-    stops = _stop_arrays(transit_metric)
+    stops = _stop_arrays(transit_metric, strip_label_prefix=commute_config.has_line_data)
     candidate_limit = min(commute_config.candidate_stop_count, len(transit_metric))
-    destination_candidates = _nearest_candidates(
+    priority_indexes = _priority_stop_indexes(stops, commute_config)
+    priority_count = commute_config.priority_candidate_stop_count
+    destination_candidates = _candidates_with_priority(
         workplace_point.x,
         workplace_point.y,
         stops,
         candidate_limit,
+        priority_indexes,
+        priority_count,
     )
 
     rows: list[dict[str, Any]] = []
     for (_, identity), reference_point in zip(area_identity.iterrows(), reference_points):
-        origin_candidates = _nearest_candidates(
+        origin_candidates = _candidates_with_priority(
             reference_point.x,
             reference_point.y,
             stops,
             candidate_limit,
+            priority_indexes,
+            priority_count,
         )
         best = _best_pair(origin_candidates, destination_candidates, stops, commute_config)
         rows.append(_row_from_estimate(identity, best, stops, commute_config))
@@ -144,11 +152,17 @@ def transit_commute_metadata(
         else TransitCommuteConfig.from_mapping(config)
     )
     label = commute_config.stop_source_label
+    line_limitation = (
+        f"Line ids come from {label}; stops served by several routes list them joined "
+        "by '|', and a pair counts as same-line when they share any route."
+        if commute_config.has_line_data
+        else f"Line values are only used when present in the processed stop data; the current {label} cache does not include line/order fields."
+    )
     return {
         **commute_config.to_metadata(),
         "known_limitations": [
             f"Uses {label} stop points only; no GTFS schedules, headways, stop order, or route geometry are used.",
-            f"Line values are only used when present in the processed stop data; the current {label} cache does not include line/order fields.",
+            line_limitation,
             "In-vehicle time is straight-line stop-to-stop distance divided by mode speed.",
             "Walking access and egress are straight-line distances and do not account for street barriers or station entrances.",
             "Different-line and different-system trips use fixed penalties instead of a real transfer graph.",
@@ -220,9 +234,11 @@ def _workplace_point(workplace_lat: float, workplace_lon: float, metric_crs: str
     return point.iloc[0]
 
 
-def _stop_arrays(transit_metric: gpd.GeoDataFrame) -> StopArrays:
+def _stop_arrays(
+    transit_metric: gpd.GeoDataFrame, *, strip_label_prefix: bool = False
+) -> StopArrays:
     systems = _series_or_default(transit_metric, "system").str.upper().to_numpy()
-    names = _stop_names(transit_metric, systems).to_numpy()
+    names = _stop_names(transit_metric, systems, strip_label_prefix=strip_label_prefix).to_numpy()
     return StopArrays(
         x=transit_metric.geometry.x.to_numpy(dtype=float),
         y=transit_metric.geometry.y.to_numpy(dtype=float),
@@ -238,12 +254,24 @@ def _series_or_default(frame: pd.DataFrame, column: str) -> pd.Series:
     return frame[column].fillna("").astype(str).str.strip()
 
 
-def _stop_names(frame: pd.DataFrame, systems: np.ndarray) -> pd.Series:
+def _stop_names(
+    frame: pd.DataFrame, systems: np.ndarray, *, strip_label_prefix: bool = False
+) -> pd.Series:
+    """Stop names without their display prefix.
+
+    CDMX (Apimetro) names read ``"<CODE> · <stop>"`` and only that exact prefix is
+    removed. Stop caches that carry line data (``has_line_data``, the Monterrey and
+    Guadalajara fetchers) name stops ``"<system label>[ <line>] · <stop>"``, so for them
+    everything up to the first ``" · "`` is the prefix.
+    """
     raw_names = _series_or_default(frame, "name")
     clean_names: list[str] = []
     for raw_name, system in zip(raw_names, systems):
         prefix = f"{system} · "
-        clean_names.append(raw_name.removeprefix(prefix) or raw_name or "Unnamed stop")
+        name = raw_name.removeprefix(prefix)
+        if strip_label_prefix and name == raw_name and " · " in raw_name:
+            name = raw_name.split(" · ", 1)[1]
+        clean_names.append(name or raw_name or "Unnamed stop")
     return pd.Series(clean_names, index=frame.index, dtype="object")
 
 
@@ -263,6 +291,73 @@ def _nearest_candidates(
         StopCandidate(index=int(index), walk_m=float(math.sqrt(float(squared[index]))))
         for index in indexes
     ]
+
+
+def _priority_stop_indexes(stops: StopArrays, config: TransitCommuteConfig) -> list[np.ndarray]:
+    """Stop indexes of each priority system, in config order ([] when disabled)."""
+    if not config.priority_candidates_enabled:
+        return []
+    return [np.flatnonzero(stops.systems == system) for system in config.priority_candidate_systems]
+
+
+def _nearest_among(
+    x: float,
+    y: float,
+    stops: StopArrays,
+    indexes: np.ndarray,
+    limit: int,
+) -> list[StopCandidate]:
+    """The ``limit`` stops nearest to (x, y) among ``indexes`` (stable on ties)."""
+    if len(indexes) == 0 or limit <= 0:
+        return []
+    squared = np.square(stops.x[indexes] - x) + np.square(stops.y[indexes] - y)
+    order = np.argsort(squared, kind="stable")[:limit]
+    return [
+        StopCandidate(index=int(indexes[k]), walk_m=float(math.sqrt(float(squared[k]))))
+        for k in order
+    ]
+
+
+def _candidates_with_priority(
+    x: float,
+    y: float,
+    stops: StopArrays,
+    limit: int,
+    priority_indexes: list[np.ndarray],
+    priority_count: int,
+) -> list[StopCandidate]:
+    """Nearest stops of any system, then each priority system's nearest stops.
+
+    Dense bus stops otherwise crowd rail/BRT stations out of the nearest-N pool.
+    Priority stops are appended after the base list (deduplicated by index), so with
+    no priority systems the result is exactly ``_nearest_candidates``.
+    """
+    candidates = _nearest_candidates(x, y, stops, limit)
+    if not priority_indexes or priority_count <= 0:
+        return candidates
+    seen = {candidate.index for candidate in candidates}
+    for indexes in priority_indexes:
+        for candidate in _nearest_among(x, y, stops, indexes, priority_count):
+            if candidate.index not in seen:
+                candidates.append(candidate)
+                seen.add(candidate.index)
+    return candidates
+
+
+def _line_set(line: str) -> frozenset[str]:
+    return frozenset(part.strip().casefold() for part in line.split(LINE_SEPARATOR) if part.strip())
+
+
+def _lines_match(origin_line: str, destination_line: str) -> bool:
+    """Same-line test; ``|``-joined route lists match when they share any route.
+
+    Lines without a separator keep the historical case-insensitive equality.
+    """
+    if not origin_line or not destination_line:
+        return False
+    if LINE_SEPARATOR in origin_line or LINE_SEPARATOR in destination_line:
+        return bool(_line_set(origin_line) & _line_set(destination_line))
+    return origin_line.casefold() == destination_line.casefold()
 
 
 def _best_pair(
@@ -293,12 +388,7 @@ def _estimate_pair(
     origin_line = str(stops.lines[origin.index])
     destination_line = str(stops.lines[destination.index])
     same_system = bool(origin_system and origin_system == destination_system)
-    same_line = bool(
-        same_system
-        and origin_line
-        and destination_line
-        and origin_line.casefold() == destination_line.casefold()
-    )
+    same_line = bool(same_system and _lines_match(origin_line, destination_line))
 
     if same_line:
         transfer_penalty = config.same_line_transfer_penalty_min
@@ -375,6 +465,9 @@ def _pair_speed_kmh(
 
 
 def _system_speed_kmh(system: str, config: TransitCommuteConfig) -> float:
+    configured = config.system_speeds_kmh.get(system)
+    if configured is not None:
+        return configured
     if system == "METRO":
         return config.metro_speed_kmh
     if system == "MB":

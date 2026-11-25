@@ -13,8 +13,9 @@ presented as live-traffic commute times.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -114,9 +115,13 @@ class ValhallaRouter:
         config_path: str | Path | None = None,
         version: str | None = None,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        search_filter: Mapping | None = None,
     ) -> None:
         self.tiles_dir = Path(tiles_dir)
         self.chunk_size = max(1, chunk_size)
+        # Optional per-location snapping filter (e.g. {"min_road_class": "residential"}),
+        # sent on every source and target only when configured.
+        self.search_filter = dict(search_filter) if search_filter else None
         self.version = version or _detect_version()
         self._actor = _load_actor(
             Path(config_path) if config_path is not None else None, self.tiles_dir
@@ -128,18 +133,24 @@ class ValhallaRouter:
         except KeyError as exc:
             raise ConfigError(f"Unsupported routing mode: {mode!r}") from exc
 
+    def _location(self, lat: float, lon: float) -> dict[str, Any]:
+        location: dict[str, Any] = {"lat": lat, "lon": lon}
+        if self.search_filter:
+            location["search_filter"] = dict(self.search_filter)
+        return location
+
     def matrix(
         self, sources: Sequence[LatLon], targets: Sequence[LatLon], mode: str
     ) -> RouteMatrix:
         costing = self.profile(mode)
-        target_locations = [{"lat": lat, "lon": lon} for lat, lon in targets]
+        target_locations = [self._location(lat, lon) for lat, lon in targets]
         minutes = np.full((len(sources), len(targets)), np.nan)
         meters = np.full((len(sources), len(targets)), np.nan)
 
         for start in range(0, len(sources), self.chunk_size):
             chunk = sources[start : start + self.chunk_size]
             request = {
-                "sources": [{"lat": lat, "lon": lon} for lat, lon in chunk],
+                "sources": [self._location(lat, lon) for lat, lon in chunk],
                 "targets": target_locations,
                 "costing": costing,
             }

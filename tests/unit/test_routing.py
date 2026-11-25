@@ -210,3 +210,129 @@ class TestMatrixBuild:
         assert not build_area_matrix(**kwargs)["skipped"]
         assert build_area_matrix(**kwargs)["skipped"]
         assert not build_area_matrix(**kwargs, force=True)["skipped"]
+
+
+class TestRoutingInputsHash:
+    def test_without_filter_matches_the_historical_key(self) -> None:
+        from cdmxmap.routing.base import routing_inputs_hash
+
+        assert routing_inputs_hash("valhalla", "3.7", "x.pbf") == "valhalla|3.7|x.pbf"
+        assert routing_inputs_hash("valhalla", "3.7", None) == "valhalla|3.7|"
+        assert routing_inputs_hash("valhalla", "3.7", "x.pbf", {}) == "valhalla|3.7|x.pbf"
+
+    def test_filter_is_appended_canonically(self) -> None:
+        from cdmxmap.routing.base import routing_inputs_hash
+
+        a = routing_inputs_hash("v", "1", "x", {"min_road_class": "residential", "b": 1})
+        b = routing_inputs_hash("v", "1", "x", {"b": 1, "min_road_class": "residential"})
+        assert a == b == 'v|1|x|{"b":1,"min_road_class":"residential"}'
+
+
+class _FakeActor:
+    def __init__(self) -> None:
+        self.requests: list[dict] = []
+
+    def matrix(self, payload: str) -> str:
+        request = json.loads(payload)
+        self.requests.append(request)
+        rows = [
+            [
+                {"from_index": i, "to_index": j, "time": 60.0, "distance": 1.0}
+                for j in range(len(request["targets"]))
+            ]
+            for i in range(len(request["sources"]))
+        ]
+        return json.dumps({"sources_to_targets": rows})
+
+
+class TestValhallaSearchFilter:
+    @staticmethod
+    def _router(monkeypatch, **kwargs):
+        from cdmxmap.routing import valhalla
+
+        actor = _FakeActor()
+        monkeypatch.setattr(valhalla, "_load_actor", lambda config_path, tiles_dir: actor)
+        return valhalla.ValhallaRouter(tiles_dir="unused", **kwargs), actor
+
+    def test_filter_is_sent_on_every_location(self, monkeypatch) -> None:
+        router, actor = self._router(
+            monkeypatch, search_filter={"min_road_class": "residential"}, chunk_size=1
+        )
+        result = router.matrix([(25.6, -100.3), (25.7, -100.4)], [(25.65, -100.35)], "driving")
+        assert result.minutes.tolist() == [[1.0], [1.0]]
+        assert len(actor.requests) == 2  # chunked sources
+        for request in actor.requests:
+            for location in request["sources"] + request["targets"]:
+                assert location["search_filter"] == {"min_road_class": "residential"}
+
+    def test_no_filter_keeps_the_historical_payload(self, monkeypatch) -> None:
+        router, actor = self._router(monkeypatch)
+        router.matrix([(25.6, -100.3)], [(25.65, -100.35)], "walking")
+        request = actor.requests[0]
+        assert request["sources"] == [{"lat": 25.6, "lon": -100.3}]
+        assert request["targets"] == [{"lat": 25.65, "lon": -100.35}]
+        assert request["costing"] == "pedestrian"
+
+
+class TestMatrixBuildProvenance:
+    def _build(self, stub_router, tmp_path, **kwargs) -> tuple[dict, dict]:
+        from cdmxmap.models import AREA_CONFIGS
+        from cdmxmap.routing.matrix_build import build_area_matrix
+
+        summary = build_area_matrix(
+            config=AREA_CONFIGS["colonia"],
+            input_path=FIXTURE_AREAS,
+            router=stub_router,
+            modes=("driving",),
+            output_dir=tmp_path / "processed",
+            public_dir=tmp_path / "public",
+            **kwargs,
+        )
+        index = json.loads(
+            (tmp_path / "processed" / "routing_matrix_colonia_index.json").read_text()
+        )
+        return summary, index
+
+    def test_default_build_hash_and_index_are_unchanged(self, stub_router, tmp_path) -> None:
+        import hashlib
+
+        from cdmxmap.models import AREA_CONFIGS
+        from cdmxmap.scoring.areas import area_representative_latlon
+
+        summary, index = self._build(stub_router, tmp_path, osm_source="x.pbf")
+        area_ids, _ = area_representative_latlon(FIXTURE_AREAS, AREA_CONFIGS["colonia"])
+        payload = "|".join(["stub|0.0-test|x.pbf", str(len(area_ids)), *area_ids])
+        assert summary["content_hash"] == hashlib.sha256(payload.encode()).hexdigest()[:12]
+        assert "search_filter" not in index
+        assert index["osm_sha"] is None and index["osm_date"] is None
+
+    def test_filter_and_osm_provenance_are_recorded(self, stub_router, tmp_path) -> None:
+        plain, _ = self._build(stub_router, tmp_path / "plain", osm_source="x.pbf")
+        summary, index = self._build(
+            stub_router,
+            tmp_path / "filtered",
+            osm_source="x.pbf",
+            osm_sha="7140e40aaf94d08ebc0551a8880f3d9e",
+            osm_date="2026-11-24",
+            search_filter={"min_road_class": "residential"},
+        )
+        assert summary["content_hash"] != plain["content_hash"]
+        assert index["search_filter"] == {"min_road_class": "residential"}
+        assert index["osm_sha"] == "7140e40aaf94d08ebc0551a8880f3d9e"
+        assert index["osm_date"] == "2026-11-24"
+
+    def test_metric_crs_reaches_the_representative_points(
+        self, stub_router, tmp_path, monkeypatch
+    ) -> None:
+        from cdmxmap.routing import matrix_build
+        from cdmxmap.scoring.areas import area_representative_latlon
+
+        seen: list[str] = []
+
+        def spy(input_path, config, *, metric_crs):
+            seen.append(metric_crs)
+            return area_representative_latlon(input_path, config, metric_crs=metric_crs)
+
+        monkeypatch.setattr(matrix_build, "area_representative_latlon", spy)
+        self._build(stub_router, tmp_path, metric_crs="EPSG:32613")
+        assert seen == ["EPSG:32613"]

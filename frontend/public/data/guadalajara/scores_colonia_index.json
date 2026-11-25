@@ -1,0 +1,21 @@
+{
+  "type": "geojson_parts",
+  "version": 1,
+  "area_unit": "colonia",
+  "feature_count": 2648,
+  "max_part_bytes": 9000000,
+  "parts": [
+    {
+      "path": "scores_colonia.part-01.geojson",
+      "feature_count": 1324,
+      "bytes": 7810162,
+      "sha256": "2ee0767bafcab2e1c2df00d75aa34671f90d19a75693e0c6cf9898b1d6209905"
+    },
+    {
+      "path": "scores_colonia.part-02.geojson",
+      "feature_count": 1324,
+      "bytes": 7713287,
+      "sha256": "f04ccac9b323d093ed8c32c8725234a902bdc5bcea2b4c779696c1e62b26e379"
+    }
+  ]
+}

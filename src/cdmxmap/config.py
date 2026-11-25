@@ -182,8 +182,12 @@ def road_routing_config(places_config: dict) -> dict:
 
     ``engine`` defaults to ``none`` (straight-line fallback). ``modes`` is filtered
     to the supported work modes; ``candidate_count`` is clamped to 1..10.
+    ``search_filter`` (a Valhalla per-location snapping filter), ``osm_md5`` and
+    ``osm_date`` are opt-in and ``None`` when absent, so cities that do not declare
+    them keep their routing requests and hashes unchanged.
     """
     configured = places_config.get("road_routing", {}) or {}
+    search_filter = configured.get("search_filter")
     engine = str(configured.get("engine", DEFAULT_ROAD_ROUTING_CONFIG["engine"])).strip().lower()
     modes = configured.get("modes") or list(WORK_TRAVEL_MODES)
     modes = [mode for mode in modes if mode in WORK_TRAVEL_MODES] or list(WORK_TRAVEL_MODES)
@@ -195,4 +199,7 @@ def road_routing_config(places_config: dict) -> dict:
         "candidate_count": max(1, min(candidate_count, 10)),
         "version": configured.get("version"),
         "osm_source": configured.get("osm_source"),
+        "osm_md5": configured.get("osm_md5"),
+        "osm_date": configured.get("osm_date"),
+        "search_filter": dict(search_filter) if search_filter else None,
     }
