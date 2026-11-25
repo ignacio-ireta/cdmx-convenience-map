@@ -14,6 +14,7 @@ import type {
   AreaUnit,
   GeographyConfig,
   MetricConfig,
+  SafetyMode,
   StoreOption,
   TransitAccessOption,
   TravelWorkMode,
@@ -196,11 +197,6 @@ export const DATA_ASSETS = {
   } satisfies Record<AreaUnit, string>,
 }
 
-/** URL for a matrix binary, resolved against the Pages base path. */
-export function matrixAssetUrl(filename: string) {
-  return `${import.meta.env.BASE_URL}data/${filename}`
-}
-
 export const SCORE_FIELDS: Record<WeightKey, keyof AreaProperties> = {
   work: 'score_work',
   transit: 'score_transit',
@@ -230,7 +226,9 @@ export type CityAssets = {
   scores: Record<AreaUnit, string>
   metadata: Record<AreaUnit, string>
   scoreMetadata: string
-  matrixIndex: Record<AreaUnit, string>
+  // Dynamic-workplace routing matrix index per unit. A unit without a published
+  // matrix has no entry, so the app never requests it (no 404 in the console).
+  matrixIndex: Partial<Record<AreaUnit, string>>
 }
 
 // Chrome colours for one city's map page. Applied as CSS custom properties on
@@ -269,6 +267,21 @@ export type CityConfig = {
   transitSourceLabel: string
   safetySource: string
   scoresSafety: boolean
+  // 'incident_points' (CDMX): per-area incident counts and density.
+  // 'city_statistics': one municipal rate per 100k residents, shared by every
+  // area in that municipality.
+  safetyMode: SafetyMode
+  // Label of the all-records row in incident mode (CDMX "All FGJ records").
+  safetyRecordsLabel?: string
+  // Incident mode: name the data window ("Sep 2024 – Aug 2025", from the
+  // metadata crime block) instead of saying "recent". For a city whose newest
+  // crime release lags the map by months; CDMX keeps its "recent" wording.
+  safetyWindowLabel?: boolean
+  // Provenance of the gym points in the audit and the copied report
+  // (default: OpenStreetMap).
+  gymsSourceLabel?: string
+  // Show the area's `postal_label` (e.g. its colonias) under the area title.
+  showPostalLabel?: boolean
 }
 
 // Every Norwegian city shares the same open-data provenance (Kartverket postal
@@ -381,26 +394,89 @@ const MORELIA_STORES: StoreOption[] = [
   },
 ]
 
-function cityDataAssets(cityId: string): CityAssets {
-  const base = `${import.meta.env.BASE_URL}data/${cityId}`
+// One transit system declared in a city profile's `transit_systems`; the
+// pipeline names its per-system fields after the slug.
+function transitOption(slug: string, label: string, shortLabel: string): TransitAccessOption {
   return {
-    // No colonia geography outside CDMX; alias it to the postal file so the
-    // shared AreaUnit-keyed lookups resolve to a real asset.
+    key: slug,
+    label,
+    shortLabel,
+    distanceField: `dist_${slug}_transit_m`,
+    scoreField: `score_transit_${slug}`,
+    nearestNameField: `nearest_${slug}_transit_name`,
+    nearestSourceField: `nearest_${slug}_transit_source`,
+  }
+}
+
+// One grocery family declared in a city profile's `store_brands`.
+function storeOption(slug: string, label: string): StoreOption {
+  return {
+    key: slug,
+    label,
+    distanceField: `dist_${slug}_m`,
+    timeField: `time_${slug}_min`,
+    nearestNameField: `nearest_${slug}_name`,
+    nearestSourceField: `nearest_${slug}_source`,
+  }
+}
+
+/**
+ * Static-asset paths for a city published under `data/<cityId>/`.
+ *
+ * With `colonia: true` the colonia unit gets its own scores and metadata files,
+ * and a routing-matrix index only with `coloniaMatrix: true` (Monterrey and
+ * Guadalajara publish the dynamic-workplace matrix for postal codes only). With
+ * `coloniaParts: true` the colonia scores URL is the parts index
+ * (`scores_colonia_index.json`) that lib/areaData.ts joins, for a layer too large
+ * for one file (`public_part_max_bytes` in the city profile).
+ * Otherwise the city has no colonia geography, and the colonia entries alias the
+ * postal files so the shared AreaUnit-keyed lookups still resolve to a real asset.
+ */
+export function cityDataAssets(
+  cityId: string,
+  opts: { colonia?: boolean; coloniaMatrix?: boolean; coloniaParts?: boolean } = {},
+): CityAssets {
+  const base = `${import.meta.env.BASE_URL}data/${cityId}`
+  const coloniaUnit = opts.colonia ? 'colonia' : 'postal_code'
+  return {
     scores: {
       postal_code: `${base}/scores_postal_code.geojson`,
-      colonia: `${base}/scores_postal_code.geojson`,
+      colonia:
+        opts.colonia && opts.coloniaParts
+          ? `${base}/scores_colonia_index.json`
+          : `${base}/scores_${coloniaUnit}.geojson`,
     },
     metadata: {
       postal_code: `${base}/score_metadata_postal_code.json`,
-      colonia: `${base}/score_metadata_postal_code.json`,
+      colonia: `${base}/score_metadata_${coloniaUnit}.json`,
     },
     scoreMetadata: `${base}/score_metadata.json`,
     matrixIndex: {
       postal_code: `${base}/routing_matrix_postal_code_index.json`,
-      colonia: `${base}/routing_matrix_postal_code_index.json`,
+      ...(opts.colonia && !opts.coloniaMatrix
+        ? {}
+        : { colonia: `${base}/routing_matrix_${coloniaUnit}_index.json` }),
     },
   }
 }
+
+// Monterrey and Guadalajara share the INEGI geography: SEPOMEX postal-code
+// polygons (open-mexico) assigned to INEGI municipalities, plus INEGI's 2025
+// colonia boundaries (DCAH) as a second geography. See data/cities/<id>/.
+const MX_METRO_GEOGRAPHIES: GeographyConfig[] = [
+  {
+    unit: 'postal_code',
+    label: 'Postal code',
+    pluralLabel: 'Postal codes',
+    sourceLabel: 'SEPOMEX via open-mexico · INEGI municipios',
+  },
+  {
+    unit: 'colonia',
+    label: 'Colonia',
+    pluralLabel: 'Colonias',
+    sourceLabel: 'INEGI colonias 2025',
+  },
+]
 
 function norwegianCity(opts: {
   id: string
@@ -428,6 +504,7 @@ function norwegianCity(opts: {
     transitSourceLabel: 'OpenStreetMap',
     safetySource: 'Not scored',
     scoresSafety: false,
+    safetyMode: 'incident_points',
   }
 }
 
@@ -460,6 +537,8 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
     transitSourceLabel: 'Apimetro',
     safetySource: 'FGJ CDMX',
     scoresSafety: true,
+    safetyMode: 'incident_points',
+    safetyRecordsLabel: 'All FGJ records',
   },
   oslo: norwegianCity({
     id: 'oslo',
@@ -581,5 +660,104 @@ export const CITY_CONFIGS: Record<string, CityConfig> = {
     transitSourceLabel: 'OpenStreetMap',
     safetySource: 'Not scored',
     scoresSafety: false,
+    safetyMode: 'incident_points',
+  },
+  monterrey: {
+    id: 'monterrey',
+    name: 'Monterrey',
+    // Faro del Comercio orange, the beacon over the Macroplaza.
+    theme: {
+      accent: '#a14e00',
+      accentStrong: '#733000',
+      accentSoft: '#fde8d8',
+      // Cerro de la Silla slate, the cool against the beacon.
+      counter: '#3d5266',
+      canvas: '#f1ece6',
+      panel: '#f9f6f2',
+      border: '#dcd2c8',
+    },
+    eyebrow: 'Monterrey apartment search',
+    postalWidth: 5,
+    postalPlaceholder: 'e.g. 64000',
+    postalPrefix: 'CP ',
+    mapCenter: [25.6866, -100.3161],
+    mapZoom: 11,
+    weights: { work: 32, transit: 26, supermarkets: 20, gyms: 12, safety: 10 },
+    geographies: MX_METRO_GEOGRAPHIES,
+    // Order and labels follow data/cities/monterrey/city.json store_brands and
+    // supermarket_classifier families.
+    stores: [
+      storeOption('heb', 'H-E-B'),
+      storeOption('soriana', 'Soriana'),
+      storeOption('walmart', 'Walmart'),
+      storeOption('aurrera', 'Bodega Aurrerá'),
+      storeOption('s_mart', 'S-Mart'),
+      storeOption('sams', "Sam's Club"),
+      storeOption('costco', 'Costco'),
+    ],
+    transit: [
+      transitOption('metro', 'Metrorrey', 'Metro'),
+      transitOption('brt', 'TransMetro BRT', 'BRT'),
+      transitOption('transmetro', 'TransMetro', 'TransMetro'),
+      transitOption('rutas', 'Rutas urbanas', 'Rutas'),
+    ],
+    assets: cityDataAssets('monterrey', { colonia: true, coloniaParts: true }),
+    transitSourceLabel: 'Nuevo León open data',
+    safetySource: 'SESNSP municipal rates',
+    scoresSafety: true,
+    safetyMode: 'city_statistics',
+    gymsSourceLabel: 'INEGI DENUE',
+    showPostalLabel: true,
+  },
+  guadalajara: {
+    id: 'guadalajara',
+    name: 'Guadalajara',
+    // Ochre of the Catedral's tiled spires.
+    theme: {
+      accent: '#7c5f00',
+      accentStrong: '#523f00',
+      accentSoft: '#f7ecc9',
+      // Talavera cobalt, the cool against the ochre.
+      counter: '#1e4d9b',
+      canvas: '#f4eddb',
+      panel: '#fbf8ef',
+      border: '#e2d6b4',
+    },
+    eyebrow: 'Guadalajara apartment search',
+    postalWidth: 5,
+    postalPlaceholder: 'e.g. 44100',
+    postalPrefix: 'CP ',
+    mapCenter: [20.6597, -103.3496],
+    mapZoom: 11,
+    weights: { work: 30, transit: 25, supermarkets: 18, gyms: 12, safety: 15 },
+    geographies: MX_METRO_GEOGRAPHIES,
+    // Order and labels follow data/cities/guadalajara/city.json store_brands and
+    // supermarket_classifier families.
+    stores: [
+      storeOption('aurrera', 'Bodega Aurrerá'),
+      storeOption('soriana', 'Soriana'),
+      storeOption('walmart', 'Walmart'),
+      storeOption('chedraui', 'Chedraui'),
+      storeOption('sams', "Sam's Club"),
+      storeOption('la_comer', 'La Comer / City Market / Fresko'),
+      storeOption('costco', 'Costco'),
+    ],
+    transit: [
+      transitOption('mitren', 'Mi Tren', 'Mi Tren'),
+      transitOption('mimacro', 'Mi Macro', 'Mi Macro'),
+      transitOption('alimentadora', 'Alimentadoras Mi Macro', 'Alimentadoras'),
+      transitOption('sitren', 'Mi Transporte Tren Ligero', 'SITREN'),
+      transitOption('mitransporte', 'Mi Transporte', 'Mi Transporte'),
+    ],
+    assets: cityDataAssets('guadalajara', { colonia: true, coloniaParts: true }),
+    transitSourceLabel: 'SETRAN GTFS',
+    safetySource: 'IIEG Jalisco (Fiscalía)',
+    scoresSafety: true,
+    safetyMode: 'incident_points',
+    safetyRecordsLabel: 'All IIEG records',
+    // The newest IIEG Región Centro release ends 2025-08-31.
+    safetyWindowLabel: true,
+    gymsSourceLabel: 'INEGI DENUE',
+    showPostalLabel: true,
   },
 }

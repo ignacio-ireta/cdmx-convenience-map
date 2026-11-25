@@ -1,4 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import type { ScoreMetadata } from '../types'
 import {
   colorForScore,
   formatCoordinates,
@@ -7,6 +9,7 @@ import {
   formatMinutes,
   formatPercent,
   formatSource,
+  formatSourceWithFallback,
   formatTransitComplexity,
   isEstimateSource,
   isRoutedSource,
@@ -94,6 +97,28 @@ describe('classifiers', () => {
     expect(formatSource('something-new')).toBe('something-new')
   })
 
+  it('labels the Monterrey and Guadalajara sources', () => {
+    expect(formatSource('nl_stcm_metrorrey')).toBe('STC Metrorrey (NL open data)')
+    expect(formatSource('nl_ima')).toBe('IMA Nuevo León')
+    expect(formatSource('setran_gtfs')).toBe('SETRAN Jalisco GTFS')
+    expect(formatSource('inegi_denue')).toBe('INEGI DENUE')
+    expect(formatSource('iieg_jalisco_fge')).toBe('IIEG Jalisco (FGE)')
+    expect(formatSource('sesnsp_municipal')).toBe('SESNSP municipal')
+    expect(formatSource('inegi_dcah_2025')).toBe('INEGI colonias 2025')
+    expect(formatSource('open_mexico_sepomex')).toBe('SEPOMEX (open-mexico)')
+    expect(formatSource('nl_open_data_stop_pair_approximation')).toBe(
+      'Approximation from Nuevo León open-data stops; not schedule-aware',
+    )
+    expect(formatSource('setran_gtfs_stop_pair_approximation')).toBe(
+      'Approximation from SETRAN GTFS stops; not schedule-aware',
+    )
+    // Still FGJ for CDMX, and the approximations keep their estimate badge.
+    expect(formatSource('fgj_cdmx_victimas')).toBe('FGJ CDMX')
+    expect(sourceBadge('nl_open_data_stop_pair_approximation')).toBe('estimate')
+    expect(sourceBadge('setran_gtfs_stop_pair_approximation')).toBe('estimate')
+    expect(sourceBadge('sesnsp_municipal')).toBeNull()
+  })
+
   it('classifies sources as routed, estimate, or neither for the UI badge', () => {
     expect(isRoutedSource('valhalla_free_flow')).toBe(true)
     expect(isRoutedSource('r5py_gtfs_schedule')).toBe(true)
@@ -110,6 +135,10 @@ describe('classifiers', () => {
   it('labels transit stops and complexity', () => {
     expect(transitStopLabel('Metro', 'Pino Suárez', 'L2')).toBe('Metro L2 Pino Suárez')
     expect(transitStopLabel(undefined, undefined)).toBe('n/a')
+    expect(
+      transitStopLabel('MITRANSPORTE', 'Blvrd. Puerta De Hierro', 'C54|C71|C120|T17|T17-1'),
+    ).toBe('MITRANSPORTE (C54, C71, C120 +2) Blvrd. Puerta De Hierro')
+    expect(transitStopLabel('BUS', 'Av. Juárez', '42|85')).toBe('BUS (42, 85) Av. Juárez')
     expect(formatTransitComplexity('same_line')).toBe('Same line')
     expect(formatTransitComplexity('different_system')).toBe('Different systems')
   })
@@ -139,5 +168,45 @@ describe('map furniture figures', () => {
       expect(upper).toBeGreaterThan(step.from)
       expect(colorForScore(upper - 0.01)).toBe(step.color)
     })
+  })
+})
+
+describe('formatSourceWithFallback', () => {
+  it('mentions the fallback on a routed build', () => {
+    expect(formatSourceWithFallback('valhalla_free_flow', 'fallback_straight_line_estimate')).toBe(
+      'Valhalla (free-flow) · fallback estimate where unrouted',
+    )
+  })
+
+  it('adds nothing when the fallback is absent or the source itself', () => {
+    expect(formatSourceWithFallback('valhalla_free_flow')).toBe('Valhalla (free-flow)')
+    expect(
+      formatSourceWithFallback(
+        'fallback_straight_line_estimate',
+        'fallback_straight_line_estimate',
+      ),
+    ).toBe('fallback estimate')
+    expect(formatSourceWithFallback(undefined, undefined)).toBe('unknown')
+  })
+
+  // The audit rows and copied report of the existing cities read these committed
+  // files; their Amenity/Work time labels must not change.
+  it('leaves every existing city audit label as formatSource', () => {
+    const dataDir = new URL('../../public/data/', import.meta.url)
+    const existing = ['', 'morelia/', 'oslo/', 'bergen/', 'trondheim/', 'stavanger/', 'drammen/']
+    let checked = 0
+    for (const dir of existing) {
+      const url = new URL(dir, dataDir)
+      for (const name of readdirSync(url).filter((file) => /^score_metadata.*\.json$/.test(file))) {
+        const metadata = JSON.parse(readFileSync(new URL(name, url), 'utf8')) as ScoreMetadata
+        for (const block of [metadata.travel_time, metadata.amenity_travel_time]) {
+          expect(formatSourceWithFallback(block?.source, block?.fallback_source), dir + name).toBe(
+            formatSource(block?.source),
+          )
+        }
+        checked += 1
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(existing.length)
   })
 })

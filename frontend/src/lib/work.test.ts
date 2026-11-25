@@ -4,10 +4,12 @@ import type { TravelWorkMode } from '../types'
 import {
   buildWorkModel,
   estimateTravelMinutes,
+  findWorkPostalFeature,
   getWorkScore,
   getWorkSource,
   getWorkTime,
   haversineMeters,
+  selectedWorkPostalCode,
 } from './work'
 
 describe('haversineMeters', () => {
@@ -105,5 +107,60 @@ describe('buildWorkModel with a routed matrix', () => {
     expect(getWorkSource(props({ area_id: 'near' }), model, 'distance')).toBe(
       'area_reference_point',
     )
+  })
+})
+
+describe('workplace postal-code lookup', () => {
+  const postalData = collection([
+    { area_id: '66260', postal_code: '66260' },
+    { area_id: '64000', postal_code: '64000' },
+  ])
+
+  it('finds postal-code features only', () => {
+    expect(findWorkPostalFeature(postalData, '64000')?.properties.area_id).toBe('64000')
+    expect(findWorkPostalFeature(postalData, '65600')).toBeNull()
+    const coloniaOnly = collection([
+      { area_unit: 'colonia', area_id: '1900603790001', postal_code: '65600' },
+    ])
+    expect(findWorkPostalFeature(coloniaOnly, '65600')).toBeNull()
+  })
+
+  it('uses a selected area whose postal code the layer scores', () => {
+    expect(selectedWorkPostalCode(feature({ postal_code: '64000' }), postalData)).toEqual({
+      postalCode: '64000',
+    })
+    // A colonia whose CP is a scored postal code works the same way.
+    const colonia = feature({
+      area_unit: 'colonia',
+      area_id: '1903900010001',
+      postal_code: '66260',
+    })
+    expect(selectedWorkPostalCode(colonia, postalData)).toEqual({ postalCode: '66260' })
+  })
+
+  it('reports a colonia postal code missing from the postal-code layer', () => {
+    // Monterrey: Balcones de Santa Rosa (Apodaca) carries CP 65600, which no
+    // SEPOMEX polygon in the scored layer has.
+    const colonia = feature({
+      area_unit: 'colonia',
+      area_id: '1900603790001',
+      postal_code: '65600',
+    })
+    expect(selectedWorkPostalCode(colonia, postalData)).toEqual({
+      error: 'Postal code 65600 is not in the scored postal-code layer',
+    })
+  })
+
+  it('keeps the CDMX message for an area without a postal code', () => {
+    const colonia = feature({ area_unit: 'colonia', area_id: 'Roma Norte' })
+    const expected = { error: 'Selected area does not have a postal code' }
+    expect(selectedWorkPostalCode(colonia, postalData)).toEqual(expected)
+    expect(selectedWorkPostalCode(colonia, null)).toEqual(expected)
+  })
+
+  it('waits for the postal-code layer like the typed postal code does', () => {
+    expect(selectedWorkPostalCode(feature({ postal_code: '64000' }), null)).toEqual({
+      error: 'Postal-code layer is still loading',
+    })
   })
 })

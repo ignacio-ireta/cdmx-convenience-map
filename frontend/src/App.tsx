@@ -26,7 +26,6 @@ import type {
   AreaProperties,
   AreaUnit,
   MetricKey,
-  RawAreaFeatureCollection,
   ScoreMetadata,
   SearchMatch,
   StorePreferenceKey,
@@ -43,6 +42,7 @@ import {
   formatMeters,
   formatMinutes,
   formatSource,
+  formatSourceWithFallback,
   formatTransitComplexity,
   scoreFigure,
   scoreText,
@@ -50,6 +50,7 @@ import {
   transitStopLabel,
   verdict,
 } from './lib/format'
+import { loadAreaCollection } from './lib/areaData'
 import { buildLocator } from './lib/locator'
 import { normalizeAreaCollection, normalizePostalCode } from './lib/normalize'
 import { fetchRoutedWorkTimes, loadMatrixIndex } from './lib/routingMatrix'
@@ -63,12 +64,31 @@ import {
 } from './lib/search'
 import { buildPreferenceScoreModel } from './lib/score-math'
 import {
+  DEFAULT_SCORED_LABEL,
+  formatCount,
+  formatCrimeDensity,
+  formatCrimeRecordsTotal,
+  formatRatePer100k,
+  formatSafetyStatistic,
+  formatStatisticsIncidents,
+  formatStatisticsPeriod,
+  incidentWindowLabel,
+  safetyAuditSuffix,
+  safetyMethodNote,
+  safetyMetricDetail,
+  safetyReportLines,
+  safetyScopeNote,
+  scoredCrimesDefinition,
+} from './lib/safety'
+import {
   buildWorkModel,
+  findWorkPostalFeature,
   getWorkDistance,
   getWorkName,
   getWorkScore,
   getWorkSource,
   getWorkTime,
+  selectedWorkPostalCode,
 } from './lib/work'
 import {
   getAmenitySource,
@@ -118,6 +138,8 @@ function App() {
   const [workCodeError, setWorkCodeError] = useState('')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [loadError, setLoadError] = useState('')
+  // Bumped when a unit is re-selected after its load failed, so the scores effect refetches.
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const data = datasets[selectedAreaUnit] ?? null
   const postalData = datasets.postal_code ?? null
   const selectedGeography =
@@ -137,14 +159,8 @@ function App() {
     if (cached) return
 
     let cancelled = false
-    fetch(city.assets.scores[selectedAreaUnit])
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`GeoJSON request failed: ${response.status}`)
-        }
-        return response.json()
-      })
-      .then((payload: RawAreaFeatureCollection) => {
+    loadAreaCollection(city.assets.scores[selectedAreaUnit])
+      .then((payload) => {
         if (cancelled) return
         const normalized = normalizeAreaCollection(payload, city.postalWidth)
         setDatasets((current) => ({
@@ -160,7 +176,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [city, datasets, selectedAreaUnit])
+  }, [city, datasets, selectedAreaUnit, loadAttempt])
 
   useEffect(() => {
     fetch(city.assets.metadata[selectedAreaUnit])
@@ -182,13 +198,7 @@ function App() {
 
   const workFeature = useMemo(() => {
     if (!postalData || !workPostalCode) return null
-    return (
-      postalData.features.find(
-        (feature) =>
-          feature.properties.area_unit === 'postal_code' &&
-          feature.properties.postal_code === workPostalCode,
-      ) ?? null
-    )
+    return findWorkPostalFeature(postalData, workPostalCode)
   }, [postalData, workPostalCode])
 
   // Immediate, synchronous straight-line model for a custom workplace.
@@ -206,16 +216,26 @@ function App() {
   // If a precomputed routed matrix covers the selected workplace, overlay real
   // routed times asynchronously. Absent matrix (or cross-unit workplace) keeps the
   // labeled straight-line estimate. See lib/routingMatrix.ts.
-  const [routedWork, setRoutedWork] = useState<{ unit: AreaUnit; model: WorkModel } | null>(null)
+  const [routedWork, setRoutedWork] = useState<{
+    cityId: string
+    unit: AreaUnit
+    model: WorkModel
+  } | null>(null)
   useEffect(() => {
-    if (!data || !workFeature) return
+    const indexUrl = city.assets.matrixIndex[selectedAreaUnit]
+    if (!data || !workFeature || !indexUrl) return
     let cancelled = false
     void (async () => {
-      const index = await loadMatrixIndex(selectedAreaUnit)
+      const index = await loadMatrixIndex(indexUrl)
       if (cancelled || !index) return
-      const routedTimes = await fetchRoutedWorkTimes(index, workFeature.properties.area_id)
+      const routedTimes = await fetchRoutedWorkTimes(
+        index,
+        workFeature.properties.area_id,
+        indexUrl,
+      )
       if (cancelled || !routedTimes) return
       setRoutedWork({
+        cityId: city.id,
         unit: selectedAreaUnit,
         model: buildWorkModel(data, workFeature, routedTimes),
       })
@@ -223,21 +243,23 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [data, workFeature, selectedAreaUnit])
+  }, [city, data, workFeature, selectedAreaUnit])
 
-  // Use the routed model only when it matches the current view + workplace; a stale
-  // routed model (different unit/workplace, or still loading) falls back to haversine.
+  // Use the routed model only when it matches the current city, view and workplace;
+  // a stale routed model (different city/unit/workplace, or still loading) falls
+  // back to haversine.
   const workModel =
     routedWork &&
     workFeature &&
+    routedWork.cityId === city.id &&
     routedWork.unit === selectedAreaUnit &&
     routedWork.model.areaId === workFeature.properties.area_id
       ? routedWork.model
       : haversineWorkModel
 
   const preferenceScoreModel = useMemo(() => {
-    return data ? buildPreferenceScoreModel(data, city.stores) : null
-  }, [data, city.stores])
+    return data ? buildPreferenceScoreModel(data, city.stores, city.transit) : null
+  }, [data, city.stores, city.transit])
 
   const locator = useMemo(() => (data ? buildLocator(data) : null), [data])
   const selectedMetricLabel =
@@ -259,6 +281,7 @@ function App() {
         preferenceScoreModel,
         selectedStores,
         selectedTransitAccess,
+        city.transit,
       )
     : 0
 
@@ -278,6 +301,7 @@ function App() {
             preferenceScoreModel,
             selectedStores,
             selectedTransitAccess,
+            city.transit,
           ) -
           getScore(
             a.properties,
@@ -290,6 +314,7 @@ function App() {
             preferenceScoreModel,
             selectedStores,
             selectedTransitAccess,
+            city.transit,
           ),
       )
       .slice(0, 100)
@@ -304,6 +329,7 @@ function App() {
     preferenceScoreModel,
     selectedStores,
     selectedTransitAccess,
+    city.transit,
   ])
 
   const trimmedSearchQuery = query.trim()
@@ -330,6 +356,25 @@ function App() {
 
   const searchResults = searchMatches.slice(0, 12)
 
+  const scoredLabel = metadata?.crime?.scored_label || DEFAULT_SCORED_LABEL
+  // A safetyWindowLabel city names its incident window ("Sep 2024 – Aug 2025")
+  // instead of saying "recent"; undefined keeps CDMX's strings.
+  const incidentWindow =
+    city.scoresSafety && city.safetyMode === 'incident_points' && city.safetyWindowLabel
+      ? incidentWindowLabel(metadata?.crime)
+      : undefined
+  const safetyDetail =
+    selected && city.scoresSafety
+      ? safetyMetricDetail(selected.properties, city.safetyMode, scoredLabel, incidentWindow)
+      : null
+  // Long safety readings (a named window, a buffer, a long scored-crime label)
+  // stack value over context instead of truncating it.
+  const stackSafetyDetail = city.safetyMode === 'city_statistics' || incidentWindow !== undefined
+  const scoredCrimes =
+    city.safetyMode === 'city_statistics' ? scoredCrimesDefinition(metadata?.crime) : undefined
+  const safetyMethod =
+    city.safetyMode === 'city_statistics' ? safetyMethodNote(metadata?.crime) : undefined
+
   const topListCopyText = useMemo(() => {
     const metricLabel =
       METRICS.find((metric) => metric.key === selectedMetric)?.label ?? selectedMetric
@@ -352,6 +397,7 @@ function App() {
           preferenceScoreModel,
           selectedStores,
           selectedTransitAccess,
+          city.transit,
         ),
       )
       return `${index + 1}\t${areaFullLabel(feature.properties, city.postalPrefix)}\t${areaUnitLabel(feature.properties.area_unit)}\t${score}`
@@ -370,23 +416,31 @@ function App() {
         city.stores,
         selectedStores,
         selectedTransitAccess,
+        city.transit,
       )}`,
       `Work location: ${workplaceLabel}`,
       `Weights: ${weightSummary(weights)}`,
       `Store brands: ${selectedStoreLabel(city.stores, selectedStores)}`,
-      `Transit access methods: ${selectedTransitLabel(selectedTransitAccess)}`,
+      `Transit access methods: ${selectedTransitLabel(selectedTransitAccess, city.transit)}`,
       `Search query: ${trimmedSearchQuery || 'all areas'}`,
       `Copied results: top ${rows.length} of ${data?.features.length ?? rows.length} ${selectedGeography.pluralLabel.toLocaleLowerCase()}`,
       `Transit data: ${city.transitSourceLabel} (${metadata?.point_counts?.transit_stops ?? 'n/a'} points)`,
       `Stores: ${metadata?.point_counts?.supermarkets ?? 'n/a'} OSM/seed points; mode ${supermarketMode}`,
-      `Gyms: ${metadata?.point_counts?.gyms ?? 'n/a'} OSM/seed points; mode ${gymMode}`,
-      `Amenity travel time: ${formatSource(metadata?.amenity_travel_time?.source)}`,
-      `Work travel time: ${formatSource(metadata?.travel_time?.source)}`,
+      `Gyms: ${metadata?.point_counts?.gyms ?? 'n/a'} ${city.gymsSourceLabel ?? 'OSM/seed'} points; mode ${gymMode}`,
+      `Amenity travel time: ${formatSourceWithFallback(
+        metadata?.amenity_travel_time?.source,
+        metadata?.amenity_travel_time?.fallback_source,
+      )}`,
+      `Work travel time: ${formatSourceWithFallback(
+        metadata?.travel_time?.source,
+        metadata?.travel_time?.fallback_source,
+      )}`,
       `Crime window: ${
         city.scoresSafety
           ? `${metadata?.crime?.recent_start_date ?? 'n/a'} to ${metadata?.crime?.latest_date ?? 'n/a'}`
           : city.safetySource
       }`,
+      ...(city.scoresSafety ? safetyReportLines(city.safetyMode, metadata?.crime) : []),
       '',
       'Rank\tArea\tType\tScore',
       ...rows,
@@ -445,6 +499,7 @@ function App() {
           preferenceScoreModel,
           selectedStores,
           selectedTransitAccess,
+          city.transit,
         )
       : 0
     return {
@@ -468,6 +523,7 @@ function App() {
       preferenceScoreModel,
       selectedStores,
       selectedTransitAccess,
+      city.transit,
     )
     layer.on({
       click: () => focusAreaFeature(feature),
@@ -520,6 +576,7 @@ function App() {
 
   function selectAreaUnit(areaUnit: AreaUnit) {
     setSelectedAreaUnit(areaUnit)
+    if (loadError) setLoadAttempt((attempt) => attempt + 1)
     setLoadError('')
     setQuery('')
     setSelectedFocus(null)
@@ -533,11 +590,7 @@ function App() {
       return
     }
     const normalized = normalizePostalCode(workCodeDraft)
-    const match = postalData.features.find(
-      (feature) =>
-        feature.properties.area_unit === 'postal_code' &&
-        feature.properties.postal_code === normalized,
-    )
+    const match = findWorkPostalFeature(postalData, normalized)
     if (!match) {
       setWorkCodeError(`Postal code ${normalized || workCodeDraft} was not found`)
       return
@@ -549,13 +602,15 @@ function App() {
 
   function useSelectedForWork() {
     if (!selected) return
-    const postalCode = selected.properties.postal_code
-    if (!postalCode) {
-      setWorkCodeError('Selected area does not have a postal code')
+    // Same lookup as applyWorkPostalCode: a colonia's postal code may be one the
+    // scored postal-code layer lacks, which must not leave the default silently.
+    const result = selectedWorkPostalCode(selected, postalData)
+    if ('error' in result) {
+      setWorkCodeError(result.error)
       return
     }
-    setWorkPostalCode(postalCode)
-    setWorkCodeDraft(postalCode)
+    setWorkPostalCode(result.postalCode)
+    setWorkCodeDraft(result.postalCode)
     setWorkCodeError('')
   }
 
@@ -662,7 +717,7 @@ function App() {
         <form className="search-form" onSubmit={handleSearch}>
           <Search aria-hidden="true" />
           <input
-            aria-label="Search postal codes, colonias, or alcaldias"
+            aria-label="Search areas"
             type="search"
             placeholder="Find postal code or area"
             value={query}
@@ -702,6 +757,7 @@ function App() {
                             preferenceScoreModel,
                             selectedStores,
                             selectedTransitAccess,
+                            city.transit,
                           ),
                         )}
                       </em>
@@ -903,14 +959,21 @@ function App() {
             <div>
               <dt>Amenity time</dt>
               <dd>
-                {formatSource(metadata?.amenity_travel_time?.source)} ·{' '}
-                {metadata?.amenity_travel_time?.candidate_count ?? 'n/a'} candidates
+                {formatSourceWithFallback(
+                  metadata?.amenity_travel_time?.source,
+                  metadata?.amenity_travel_time?.fallback_source,
+                )}{' '}
+                · {metadata?.amenity_travel_time?.candidate_count ?? 'n/a'} candidates
               </dd>
             </div>
             <div>
               <dt>Work time</dt>
               <dd>
-                {formatSource(metadata?.travel_time?.source)} ·{' '}
+                {formatSourceWithFallback(
+                  metadata?.travel_time?.source,
+                  metadata?.travel_time?.fallback_source,
+                )}{' '}
+                ·{' '}
                 {metadata?.workplace?.postal_code
                   ? `${city.postalPrefix}${metadata.workplace.postal_code}`
                   : 'configured workplace'}
@@ -918,14 +981,17 @@ function App() {
             </div>
             <div>
               <dt>Gyms</dt>
-              <dd>OSM Overpass · {metadata?.point_counts?.gyms ?? 'n/a'} points</dd>
+              <dd>
+                {city.gymsSourceLabel ?? 'OSM Overpass'} · {metadata?.point_counts?.gyms ?? 'n/a'}{' '}
+                points
+              </dd>
             </div>
             <div>
               <dt>Crime</dt>
               <dd>
                 {city.safetySource}
-                {city.id === 'cdmx'
-                  ? ` · ${metadata?.crime?.records_recent_12m ?? 'n/a'} recent records`
+                {city.scoresSafety
+                  ? safetyAuditSuffix(city.safetyMode, metadata?.crime, incidentWindow)
                   : ''}
               </dd>
             </div>
@@ -964,6 +1030,9 @@ function App() {
                   <p className="area-title">
                     {areaFullLabel(selected.properties, city.postalPrefix)}
                   </p>
+                  {city.showPostalLabel && selected.properties.postal_label ? (
+                    <p className="muted area-label">{selected.properties.postal_label}</p>
+                  ) : null}
                   <p className="muted">
                     {areaUnitLabel(selected.properties.area_unit)} · {selectedMetricLabel}
                   </p>
@@ -994,17 +1063,30 @@ function App() {
                 <MetricRow
                   label={
                     city.transit.length > 0
-                      ? `Transit access (${selectedTransitLabel(selectedTransitAccess)})`
+                      ? `Transit access (${selectedTransitLabel(selectedTransitAccess, city.transit)})`
                       : 'Transit access'
                   }
                   score={getTransitAccessScore(
                     selected.properties,
                     preferenceScoreModel,
                     selectedTransitAccess,
+                    city.transit,
                   )}
-                  distance={getTransitAccessDistance(selected.properties, selectedTransitAccess)}
-                  nearest={getTransitAccessNearestName(selected.properties, selectedTransitAccess)}
-                  source={getTransitAccessSource(selected.properties, selectedTransitAccess)}
+                  distance={getTransitAccessDistance(
+                    selected.properties,
+                    selectedTransitAccess,
+                    city.transit,
+                  )}
+                  nearest={getTransitAccessNearestName(
+                    selected.properties,
+                    selectedTransitAccess,
+                    city.transit,
+                  )}
+                  source={getTransitAccessSource(
+                    selected.properties,
+                    selectedTransitAccess,
+                    city.transit,
+                  )}
                 />
                 {hasTransitCommute(selected.properties) ? (
                   <MetricRow
@@ -1051,15 +1133,14 @@ function App() {
                     selected.properties.nearest_gym_source,
                   )}
                 />
-                {city.scoresSafety ? (
+                {safetyDetail ? (
                   <MetricRow
                     label="Safety"
                     score={selected.properties.score_safety}
-                    value={`${selected.properties.crime_incidents_recent_12m ?? 0} recent incidents`}
-                    nearest={
-                      selected.properties.crime_top_category_recent_12m || 'No recent category'
-                    }
+                    value={safetyDetail.value}
+                    nearest={safetyDetail.nearest}
                     source={selected.properties.crime_source}
+                    stacked={stackSafetyDetail}
                   />
                 ) : null}
               </div>
@@ -1145,14 +1226,56 @@ function App() {
                     </div>
                   </>
                 ) : null}
-                {city.scoresSafety ? (
-                  <div>
-                    <dt>Crime density</dt>
-                    <dd>
-                      {(selected.properties.crime_density_recent_12m_per_km2 ?? 0).toFixed(1)}
-                      /km2
-                    </dd>
-                  </div>
+                {city.scoresSafety && city.safetyMode === 'city_statistics' ? (
+                  <>
+                    <div>
+                      <dt>Municipal rate</dt>
+                      <dd>{formatSafetyStatistic(selected.properties, scoredLabel)}</dd>
+                    </div>
+                    <div>
+                      <dt>Total rate (all crimes)</dt>
+                      <dd>
+                        {formatRatePer100k(selected.properties.crime_total_rate_per_100k_12m)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Top category</dt>
+                      <dd>{selected.properties.crime_top_category_recent_12m || 'n/a'}</dd>
+                    </div>
+                    <div>
+                      <dt>Statistics period</dt>
+                      <dd>{formatStatisticsPeriod(selected.properties.crime_statistics_period)}</dd>
+                    </div>
+                    <div className="raw-note">
+                      <dt>Safety scope</dt>
+                      <dd>{safetyScopeNote(selected.properties, selectedGeography.pluralLabel)}</dd>
+                    </div>
+                    {scoredCrimes ? (
+                      <div className="raw-note">
+                        <dt>Scored crimes</dt>
+                        <dd>{scoredCrimes}</dd>
+                      </div>
+                    ) : null}
+                    {safetyMethod ? (
+                      <div className="raw-note">
+                        <dt>Safety method</dt>
+                        <dd>{safetyMethod}</dd>
+                      </div>
+                    ) : null}
+                  </>
+                ) : city.scoresSafety ? (
+                  <>
+                    <div>
+                      <dt>Crime density</dt>
+                      <dd>{formatCrimeDensity(selected.properties, incidentWindow)}</dd>
+                    </div>
+                    {incidentWindow ? (
+                      <div>
+                        <dt>Crime window</dt>
+                        <dd>{incidentWindow}</dd>
+                      </div>
+                    ) : null}
+                  </>
                 ) : null}
                 <div>
                   <dt>Drive to work</dt>
@@ -1166,10 +1289,21 @@ function App() {
                   <dt>Bike to work</dt>
                   <dd>{formatMinutes(selected.properties.time_work_biking_min)}</dd>
                 </div>
-                {city.scoresSafety ? (
+                {city.scoresSafety && city.safetyMode === 'city_statistics' ? (
+                  <>
+                    <div>
+                      <dt>Municipal incidents</dt>
+                      <dd>{formatStatisticsIncidents(selected.properties, scoredLabel)}</dd>
+                    </div>
+                    <div>
+                      <dt>Municipal population</dt>
+                      <dd>{formatCount(selected.properties.crime_scope_population)}</dd>
+                    </div>
+                  </>
+                ) : city.scoresSafety ? (
                   <div>
-                    <dt>All FGJ records</dt>
-                    <dd>{selected.properties.crime_incidents_total ?? 0}</dd>
+                    <dt>{city.safetyRecordsLabel ?? 'All crime records'}</dt>
+                    <dd>{formatCrimeRecordsTotal(selected.properties, incidentWindow)}</dd>
                   </div>
                 ) : null}
               </dl>
@@ -1252,6 +1386,7 @@ function App() {
                 preferenceScoreModel,
                 selectedStores,
                 selectedTransitAccess,
+                city.transit,
               )
               return (
                 <li key={`${feature.properties.area_unit}-${feature.properties.area_id}`}>
@@ -1307,6 +1442,7 @@ function MetricRow({
   nearest,
   score,
   source,
+  stacked = false,
   value,
 }: {
   distance?: number
@@ -1314,6 +1450,8 @@ function MetricRow({
   nearest?: string
   score?: number
   source?: string
+  // Value and context on their own lines, wrapping, for long readings.
+  stacked?: boolean
   value?: string
 }) {
   const boundedScore =
@@ -1329,7 +1467,7 @@ function MetricRow({
       <div className="score-bar" aria-hidden="true">
         <i style={{ width: `${boundedScore}%` }} />
       </div>
-      <div className="metric-row-bottom">
+      <div className={stacked ? 'metric-row-bottom stacked' : 'metric-row-bottom'}>
         <span>{value ?? formatMeters(distance ?? Number.NaN)}</span>
         <span>{nearest || 'n/a'}</span>
       </div>

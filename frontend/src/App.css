@@ -648,6 +648,11 @@
   margin-top: 6px;
 }
 
+/* The postal code's colonias ("Del Valle, Jardines del Valle +6"). */
+.area-label {
+  overflow-wrap: anywhere;
+}
+
 .score-header strong {
   display: flex;
   flex: 0 0 auto;
@@ -722,6 +727,23 @@
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A long reading (a named data window, a buffer, a long scored-crime label):
+   value over context, each wrapping, instead of truncating the context. */
+.metric-row-bottom.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.metric-row-bottom.stacked span:first-child,
+.metric-row-bottom.stacked span:last-child {
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: normal;
 }
 
 .metric-source {

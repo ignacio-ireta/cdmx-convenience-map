@@ -5,7 +5,7 @@ import {
   TRANSIT_ACCESS_OPTIONS,
   WORK_MODES,
 } from '../constants'
-import type { StoreOption } from '../types'
+import type { StoreOption, TransitAccessOption } from '../types'
 import type {
   AmenityMode,
   AreaProperties,
@@ -32,6 +32,7 @@ export function getScore(
   preferenceScoreModel: PreferenceScoreModel | null,
   selectedStores: StorePreferenceKey[],
   selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ) {
   if (metric !== 'combined') {
     if (metric === 'work') return getWorkScore(properties, workModel, workMode)
@@ -41,7 +42,12 @@ export function getScore(
     }
     if (metric === 'gyms') return getGymScore(properties, gymMode)
     if (metric === 'transit') {
-      return getTransitAccessScore(properties, preferenceScoreModel, selectedTransitAccess)
+      return getTransitAccessScore(
+        properties,
+        preferenceScoreModel,
+        selectedTransitAccess,
+        transitOptions,
+      )
     }
     return Number(properties[SCORE_FIELDS[metric]]) || 0
   }
@@ -60,7 +66,12 @@ export function getScore(
           : key === 'gyms'
             ? getGymScore(properties, gymMode)
             : key === 'transit'
-              ? getTransitAccessScore(properties, preferenceScoreModel, selectedTransitAccess)
+              ? getTransitAccessScore(
+                  properties,
+                  preferenceScoreModel,
+                  selectedTransitAccess,
+                  transitOptions,
+                )
               : Number(properties[SCORE_FIELDS[key as WeightKey]]) || 0
     return sum + score * (weight / total)
   }, 0)
@@ -92,6 +103,7 @@ export function getTransitAccessScore(
   properties: AreaProperties,
   preferenceScoreModel: PreferenceScoreModel | null,
   selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ) {
   const selectedScore = preferenceScoreModel
     ? averageSelectedScores(
@@ -102,7 +114,7 @@ export function getTransitAccessScore(
     : undefined
   if (typeof selectedScore === 'number') return selectedScore
   if (selectedTransitAccess.length === 1) {
-    const option = TRANSIT_ACCESS_OPTIONS.find((item) => item.key === selectedTransitAccess[0])
+    const option = transitOptions.find((item) => item.key === selectedTransitAccess[0])
     const score = option ? Number(properties[option.scoreField]) : Number.NaN
     if (Number.isFinite(score)) return score
   }
@@ -140,8 +152,11 @@ export function selectedStoreLabel(
   return selectedOptionLabels(storeOptions, selectedStores) || 'No stores'
 }
 
-export function selectedTransitLabel(selectedTransitAccess: TransitAccessKey[]) {
-  return selectedOptionLabels(TRANSIT_ACCESS_OPTIONS, selectedTransitAccess) || 'No transit'
+export function selectedTransitLabel(
+  selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
+) {
+  return selectedOptionLabels(transitOptions, selectedTransitAccess) || 'No transit'
 }
 
 function getSingleStoreOption(storeOptions: StoreOption[], selectedStores: StorePreferenceKey[]) {
@@ -149,9 +164,12 @@ function getSingleStoreOption(storeOptions: StoreOption[], selectedStores: Store
   return storeOptions.find((option) => option.key === selectedStores[0])
 }
 
-function getSingleTransitAccessOption(selectedTransitAccess: TransitAccessKey[]) {
+function getSingleTransitAccessOption(
+  selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[],
+) {
   if (selectedTransitAccess.length !== 1) return undefined
-  return TRANSIT_ACCESS_OPTIONS.find((option) => option.key === selectedTransitAccess[0])
+  return transitOptions.find((option) => option.key === selectedTransitAccess[0])
 }
 
 export function getStoreDetailValue(
@@ -198,8 +216,9 @@ export function getStoreSource(
 export function getTransitAccessDistance(
   properties: AreaProperties,
   selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ) {
-  const option = getSingleTransitAccessOption(selectedTransitAccess)
+  const option = getSingleTransitAccessOption(selectedTransitAccess, transitOptions)
   return option
     ? (properties[option.distanceField] as number | undefined)
     : properties.dist_transit_m
@@ -208,8 +227,9 @@ export function getTransitAccessDistance(
 export function getTransitAccessNearestName(
   properties: AreaProperties,
   selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ) {
-  const option = getSingleTransitAccessOption(selectedTransitAccess)
+  const option = getSingleTransitAccessOption(selectedTransitAccess, transitOptions)
   return option
     ? (properties[option.nearestNameField] as string | undefined)
     : properties.nearest_transit_name
@@ -218,8 +238,9 @@ export function getTransitAccessNearestName(
 export function getTransitAccessSource(
   properties: AreaProperties,
   selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ) {
-  const option = getSingleTransitAccessOption(selectedTransitAccess)
+  const option = getSingleTransitAccessOption(selectedTransitAccess, transitOptions)
   return option
     ? (properties[option.nearestSourceField] as string | undefined)
     : properties.nearest_transit_source
@@ -252,6 +273,7 @@ export function scoreModeSummary(
   storeOptions: StoreOption[],
   selectedStores: StorePreferenceKey[],
   selectedTransitAccess: TransitAccessKey[],
+  transitOptions: TransitAccessOption[] = TRANSIT_ACCESS_OPTIONS,
 ) {
   if (selectedMetric === 'work') {
     const mode = WORK_MODES.find((item) => item.key === workMode)?.label ?? workMode
@@ -267,10 +289,10 @@ export function scoreModeSummary(
     return 'Transit commute scored by offline stop-pair approximation'
   }
   if (selectedMetric === 'combined') {
-    return `Combined score using work ${workMode}, transit ${selectedTransitLabel(selectedTransitAccess)}, stores ${supermarketMode} (${selectedStoreLabel(storeOptions, selectedStores)}), gyms ${gymMode}`
+    return `Combined score using work ${workMode}, transit ${selectedTransitLabel(selectedTransitAccess, transitOptions)}, stores ${supermarketMode} (${selectedStoreLabel(storeOptions, selectedStores)}), gyms ${gymMode}`
   }
   if (selectedMetric === 'transit') {
-    return `Transit access scored by ${selectedTransitLabel(selectedTransitAccess)}`
+    return `Transit access scored by ${selectedTransitLabel(selectedTransitAccess, transitOptions)}`
   }
   return 'Single metric score'
 }
