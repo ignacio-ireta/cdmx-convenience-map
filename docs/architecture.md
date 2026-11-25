@@ -14,7 +14,7 @@ only renders pre-computed GeoJSON. There is no runtime backend.
                  │   CDMX, FGJ)        crime, transit)                                           │
                  └──────────────────────────────────────────────┬──────────────────────────────┘
                                                                  ▼
-                              frontend/public/data/scores_<unit>.geojson + score_metadata_*.json
+                  frontend/public/data/[<city>/]scores_<unit>.geojson + score_metadata_*.json
                                                                  ▼
                  ┌──────────────────────── React + TS + Leaflet (Vite) ────────────────────────┐
                  │  fetch+normalize → in-browser re-scoring (weights, work loc, modes) → map    │
@@ -32,18 +32,28 @@ GeoJSON.
 
 - **`sources/`** — one module per open-data source (postal codes, colonias,
   transit, supermarkets, gyms, crime) plus shared `http`/`overpass` clients with
-  bounded retries and committed-seed fallback for OSM sources.
+  bounded retries and committed-seed fallback for OSM sources. A city profile's
+  `fetchers` list picks the modules. The Mexican metro fetchers
+  (`fetch_mx_postal_codes`, `fetch_mx_colonias`, `fetch_nl_transit`,
+  `fetch_gtfs_transit`, `fetch_denue_gyms`, `fetch_sesnsp_crime_statistics`,
+  `fetch_iieg_crime`) share `mx_common`: validated, atomic downloads into the
+  gitignored raw cache, and state-wide INEGI and SEPOMEX layers cached once and
+  trimmed per city. See `data-pipeline.md`.
 - **`scoring/`** — `areas` (load/normalize geometries), `points` (nearest /
   candidate routing), `metrics` (distance & inverse-density scores, travel-time
-  estimates), `crime` (spatial aggregation), `transit` (stop-pair approximation +
-  optional r5py overlay, with the commute models in `transit_commute/`), and
-  `engine.score_areas()` which assembles the contract.
+  estimates), `crime` (two modes: per-area incident density, optionally over a
+  buffer, or per-municipality rates in `city_statistics` mode), `transit`
+  (stop-pair approximation + optional r5py overlay, with the commute models in
+  `transit_commute/`), `notes` (per-city metadata wording; CDMX keeps its exact
+  strings), and `engine.score_areas()` which assembles the contract.
 - **`routing/`** — opt-in offline road routing for work/amenity travel times: a
   `Router` Protocol, the `ValhallaRouter` adapter (in-process `pyvalhalla`), a
   keyed `RoutingCache`, and the area-to-area matrix codec/builder. Off by default
   (straight-line fallback); separate from schedule-aware transit. See
   `docs/road-routing.md`.
-- **`output/`** — `geojson` (atomic writes) and `metadata`.
+- **`output/`** — `geojson` (atomic writes), `metadata`, and `parts` (publishes a
+  unit with `public_part_max_bytes` as ordered part files plus an index, so no
+  public file reaches the 10 MB pre-commit limit; see `data-contract.md`).
 - **`pipeline.py`** — `run_pipeline` orchestrates a city run: per-source failure
   isolation (one failed source does not stop the rest unless `--fail-fast`),
   `--resume` (skip sources whose output already exists), clean handling of
@@ -65,6 +75,15 @@ fetches the score GeoJSON + metadata, normalizes raw properties to a typed
 work location, travel mode, and store/transit preferences — so interaction needs
 no server. After Phase 5 the monolithic `App.tsx` is decomposed into
 `types`/`constants`, `lib/*` pure helpers, `hooks/*`, and `components/*`.
+
+Each city is a `CityConfig` in `constants.ts`: theme, map view, default weights,
+geographies, store and transit toggles, asset paths (`cityDataAssets`), source
+labels, and `safetyMode` (`incident_points` or `city_statistics`). App code
+reads these instead of branching on the city id (the only CDMX special case is
+that its URL has no `?city=`). `lib/safety.ts` formats the two
+safety modes, `lib/routingMatrix.ts` loads the selected city's matrix index, and
+`lib/areaData.ts` loads a unit's scores from one GeoJSON file or from a parts
+index and its parts (Monterrey and Guadalajara colonias).
 
 Vite builds with a relative `base` (`./`) so the bundle works from a nested path,
 which is what lets it be embedded under `projects/cdmx-map/` on the personal site.

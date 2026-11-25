@@ -166,6 +166,56 @@ Per-area-unit metadata files now include:
 - `transit_commute.failed_areas`
 - `transit_commute.known_limitations`
 
+## Cities With Line Data (Monterrey, Guadalajara)
+
+The approximation above is unchanged, but four opt-in keys in a city's
+`places.json` `transit_commute` block let it use richer stop data. A city that
+declares none of them behaves exactly as before, so CDMX output is unchanged.
+
+```json
+"transit_commute": {
+  "source": "nl_open_data_stop_pair_approximation",
+  "stop_source_label": "Nuevo León open data (STC Metrorrey, IMA)",
+  "engine_label": "stop_pair_approximation",
+  "has_line_data": true,
+  "system_speeds_kmh": { "METRO": 28, "BRT": 18, "TRANSMETRO": 14, "BUS": 14 },
+  "priority_candidate_systems": ["METRO", "BRT"],
+  "priority_candidate_stop_count": 3
+}
+```
+
+- **Line data and multi-line stops.** The Monterrey and Guadalajara stop files
+  carry real line ids: one row per (station, line) for rail and BRT, and for bus
+  stops the sorted route ids joined with `|` (for example
+  `19|20|23|26|39`). Two stops of the same system count as `same_line` when
+  their line sets intersect (split on `|`, trimmed, case-folded); a line without
+  `|` keeps the historical case-insensitive equality. Same-line pairs get the
+  2-minute penalty instead of the 8-minute "same system, different or unknown
+  line" one.
+- **`has_line_data: true`** replaces the limitation "the current {label} cache
+  does not include line/order fields" with: "Line ids come from {label}; stops
+  served by several routes list them joined by '|', and a pair counts as
+  same-line when they share any route." It also strips the
+  `<system label>[ <line>] · ` prefix the new fetchers put on stop names (for
+  example `Metrorrey L2 · Alameda` becomes `Alameda`), and records
+  `has_line_data` in the metadata.
+- **Priority candidate systems.** Dense bus stops otherwise fill the five
+  nearest candidates, so rail and BRT stations are rarely tried. For each
+  system in `priority_candidate_systems`, its `priority_candidate_stop_count`
+  nearest stops are added to the origin and destination candidates (deduplicated)
+  after the usual nearest five. Metadata: `priority_candidates.systems` and
+  `.stop_count`. Monterrey prioritizes `METRO` and `BRT`; Guadalajara `MITREN`
+  and `MIMACRO`; both use 3.
+- **`system_speeds_kmh`.** In-vehicle speed per upper-cased system code,
+  checked before the CDMX defaults and recorded under `speeds_kmh.systems`.
+  Monterrey: METRO 28, BRT 18, TRANSMETRO 14, BUS 14. Guadalajara: MITREN 30,
+  MIMACRO 18, ALIMENTADORA 14, SITREN 14, MITRANSPORTE 14.
+
+Source values: `nl_open_data_stop_pair_approximation` (Monterrey) and
+`setran_gtfs_stop_pair_approximation` (Guadalajara). Both are still stop-pair
+approximations: Guadalajara's GTFS feed has schedules, but the estimate uses
+only its stops and lines.
+
 ## Manual Validation
 
 Regenerate and validate:

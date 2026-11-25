@@ -4,9 +4,10 @@ This project already has a good split between **offline scoring** (Python) and *
 
 > **Implementation status.** Much of this roadmap has shipped. The pipeline is
 > `--city` profile-driven (`data/cities/<id>/{city.json,places.json}`) and now
-> ships two Mexican cities — **CDMX** and **Morelia** — plus five Norwegian cities
-> — **Oslo**, **Bergen**, **Trondheim**, **Stavanger**, and **Drammen** — built
-> with `uv run cdmxmap run --city <id> --area-unit postal_code`.
+> ships nine cities: four Mexican — **CDMX**, **Monterrey**, **Guadalajara**,
+> and **Morelia** — and five Norwegian — **Oslo**, **Bergen**, **Trondheim**,
+> **Stavanger**, and **Drammen** — built with
+> `uv run cdmxmap run --city <id> --area-unit postal_code`.
 > Where sections below propose a `scripts/`-based layout (e.g. `scripts/run_city.py`,
 > `scripts/adapters/<city_id>/`), the realized design is the importable
 > `src/cdmxmap/` package and the `cdmxmap` CLI; the Norwegian area adapter lives at
@@ -14,6 +15,44 @@ This project already has a good split between **offline scoring** (Python) and *
 > `fetch_mx_postal_codes.py`, and the shared OSM transit adapter at
 > `fetch_osm_transit.py`. Treat the rest of this document as the original design
 > sketch, not current file paths.
+
+### Status by city
+
+| City | Area units | Transit source | Safety | Travel times |
+|---|---|---|---|---|
+| CDMX | postal code, colonia | Apimetro (in-code constants) | FGJ incident density | straight-line (routing opt-in) |
+| Monterrey | postal code, colonia | Nuevo León open data (`fetch_nl_transit`) | SESNSP municipal rate (`city_statistics`) | Valhalla free-flow, published |
+| Guadalajara | postal code, colonia | SETRAN Jalisco GTFS (`fetch_gtfs_transit`) | IIEG incident density, 250 m buffer | Valhalla free-flow, published |
+| Morelia | postal code | OpenStreetMap (`fetch_osm_transit`) | not scored | straight-line |
+| Oslo, Bergen, Trondheim, Stavanger, Drammen | postal code | OpenStreetMap (`fetch_no_transit`) | not scored | straight-line |
+
+Monterrey and Guadalajara realize most of the adapter idea in sections 2–5 and 7:
+
+- **Area adapters by administrative unit.** A profile's `mx_area` block names the
+  INEGI state and member municipalities. `fetch_mx_postal_codes` (municipality
+  mode) assigns SEPOMEX polygons to municipalities by largest overlap, and
+  `fetch_mx_colonias` adds INEGI DCAH 2025 colonias as a second area unit
+  (`area_units` in `city.json`). Shared plumbing is in
+  `src/cdmxmap/sources/mx_common.py`.
+- **Transit adapters** write the same `transit_stops.csv` from very different
+  sources (CKAN GeoPackages, GTFS), with the systems declared in the profile's
+  `transit_systems` (`code`, `slug`, `group`, `label`). The frontend reads its
+  toggles from the city's `CityConfig`, so there is no city-specific branch.
+- **Amenity adapters**: `supermarket_classifier` (store families matched in
+  Python) and `gyms_source` (`fetch_denue_gyms`, INEGI DENUE).
+- **Safety adapters**: `crime_mode` selects `incident_points` (CDMX, Guadalajara
+  via `fetch_iieg_crime`) or `city_statistics` (Monterrey via
+  `fetch_sesnsp_crime_statistics`). SESNSP covers every Mexican municipality, so
+  the statistics mode is available to any Mexican city.
+- **Quality gates**: `cdmxmap validate --city <id>` checks the mode-specific
+  crime fields and that every declared transit system has stops; the transit
+  and classifier-v2 store fetchers fail loudly when a declared system or store
+  family comes back empty.
+
+Not done: the per-city `manifest.json` of section 6 (the frontend still keeps
+its city list in `frontend/src/constants.ts`), and a license field in the
+provenance metadata of section 7. Metrorrey Lines 4 and 6 are to be added to
+Monterrey when they carry passengers (target February 2027).
 
 ## 1) Introduce a city profile contract
 

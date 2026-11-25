@@ -12,8 +12,14 @@ tests/
   integration/   # fixture points → score_areas → property contract (+ golden compare)
   e2e/           # build_area + run_pipeline + `cdmxmap` CLI over the fixture city
   fixtures/
-    fixture_city/  # tiny synthetic city (areas.geojson + point CSVs + places.json
-                   # + expected_properties.json golden)
+    fixture_city/        # tiny synthetic city (areas.geojson + point CSVs + places.json
+                         # + expected_properties.json golden, plus the CDMX goldens
+                         # expected_metadata / expected_postal_properties /
+                         # expected_property_order.json)
+    fixture_city_stats/  # synthetic city_statistics city (areas with mun_code +
+                         # crime_statistics.csv) and its goldens
+    mx_amenities/, mx_crime/  # small Overpass / index-page samples for the
+                         # Mexican fetcher tests
 ```
 
 Run:
@@ -50,6 +56,24 @@ UPDATE_GOLDEN=1 uv run pytest tests/integration -m golden
 
 Review the diff carefully — a golden change means the data contract changed, so
 `docs/data-contract.md` and the frontend normalizer must move with it.
+
+`tests/integration/test_cdmx_goldens.py` pins the rest of what CDMX publishes:
+the full metadata dict (minus `generated_at`) by value and key order, the
+postal-code unit's properties, and the property order of every output. Multi-city
+engine work must leave it unchanged. `tests/integration/test_city_statistics.py`
+does the same for the `city_statistics` crime mode over `fixture_city_stats/`.
+`tests/integration/test_public_parts.py` covers parts publishing through
+`build_area` and checks the committed data: every file under
+`frontend/public/data/` must fit the pre-commit `check-added-large-files` limit
+(read from `.pre-commit-config.yaml`; CI does not run pre-commit), and each
+committed parts index must match its parts. `frontend/src/constants.test.ts`
+checks from the frontend side that every city's score and metadata URL is a
+file and that each parts index matches its parts.
+
+The Mexican fetchers (`mx_common`, the INEGI/SEPOMEX geography, Nuevo León and
+GTFS transit, the supermarket classifier, DENUE gyms, SESNSP and IIEG crime) are
+unit-tested offline: the download helper is monkeypatched and inputs come from
+small fixtures built in the test or kept under `tests/fixtures/`.
 
 ## Frontend
 
